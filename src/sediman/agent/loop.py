@@ -23,6 +23,8 @@ from sediman.agent.state import (
     Reflection,
     Strategy,
 )
+from sediman.agent.subagents.factory import SubagentFactory
+from sediman.agent.subagents.registry import SubagentRegistry
 from sediman.agent.tool_dispatch import ToolRegistry
 from sediman.agent.tools import create_agent_tool_registry
 from sediman.browser.session import BrowserSession
@@ -102,8 +104,11 @@ class AgentLoop:
         self._memory = memory_manager or MemoryManager(llm_provider)
         self._memory_initialized = False
         self._pending_review = False
+        self._skill_engine: Any | None = None
         self._skill_learner = SkillLearnerAgent(llm_provider)
         self._skill_auditor = SkillAuditor(llm_provider)
+        self._subagent_registry = SubagentRegistry()
+        self._subagent_factory: SubagentFactory | None = None
 
         saved = _load_agent_state()
         self._iters_since_skill = saved.get("iters_since_skill", 0)
@@ -114,7 +119,27 @@ class AgentLoop:
             self._tool_registry = create_agent_tool_registry()
         return self._tool_registry
 
-    def _get_browser_agent(self) -> BrowserSubagent:
+    def _get_engine(self) -> Any:
+        if self._skill_engine is None:
+            from sediman.skills.engine import SkillEngine
+            self._skill_engine = SkillEngine()
+            self._skill_learner._engine = self._skill_engine
+            self._skill_auditor._engine = self._skill_engine
+        return self._skill_engine
+
+    def _get_subagent_factory(self) -> SubagentFactory:
+        if self._subagent_factory is None:
+            self._subagent_factory = SubagentFactory(
+                registry=self._subagent_registry,
+                llm_provider=self.llm,
+                browser_session=self.browser,
+                tool_registry=self._get_tool_registry(),
+                on_step=self.on_step,
+                flash_mode=self.flash_mode,
+            )
+        return self._subagent_factory
+
+    def _get_browser_agent(self, recording_name: str | None = None) -> BrowserSubagent:
         on_browser_step = None
         if self.on_step:
             browser_step_counter = [0]
@@ -133,6 +158,7 @@ class AgentLoop:
             flash_mode=self.flash_mode,
             on_browser_step=on_browser_step,
             conversation=self._conversation,
+            recording_name=recording_name,
         )
 
     async def run(self, task: str) -> AgentResult:
@@ -158,7 +184,10 @@ class AgentLoop:
 
         episodic_context = None
 
-        plan = await self._manager.plan(task, self._conversation, previous_failure)
+        subagent_summaries = self._subagent_registry.get_summaries()
+        plan = await self._manager.plan(
+            task, self._conversation, previous_failure, subagent_summaries
+        )
         state = self._build_plan_steps(state, plan)
 
         logger.info(
@@ -353,7 +382,8 @@ class AgentLoop:
         self, state: AgentState, step: PlanStep, plan: ManagerPlan
     ) -> None:
         skill_context = self._find_relevant_skills(step.description)
-        browser_agent = self._get_browser_agent()
+        recording_name = self._get_active_recording_name()
+        browser_agent = self._get_browser_agent(recording_name=recording_name)
 
         browser_result: BrowserResult = await browser_agent.run(
             task=step.description,
@@ -467,21 +497,21 @@ class AgentLoop:
         self, state: AgentState, step: PlanStep, plan: ManagerPlan
     ) -> None:
         from sediman.skills.executor import execute_skill
-        from sediman.skills.engine import SkillEngine
 
-        engine = SkillEngine()
+        engine = self._get_engine()
         skill_name = plan.skill_to_use or ""
         skill_data = engine.read(skill_name)
 
         if skill_data:
             try:
-                result = await execute_skill(skill_data, self.browser, self.llm)
+                result = await execute_skill(skill_data, self.browser, self.llm, engine=engine)
                 step.result = result
                 engine.record_usage(skill_name)
             except Exception as e:
                 step.result = f"Skill execution failed: {e}"
         else:
-            browser_agent = self._get_browser_agent()
+            recording_name = self._get_active_recording_name()
+            browser_agent = self._get_browser_agent(recording_name=recording_name)
             browser_result = await browser_agent.run(task=step.description)
             step.result = browser_result.text
             state.actions_taken.extend(browser_result.actions)
@@ -587,6 +617,36 @@ class AgentLoop:
             "skill_review_threshold": self._skill_review_threshold,
         })
 
+    def _get_active_recording_name(self) -> str | None:
+        try:
+            from sediman.agent.recording_manager import RecordingManager
+            mgr = RecordingManager.get_instance()
+            if mgr.is_recording():
+                recorder = mgr.get_active_recorder()
+                if recorder and recorder.session:
+                    return recorder.session.name
+        except Exception:
+            pass
+        return None
+
+    async def _verify_skill(self, skill_name: str) -> bool:
+        try:
+            from sediman.skills.executor import execute_skill
+            engine = self._get_engine()
+            skill_data = engine.read(skill_name)
+            if not skill_data:
+                return False
+            result = await execute_skill(skill_data, self.browser, self.llm, max_retries=0)
+            from sediman.errors import looks_like_error
+            if looks_like_error(result):
+                logger.info("skill_verification_failed", name=skill_name, result=result[:100])
+                return False
+            logger.info("skill_verification_passed", name=skill_name)
+            return True
+        except Exception as e:
+            logger.debug("skill_verification_error", name=skill_name, error=str(e))
+            return False
+
     async def _post_task(self, state: AgentState, plan: ManagerPlan, task: str) -> None:
         # Save auto-created subagent if ManagerAgent designed one
         if plan.create_subagent:
@@ -609,15 +669,27 @@ class AgentLoop:
 
         await self._save_session(task, state.result, state.actions_taken)
 
+        try:
+            from sediman.agent.recording_manager import RecordingManager
+            mgr = RecordingManager.get_instance()
+            if mgr.is_recording():
+                await mgr.drain_active_events()
+        except Exception:
+            pass
+
         all_actions = state.actions_taken
         recorded = self._recorder.record(
             task=task,
             plan=plan,
             browser_result=state.result,
             browser_actions=all_actions,
+            engine=self._get_engine(),
         )
         if recorded:
             state.skill_created = recorded
+            verified = await self._verify_skill(recorded)
+            if not verified:
+                logger.info("auto_recorded_skill_verification_failed", name=recorded)
 
         if not state.skill_created:
             self._iters_since_skill += len(all_actions)
@@ -681,8 +753,7 @@ class AgentLoop:
         result: str,
     ) -> str | None:
         try:
-            from sediman.skills.engine import SkillEngine
-            engine = SkillEngine()
+            engine = self._get_engine()
             existing_skills = engine.list_skills()
 
             learned = await self._skill_learner.review_and_learn(
@@ -777,8 +848,7 @@ Current task: {task}
 Note: Continue from where we left off. Remember what was discussed above."""
 
     def _find_relevant_skills(self, task: str) -> str | None:
-        from sediman.skills.engine import SkillEngine
-        engine = SkillEngine()
+        engine = self._get_engine()
         return engine.get_skill_summaries() or None
 
     async def _save_session(self, task: str, result: str, actions: list[dict[str, Any]]) -> None:
