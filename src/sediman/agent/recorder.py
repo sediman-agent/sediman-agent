@@ -83,9 +83,11 @@ class SkillRecorder:
         words = cleaned.split()[:5]
         if not words:
             return None
-        name = "_".join(words)
-        name = re.sub(r"_+", "_", name).strip("_")
+        name = "-".join(words)
+        name = re.sub(r"-+", "-", name).strip("-")
         if len(name) < 3:
+            return None
+        if not re.match(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$", name):
             return None
         return name
 
