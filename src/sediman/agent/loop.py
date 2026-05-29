@@ -701,8 +701,42 @@ Note: Continue from where we left off. Remember what was discussed above."""
 
     def _find_relevant_skills(self, task: str) -> str | None:
         from sediman.skills.engine import SkillEngine
+
         engine = SkillEngine()
-        return engine.get_skill_summaries() or None
+        skills = engine.list_skills()
+        if not skills:
+            return None
+
+        if len(skills) <= 5:
+            return engine.get_skill_summaries() or None
+
+        stop_words = {
+            "a", "an", "the", "and", "or", "of", "in", "on", "to", "for",
+            "is", "it", "from", "with", "by", "this", "that", "how", "do",
+            "does", "can", "please", "me", "my", "i", "we", "you", "be",
+            "not", "no", "but", "if", "so", "up", "out", "its", "has",
+            "have", "had", "was", "were", "will", "would", "could",
+        }
+
+        task_tokens = set(task.lower().split()) - stop_words
+        if not task_tokens:
+            return engine.get_skill_summaries() or None
+
+        scored: list[tuple[int, dict[str, str]]] = []
+        for skill in skills:
+            searchable = f"{skill['name']} {skill['description']} {skill.get('category', '')}".lower()
+            skill_tokens = set(searchable.split()) - stop_words
+            overlap = len(task_tokens & skill_tokens)
+            if overlap > 0:
+                scored.append((overlap, skill))
+
+        if not scored:
+            return None
+
+        scored.sort(key=lambda pair: pair[0], reverse=True)
+        top_skills = scored[:10]
+        lines = [f"- {s['name']}: {s['description']}" for _, s in top_skills]
+        return "\n".join(lines)
 
     async def _save_session(self, task: str, result: str, actions: list[dict[str, Any]]) -> None:
         try:
