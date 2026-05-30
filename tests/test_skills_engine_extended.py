@@ -16,65 +16,76 @@ def engine(tmp_sediman_dir: Path):
 
 
 class TestFindSimilar:
-    def test_returns_none_when_no_skills(self, engine):
-        result = engine.find_similar("test", "test description")
-        assert result is None
+    @pytest.mark.asyncio
+    async def test_returns_empty_when_no_skills(self, engine):
+        with patch("sediman.skills.search.SkillSearchEngine") as MockSearch:
+            mock_search = MagicMock()
+            mock_search.search = AsyncMock(return_value=[])
+            mock_search.ensure_loaded = AsyncMock(return_value=None)
+            MockSearch.return_value = mock_search
+            result = await engine.find_similar("test description")
+            assert result == []
 
-    def test_finds_exact_name_match(self, engine):
+    @pytest.mark.asyncio
+    async def test_finds_exact_name_match(self, engine):
         engine.create(name="exact-skill", description="does something", steps=["a"])
-        result = engine.find_similar("exact-skill", "does something")
-        assert result is not None
-        assert result["name"] == "exact-skill"
-
-    def test_finds_semantic_match_via_vector_store(self, engine):
-        engine.create(
-            name="search-google",
-            description="Search Google for a given query",
-            steps=["navigate", "input", "click"],
-        )
-
-        with patch("sediman.memory.vector.VectorStore") as MockVectorStore:
-            mock_vs = MagicMock()
-            mock_vs.search.return_value = [
-                {
-                    "text": "search-google: Search Google for a given query",
-                    "score": 0.85,
-                    "metadata": {"name": "search-google"},
-                }
-            ]
-            MockVectorStore.return_value = mock_vs
-
-            result = engine.find_similar(
-                "google-search", "Run a search on Google and get results"
-            )
+        with patch("sediman.skills.search.SkillSearchEngine") as MockSearch:
+            from sediman.skills.search import SkillSearchResult
+            mock_search = MagicMock()
+            mock_search.search = AsyncMock(return_value=[
+                SkillSearchResult(
+                    name="exact-skill",
+                    description="does something",
+                    score=0.95,
+                    scope="internal",
+                    source="local",
+                    path="",
+                )
+            ])
+            mock_search.ensure_loaded = AsyncMock(return_value=None)
+            MockSearch.return_value = mock_search
+            result = await engine.find_similar("exact-skill does something")
             assert result is not None
-            assert result["name"] == "search-google"
+            assert result[0]["name"] == "exact-skill"
 
-    def test_vector_fallback_on_exception(self, engine):
+    @pytest.mark.asyncio
+    async def test_falls_back_to_keyword_on_search_error(self, engine):
         engine.create(name="fallback-test", description="cooking pasta carbonara", steps=["a"])
 
-        with patch("sediman.memory.vector.VectorStore") as MockVectorStore:
-            MockVectorStore.side_effect = ImportError("no module")
+        with patch("sediman.skills.search.SkillSearchEngine") as MockSearch:
+            MockSearch.return_value.search = AsyncMock(side_effect=RuntimeError("broken"))
 
-            result = engine.find_similar("nonexistent", "quantum physics experiments")
-            assert result is None
+            result = await engine.find_similar("quantum physics experiments")
+            # No keyword overlap with "cooking pasta carbonara", so empty
+            assert result == []
 
-    def test_similarity_threshold_filters_low_scores(self, engine):
+    @pytest.mark.asyncio
+    async def test_keyword_fallback_finds_match(self, engine):
         engine.create(
-            name="unrelated",
-            description="Completely different topic about cooking pasta",
+            name="cooking-skill",
+            description="A skill about cooking pasta carbonara",
             steps=["a"],
         )
 
-        with patch("sediman.memory.vector.VectorStore") as MockVectorStore:
-            mock_vs = MagicMock()
-            mock_vs.search.return_value = []
-            MockVectorStore.return_value = mock_vs
+        with patch("sediman.skills.search.SkillSearchEngine") as MockSearch:
+            MockSearch.return_value.search = AsyncMock(side_effect=RuntimeError("broken"))
 
-            result = engine.find_similar(
-                "programming", "Write Python code to sort a list", threshold=0.8
-            )
-            assert result is None
+            result = await engine.find_similar("cooking pasta")
+            assert result is not None
+            assert len(result) > 0
+            assert result[0]["name"] == "cooking-skill"
+
+    @pytest.mark.asyncio
+    async def test_respects_limit(self, engine):
+        engine.create(name="skill-a", description="about cooking food", steps=["a"])
+        engine.create(name="skill-b", description="about baking food", steps=["b"])
+        engine.create(name="skill-c", description="about grilling food", steps=["c"])
+
+        with patch("sediman.skills.search.SkillSearchEngine") as MockSearch:
+            MockSearch.return_value.search = AsyncMock(side_effect=RuntimeError("broken"))
+
+            result = await engine.find_similar("food cooking", limit=2)
+            assert len(result) <= 2
 
 
 class TestVerifyAndRollback:

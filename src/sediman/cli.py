@@ -18,6 +18,7 @@ structlog.configure(
 )
 
 PROVIDER_CHOICES = click.Choice(["openai", "ollama"])
+BROWSER_CHOICES = click.Choice(["browser-use", "openbrowser", "agent-browser"])
 
 
 def _validate_startup(provider: str, model: str | None, base_url: str | None) -> None:
@@ -84,6 +85,13 @@ def main() -> None:
     default=None,
     help="Send result to integration target, e.g. discord:alerts or telegram:admin",
 )
+@click.option(
+    "--browser",
+    "browser_backend",
+    default="browser-use",
+    type=BROWSER_CHOICES,
+    help="Browser backend: browser-use (default), openbrowser, agent-browser",
+)
 def run(
     task: str,
     model: str | None,
@@ -95,6 +103,7 @@ def run(
     stealth: bool,
     proxy: str | None,
     notify: str | None,
+    browser_backend: str,
 ) -> None:
     """Run a one-shot browser task."""
     if verbose:
@@ -108,7 +117,7 @@ def run(
 
     try:
         result = asyncio.run(
-            _run_task(task, model, provider, base_url, headless, timeout, stealth, proxy)
+            _run_task(task, model, provider, base_url, headless, timeout, stealth, proxy, browser_backend)
         )
         if notify and result:
             _send_notification(notify, f"Task result: {task}\n\n{result.result[:1000]}")
@@ -137,6 +146,13 @@ def run(
     help="Use stealth Chromium with anti-detection patches (default: on)",
 )
 @click.option("--proxy", default=None, help="Proxy URL for stealth mode (e.g. http://user:pass@proxy:8080)")
+@click.option(
+    "--browser",
+    "browser_backend",
+    default="browser-use",
+    type=BROWSER_CHOICES,
+    help="Browser backend: browser-use (default), openbrowser, agent-browser",
+)
 def chat(
     model: str | None,
     provider: str,
@@ -144,6 +160,7 @@ def chat(
     headless: bool,
     stealth: bool,
     proxy: str | None,
+    browser_backend: str,
 ) -> None:
     """Interactive agent session with slash commands."""
     _validate_startup(provider, model, base_url)
@@ -152,7 +169,7 @@ def chat(
 
     tui = SedimanTUI(
         provider=provider, model=model, base_url=base_url, headless=headless,
-        stealth=stealth, proxy=proxy,
+        browser_backend=browser_backend,
     )
     try:
         tui.run()
@@ -1414,11 +1431,11 @@ async def _run_task(
     timeout: int | None = None,
     stealth: bool = True,
     proxy: str | None = None,
+    browser_backend: str = "browser-use",
 ) -> AgentResult | None:
     import time
 
     from sediman.agent.loop import AgentLoop, AgentResult
-    from sediman.browser.session import BrowserSession
     from sediman.display import TaskProgress, print_result_panel, print_badges
     from sediman.llm.provider import create_provider
     from sediman.logging import ensure_db
@@ -1430,7 +1447,16 @@ async def _run_task(
     print_startup_banner(provider, model, headless)
 
     llm = create_provider(provider, model, base_url)
-    browser = BrowserSession(headless=headless, stealth=stealth, proxy=proxy)
+
+    if browser_backend == "agent-browser":
+        from sediman.agentbrowser.session import AgentBrowserSession
+        browser = AgentBrowserSession(headless=headless)
+    elif browser_backend == "openbrowser":
+        from sediman.openbrowser.session import OpenBrowserSession
+        browser = OpenBrowserSession(headless=headless)
+    else:
+        from sediman.browser.session import BrowserSession
+        browser = BrowserSession(headless=headless, stealth=stealth, proxy=proxy)
 
     progress = TaskProgress()
     result: AgentResult | None = None

@@ -106,17 +106,17 @@ class TestClassifyTask:
         assert result == "conversational"
 
     @pytest.mark.asyncio
-    async def test_classify_unclear_returns_conversational(self):
+    async def test_classify_unclear_returns_none(self):
         m = self._make_manager("some random text not matching")
         result = await m._classify_task("do something")
-        assert result == "conversational"
+        assert result is None
 
     @pytest.mark.asyncio
-    async def test_classify_error_returns_conversational(self):
+    async def test_classify_error_returns_none(self):
         m = ManagerAgent(llm=MagicMock())
         m.llm.chat = AsyncMock(side_effect=Exception("LLM error"))
         result = await m._classify_task("any task")
-        assert result == "conversational"
+        assert result is None
 
 
 class TestCodingFastPath:

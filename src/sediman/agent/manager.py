@@ -83,17 +83,15 @@ class ManagerAgent:
             elif classification == "browser":
                 return ManagerPlan(browser_task=task)
             elif classification == "conversational":
-                return ManagerPlan(
-                    browser_task="",
-                    strategy=Strategy.CONVERSATIONAL,
-                    response="I'd be happy to help! What would you like me to do?",
-                )
+                pass  # Fall through to LLM plan for actual conversational response
 
         try:
             if on_streaming_token:
                 manager_plan = await self._llm_plan_stream(
                     task, conversation, previous_failure, on_streaming_token
                 )
+                if manager_plan is None:
+                    manager_plan = await self._llm_plan(task, conversation, previous_failure)
             else:
                 manager_plan = await self._llm_plan(task, conversation, previous_failure)
             if manager_plan:
@@ -121,7 +119,7 @@ class ManagerAgent:
             return ManagerPlan(
                 browser_task="",
                 strategy=Strategy.CONVERSATIONAL,
-                response="I'd be happy to help! Could you give me a browser task to work on?",
+                response=None,
             )
 
         return ManagerPlan(browser_task=task)
@@ -391,32 +389,89 @@ class ManagerAgent:
             {"role": "user", "content": task},
         ]
 
-        # Collect streaming response
+        text = await self._collect_llm_response(messages, on_token)
+        if text:
+            json_text = self._extract_json(text)
+            if json_text:
+                try:
+                    data = json.loads(json_text)
+                    plan = self._parse_plan_data(data)
+                    if plan:
+                        return plan
+                except json.JSONDecodeError:
+                    logger.debug("manager_plan_json_parse_failed", text=json_text[:200])
+
+            return ManagerPlan(
+                browser_task="",
+                strategy=Strategy.CONVERSATIONAL,
+                response=text.strip(),
+            )
+
+        return None
+
+    async def _collect_llm_response(
+        self,
+        messages: list[dict[str, Any]],
+        on_token: Callable[[str], None] | None = None,
+    ) -> str | None:
+        """Call the LLM and collect the full response. Tries non-streaming first
+        (most reliable), then falls back to streaming, then tries without system message."""
+        last_error: str | None = None
+
+        try:
+            response = await self.llm.chat(messages=messages, tools=[])
+            response_text = response.text or ""
+            if response_text.strip():
+                if on_token:
+                    for chunk in self._chunk_text(response_text, size=3):
+                        on_token(chunk)
+                return response_text
+        except Exception as e:
+            last_error = str(e)
+            logger.warning("plan_chat_failed, falling back to streaming", error=last_error)
+
         chunks: list[str] = []
         try:
             async for token in self.llm.chat_stream(messages=messages, tools=[]):
                 if token:
                     chunks.append(token)
-                    on_token(token)
+                    if on_token:
+                        on_token(token)
         except Exception as e:
-            logger.debug("plan_stream_failed", error=str(e))
-            return None
+            last_error = last_error or str(e)
+            logger.warning("plan_stream_failed", error=str(e))
 
         text = "".join(chunks)
-        if not text.strip():
-            return None
+        if text.strip():
+            return text
 
-        text = self._extract_json(text)
-        if not text:
-            return None
+        user_content = ""
+        for m in messages:
+            if m.get("role") == "user":
+                user_content = m.get("content", "")
+        if user_content:
+            try:
+                simple_messages = [
+                    {"role": "user", "content": f"Respond conversationally: {user_content}"}
+                ]
+                response = await self.llm.chat(messages=simple_messages, tools=[])
+                response_text = response.text or ""
+                if response_text.strip():
+                    if on_token:
+                        for chunk in self._chunk_text(response_text, size=3):
+                            on_token(chunk)
+                    return response_text
+            except Exception as e:
+                last_error = last_error or str(e)
+                logger.warning("plan_simple_chat_failed", error=str(e))
 
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError:
-            logger.debug("manager_plan_json_parse_failed", text=text[:200])
-            return None
+        if last_error:
+            return f"[LLM error: {last_error[:300]}]"
+        return None
 
-        return self._parse_plan_data(data)
+    @staticmethod
+    def _chunk_text(text: str, size: int = 3) -> list[str]:
+        return [text[i:i + size] for i in range(0, len(text), size)]
 
     def _parse_plan_data(self, data: dict[str, Any]) -> ManagerPlan | None:
         """Parse the JSON dict into a ManagerPlan."""
@@ -496,23 +551,25 @@ class ManagerAgent:
             {"role": "user", "content": task},
         ]
 
-        response = await self.llm.chat(messages=messages, tools=[])
+        text = await self._collect_llm_response(messages)
+        if text:
+            json_text = self._extract_json(text)
+            if json_text:
+                try:
+                    data = json.loads(json_text)
+                    plan = self._parse_plan_data(data)
+                    if plan:
+                        return plan
+                except json.JSONDecodeError:
+                    logger.debug("manager_plan_json_parse_failed", text=json_text[:200])
 
-        text = response.text or ""
-        if not text.strip():
-            return None
+            return ManagerPlan(
+                browser_task="",
+                strategy=Strategy.CONVERSATIONAL,
+                response=text.strip(),
+            )
 
-        text = self._extract_json(text)
-        if not text:
-            return None
-
-        try:
-            data = json.loads(text)
-        except json.JSONDecodeError:
-            logger.debug("manager_plan_json_parse_failed", text=text[:200])
-            return None
-
-        return self._parse_plan_data(data)
+        return None
 
     def _contextualize_browser_task(
         self,
@@ -619,7 +676,7 @@ class ManagerAgent:
         task_lower = task.lower()
         return any(kw in task_lower for kw in self._STRONG_CODING_KEYWORDS)
 
-    async def _classify_task(self, task: str) -> str:
+    async def _classify_task(self, task: str) -> str | None:
         try:
             from sediman.agent.coding_agent.prompts import build_classification_prompt
 
@@ -638,10 +695,10 @@ class ManagerAgent:
                 return "conversational"
             else:
                 logger.debug("classify_task_unclear", response=text[:80])
-                return "conversational"
+                return None
         except Exception as e:
             logger.debug("classify_task_failed", error=str(e))
-            return "conversational"
+            return None
 
     _CODING_KEYWORDS = (
         "install", "pip install", "npm install", "cargo", "yarn add",

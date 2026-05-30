@@ -8,7 +8,7 @@ report, feature idea, and pull request.
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/sediman-ai/sediman-browse.git
+   git clone https://github.com/sediman-agent/sediman-browse.git
    cd sediman-browse
    ```
 

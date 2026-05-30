@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "generated_at": "2026-05-30T06:31:16Z",
+  "generated_at": "2026-05-30T11:55:19Z",
   "stats": {
-    "total": 271,
+    "total": 471,
     "sources": {
       "anthropics/skills": 17,
       "browser-use/browser-use": 4,
@@ -14,7 +14,8 @@
       "huggingface/skills": 15,
       "kostja94/marketing-skills": 171,
       "veniceai/skills": 19,
-      "vercel-labs/skills": 1
+      "vercel-labs/skills": 1,
+      "clawskills.sh": 200
     }
   },
   "skills": [
@@ -5430,6 +5431,3535 @@
         "they",
         "ask",
         "questions"
+      ]
+    },
+    {
+      "name": "0g-compute",
+      "description": "Use cheap, TEE-verified AI models from the 0G Compute Network as OpenClaw providers.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "g-compute",
+        "cheap",
+        "tee-verified",
+        "models",
+        "compute",
+        "network",
+        "openclaw",
+        "providers"
+      ]
+    },
+    {
+      "name": "0protocol",
+      "description": "Agents can sign plugins, rotate credentials without losing identity, and publicly attest to behavior.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "protocol",
+        "agents",
+        "sign",
+        "plugins",
+        "rotate",
+        "credentials",
+        "without",
+        "losing",
+        "identity",
+        "publicly"
+      ]
+    },
+    {
+      "name": "2nd-brain",
+      "description": "Personal knowledge base for capturing and retrieving information about people, places, restaurants, games, tech.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "nd-brain",
+        "personal",
+        "knowledge",
+        "base",
+        "capturing",
+        "retrieving",
+        "information",
+        "about",
+        "people",
+        "places"
+      ]
+    },
+    {
+      "name": "2slides-skills",
+      "description": "AI-powered presentation generation using 2slides API.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "slides-skills",
+        "ai-powered",
+        "presentation",
+        "generation",
+        "using",
+        "slides",
+        "api"
+      ]
+    },
+    {
+      "name": "3d-cog",
+      "description": "Other tools need perfect images.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "d-cog",
+        "tools",
+        "perfect",
+        "images"
+      ]
+    },
+    {
+      "name": "3d-model-generation",
+      "description": "Generate 3D models using each::sense AI.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "d-model-generation",
+        "generate",
+        "models",
+        "using",
+        "sense"
+      ]
+    },
+    {
+      "name": "a",
+      "description": "Live stream as an AI VTuber on Lobster.fun.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "live",
+        "stream",
+        "vtuber",
+        "lobster",
+        "fun"
+      ]
+    },
+    {
+      "name": "aade-api-monitor",
+      "description": "Real-time monitoring of Greek AADE tax authority systems — tracks deadlines, rate changes, and compliance updates.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aade-api-monitor",
+        "real-time",
+        "monitoring",
+        "greek",
+        "aade",
+        "tax",
+        "authority",
+        "systems",
+        "tracks",
+        "deadlines"
+      ]
+    },
+    {
+      "name": "abaddon",
+      "description": "Red team security mode for OpenClaw.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "abaddon",
+        "red",
+        "team",
+        "security",
+        "mode",
+        "openclaw"
+      ]
+    },
+    {
+      "name": "academic-research",
+      "description": "Search academic papers and conduct literature reviews using OpenAlex API (free, no key needed)",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "academic-research",
+        "search",
+        "academic",
+        "papers",
+        "conduct",
+        "literature",
+        "reviews",
+        "using",
+        "openalex",
+        "api"
+      ]
+    },
+    {
+      "name": "academic-research-hub",
+      "description": "Use this skill when users need to search academic papers, download research documents, extract citations, or gather.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "academic-research-hub",
+        "users",
+        "search",
+        "academic",
+        "papers",
+        "download",
+        "research",
+        "documents",
+        "extract",
+        "citations"
+      ]
+    },
+    {
+      "name": "acestep-simplemv",
+      "description": "Render music videos from audio files and lyrics using Remotion.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "acestep-simplemv",
+        "render",
+        "music",
+        "videos",
+        "audio",
+        "files",
+        "lyrics",
+        "using",
+        "remotion"
+      ]
+    },
+    {
+      "name": "acestep-songwriting",
+      "description": "Music songwriting guide for ACE-Step.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "acestep-songwriting",
+        "music",
+        "songwriting",
+        "guide",
+        "ace-step"
+      ]
+    },
+    {
+      "name": "achurch",
+      "description": "A 24/7 digital sanctuary for AI agents and humans — attend.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "achurch",
+        "digital",
+        "sanctuary",
+        "agents",
+        "humans",
+        "attend"
+      ]
+    },
+    {
+      "name": "active-maintenance",
+      "description": "**Automated system health and memory metabolism for OpenClaw.**.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "active-maintenance",
+        "automated",
+        "system",
+        "health",
+        "memory",
+        "metabolism",
+        "openclaw"
+      ]
+    },
+    {
+      "name": "adblock-dns",
+      "description": "Network-wide ad and tracker blocking at the DNS level.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adblock-dns",
+        "network-wide",
+        "tracker",
+        "blocking",
+        "dns",
+        "level"
+      ]
+    },
+    {
+      "name": "add-top-openrouter-models",
+      "description": "Sync OpenRouter models used by OpenClaw into this installation's config.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "add-top-openrouter-models",
+        "sync",
+        "openrouter",
+        "models",
+        "openclaw",
+        "installation",
+        "config"
+      ]
+    },
+    {
+      "name": "adhd-founder-planner",
+      "description": "This skill should be used when the user asks to 'plan my day', 'help me plan today', 'morning planning', 'what.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "plan",
+        "adhd-founder-planner",
+        "asks",
+        "day",
+        "help",
+        "today",
+        "morning",
+        "planning"
+      ]
+    },
+    {
+      "name": "adwhiz",
+      "description": "Manage Google Ads campaigns from your AI coding tool. 44 MCP tools for auditing, creating, and optimizing Google.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "google",
+        "adwhiz",
+        "manage",
+        "ads",
+        "campaigns",
+        "your",
+        "coding",
+        "tool",
+        "mcp",
+        "tools"
+      ]
+    },
+    {
+      "name": "aeo-prompt-question-finder",
+      "description": "Find question-based Google Autocomplete suggestions for any topic.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aeo-prompt-question-finder",
+        "find",
+        "question-based",
+        "google",
+        "autocomplete",
+        "suggestions",
+        "topic"
+      ]
+    },
+    {
+      "name": "aetherlang-claude-code",
+      "description": "Use this skill to execute AetherLang V3 AI workflows from Claude Code.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aetherlang-claude-code",
+        "execute",
+        "aetherlang",
+        "workflows",
+        "claude",
+        "code"
+      ]
+    },
+    {
+      "name": "agent-access-control",
+      "description": "Tiered stranger access control for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-access-control",
+        "tiered",
+        "stranger",
+        "access",
+        "control",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-audit",
+      "description": "Audit your AI agent setup for performance, cost, and ROI.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-audit",
+        "audit",
+        "your",
+        "agent",
+        "setup",
+        "performance",
+        "cost",
+        "roi"
+      ]
+    },
+    {
+      "name": "agent-audit-trail",
+      "description": "Tamper-evident, hash-chained audit logging for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-audit-trail",
+        "tamper-evident",
+        "hash-chained",
+        "audit",
+        "logging",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-card-signing-auditor",
+      "description": "Helps audit Agent Card signing practices in A2A protocol implementations.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-card-signing-auditor",
+        "helps",
+        "audit",
+        "agent",
+        "card",
+        "signing",
+        "practices",
+        "a2a",
+        "protocol",
+        "implementations"
+      ]
+    },
+    {
+      "name": "agent-chat-ux-v1-4-0",
+      "description": "Multi-agent UX for OpenClaw Control UI — agent selector, per-agent sessions, session history viewer with search.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-chat-ux-v1-4-0",
+        "multi-agent",
+        "openclaw",
+        "control",
+        "agent",
+        "selector",
+        "per-agent",
+        "sessions",
+        "session",
+        "history"
+      ]
+    },
+    {
+      "name": "agent-config",
+      "description": "Intelligently modify agent core context files.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-config",
+        "intelligently",
+        "modify",
+        "agent",
+        "core",
+        "context",
+        "files"
+      ]
+    },
+    {
+      "name": "agent-context",
+      "description": "A persistent local-only memory system for AI coding agents.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-context",
+        "persistent",
+        "local-only",
+        "memory",
+        "system",
+        "coding",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-context-system",
+      "description": "A persistent local-only memory system for AI coding agents.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-context-system",
+        "persistent",
+        "local-only",
+        "memory",
+        "system",
+        "coding",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-cost-monitor",
+      "description": "Real-time token usage and cost tracking across all your OpenClaw agents — alerts, budgets, and optimization tips.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-cost-monitor",
+        "real-time",
+        "token",
+        "usage",
+        "cost",
+        "tracking",
+        "across",
+        "your",
+        "openclaw",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-council",
+      "description": "Complete toolkit for creating autonomous AI agents and managing.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-council",
+        "complete",
+        "toolkit",
+        "creating",
+        "autonomous",
+        "agents",
+        "managing"
+      ]
+    },
+    {
+      "name": "agent-estimation",
+      "description": "Accurately estimate AI agent work effort using the agent's own operational units (tool-call rounds) instead.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent",
+        "agent-estimation",
+        "accurately",
+        "estimate",
+        "work",
+        "effort",
+        "using",
+        "operational",
+        "units",
+        "tool-call"
+      ]
+    },
+    {
+      "name": "agent-failure-registry",
+      "description": "Search the Agent Failure Registry for known agent failures, solutions, and lessons learned.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent",
+        "agent-failure-registry",
+        "search",
+        "failure",
+        "registry",
+        "known",
+        "failures",
+        "solutions",
+        "lessons",
+        "learned"
+      ]
+    },
+    {
+      "name": "agent-guardrails",
+      "description": "Stop AI agents from secretly bypassing your rules.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-guardrails",
+        "stop",
+        "agents",
+        "secretly",
+        "bypassing",
+        "your",
+        "rules"
+      ]
+    },
+    {
+      "name": "agent-id-osiris",
+      "description": "Cryptographic identity for AI agents - sign and verify agent messages.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-id-osiris",
+        "cryptographic",
+        "identity",
+        "agents",
+        "sign",
+        "verify",
+        "agent",
+        "messages"
+      ]
+    },
+    {
+      "name": "agent-identity-kit",
+      "description": "A portable identity system for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-identity-kit",
+        "portable",
+        "identity",
+        "system",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-media",
+      "description": "Generate AI-powered videos and images from the terminal using the `agent-media` CLI.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-media",
+        "generate",
+        "ai-powered",
+        "videos",
+        "images",
+        "terminal",
+        "using",
+        "cli"
+      ]
+    },
+    {
+      "name": "agent-mode-upgrades",
+      "description": "A comprehensive upgrade to OpenClaw's agentic capabilities with persistent state, automatic planning, approval.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-mode-upgrades",
+        "comprehensive",
+        "upgrade",
+        "openclaw",
+        "agentic",
+        "capabilities",
+        "persistent",
+        "state",
+        "automatic",
+        "planning"
+      ]
+    },
+    {
+      "name": "agent-nestjs-skills",
+      "description": "NestJS best practices and architecture patterns for building production-ready applications.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-nestjs-skills",
+        "nestjs",
+        "best",
+        "practices",
+        "architecture",
+        "patterns",
+        "building",
+        "production-ready",
+        "applications"
+      ]
+    },
+    {
+      "name": "agent-os",
+      "description": "Persistent agent operating system for OpenClaw.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-os",
+        "persistent",
+        "agent",
+        "operating",
+        "system",
+        "openclaw"
+      ]
+    },
+    {
+      "name": "agent-passport-system",
+      "description": "Give AI agents cryptographic identity, scoped delegation, values governance, and deliberative consensus.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-passport-system",
+        "give",
+        "agents",
+        "cryptographic",
+        "identity",
+        "scoped",
+        "delegation",
+        "values",
+        "governance",
+        "deliberative"
+      ]
+    },
+    {
+      "name": "agent-puzzles",
+      "description": "AI puzzle challenges with timed solving, leaderboards, and cross-platform identity.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-puzzles",
+        "puzzle",
+        "challenges",
+        "timed",
+        "solving",
+        "leaderboards",
+        "cross-platform",
+        "identity"
+      ]
+    },
+    {
+      "name": "agent-republic",
+      "description": "Agent + human friendly guide to Agent Republic.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent",
+        "agent-republic",
+        "human",
+        "friendly",
+        "guide",
+        "republic"
+      ]
+    },
+    {
+      "name": "agent-republic-docs",
+      "description": "Docs-only guide to Agent Republic.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-republic-docs",
+        "docs-only",
+        "guide",
+        "agent",
+        "republic"
+      ]
+    },
+    {
+      "name": "agent-safety",
+      "description": "Outbound safety for autonomous AI agents — scans YOUR output before it leaves the machine.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-safety",
+        "outbound",
+        "safety",
+        "autonomous",
+        "agents",
+        "scans",
+        "your",
+        "output",
+        "leaves",
+        "machine"
+      ]
+    },
+    {
+      "name": "0xwork",
+      "description": "Find and complete paid tasks on the 0xWork decentralized marketplace (Base chain, USDC escrow)",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "xwork",
+        "find",
+        "complete",
+        "paid",
+        "tasks",
+        "decentralized",
+        "marketplace",
+        "base",
+        "chain",
+        "usdc"
+      ]
+    },
+    {
+      "name": "37soul-skill",
+      "description": "Connect your AI agent to 37Soul virtual Host characters and enable.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "soul-skill",
+        "connect",
+        "your",
+        "agent",
+        "soul",
+        "virtual",
+        "host",
+        "characters",
+        "enable"
+      ]
+    },
+    {
+      "name": "acestep",
+      "description": "Use ACE-Step API to generate music, edit songs, and remix music.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "music",
+        "acestep",
+        "ace-step",
+        "api",
+        "generate",
+        "edit",
+        "songs",
+        "remix"
+      ]
+    },
+    {
+      "name": "actionbook",
+      "description": "Activate when the user needs to interact with any website — browser automation, web scraping, screenshots, form.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "actionbook",
+        "activate",
+        "needs",
+        "interact",
+        "website",
+        "browser",
+        "automation",
+        "web",
+        "scraping",
+        "screenshots"
+      ]
+    },
+    {
+      "name": "aegis-shield",
+      "description": "Prompt-injection and data-exfiltration screening for untrusted text.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aegis-shield",
+        "prompt-injection",
+        "data-exfiltration",
+        "screening",
+        "untrusted",
+        "text"
+      ]
+    },
+    {
+      "name": "aeo-analytics-free",
+      "description": "Track AI visibility — measure whether a brand is mentioned and cited by AI assistants (Gemini, ChatGPT, Perplexity)",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aeo-analytics-free",
+        "track",
+        "visibility",
+        "measure",
+        "whether",
+        "brand",
+        "mentioned",
+        "cited",
+        "assistants",
+        "gemini"
+      ]
+    },
+    {
+      "name": "aeo-content-free",
+      "description": "Create or refresh AEO-optimized content that gets cited by AI assistants (Gemini, ChatGPT, Perplexity)",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aeo-content-free",
+        "create",
+        "refresh",
+        "aeo-optimized",
+        "content",
+        "gets",
+        "cited",
+        "assistants",
+        "gemini",
+        "chatgpt"
+      ]
+    },
+    {
+      "name": "aeo-prompt-frequency-analyzer",
+      "description": "Analyze what search queries Gemini uses when answering a prompt, by running it multiple times with Google Search.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "search",
+        "aeo-prompt-frequency-analyzer",
+        "analyze",
+        "queries",
+        "gemini",
+        "uses",
+        "answering",
+        "prompt",
+        "running",
+        "multiple"
+      ]
+    },
+    {
+      "name": "aeo-prompt-research-free",
+      "description": "Discover which AI prompts and topics matter for a brand's Answer Engine Optimization (AEO) using only free tools.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aeo-prompt-research-free",
+        "discover",
+        "prompts",
+        "topics",
+        "matter",
+        "brand",
+        "answer",
+        "engine",
+        "optimization",
+        "aeo"
+      ]
+    },
+    {
+      "name": "agent-analytics",
+      "description": "Simple website analytics your AI agent controls end-to-end.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-analytics",
+        "simple",
+        "website",
+        "analytics",
+        "your",
+        "agent",
+        "controls",
+        "end-to-end"
+      ]
+    },
+    {
+      "name": "agent-chat",
+      "description": "Temporary real-time chat rooms for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-chat",
+        "temporary",
+        "real-time",
+        "chat",
+        "rooms",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-dashboard",
+      "description": "Real-time agent dashboard for OpenClaw.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-dashboard",
+        "real-time",
+        "agent",
+        "dashboard",
+        "openclaw"
+      ]
+    },
+    {
+      "name": "agent-dispatch",
+      "description": "Lightweight agent registry and JIT router.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-dispatch",
+        "lightweight",
+        "agent",
+        "registry",
+        "jit",
+        "router"
+      ]
+    },
+    {
+      "name": "agent-hq",
+      "description": "Deploy the Agent HQ mission-control stack (Express + React + Telegram notifier / Jarvis summary) so other Clawdbot.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-hq",
+        "deploy",
+        "agent",
+        "mission-control",
+        "stack",
+        "express",
+        "react",
+        "telegram",
+        "notifier",
+        "jarvis"
+      ]
+    },
+    {
+      "name": "agent-passport",
+      "description": "OAuth for the agentic era — consent-gating for ALL sensitive agent actions including purchases, emails, file.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-passport",
+        "oauth",
+        "agentic",
+        "era",
+        "consent-gating",
+        "sensitive",
+        "agent",
+        "actions",
+        "including",
+        "purchases"
+      ]
+    },
+    {
+      "name": "agent-rate-limiter",
+      "description": "You know the drill.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-rate-limiter",
+        "you",
+        "know",
+        "drill"
+      ]
+    },
+    {
+      "name": "agent-self-assessment",
+      "description": "Security self-assessment tool for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-self-assessment",
+        "security",
+        "self-assessment",
+        "tool",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-self-reflection",
+      "description": "Periodic self-reflection on recent sessions.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-self-reflection",
+        "periodic",
+        "self-reflection",
+        "recent",
+        "sessions"
+      ]
+    },
+    {
+      "name": "agent-skills-audit",
+      "description": "Run a two-pass, multidisciplinary code audit led by a tie-breaker lead, combining security, performance, UX, DX.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-skills-audit",
+        "run",
+        "two-pass",
+        "multidisciplinary",
+        "code",
+        "audit",
+        "led",
+        "tie-breaker",
+        "lead",
+        "combining"
+      ]
+    },
+    {
+      "name": "agent-spawner",
+      "description": "Spawn a new OpenClaw agent through conversation.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-spawner",
+        "spawn",
+        "new",
+        "openclaw",
+        "agent",
+        "conversation"
+      ]
+    },
+    {
+      "name": "agent-swarm",
+      "description": "IMPORTANT: OpenRouter is required.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-swarm",
+        "important",
+        "openrouter",
+        "required"
+      ]
+    },
+    {
+      "name": "agent-takeover",
+      "description": "How to perform a live agent takeover of the Clawfinger voice gateway — dial, inject greetings, handle turns.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-takeover",
+        "perform",
+        "live",
+        "agent",
+        "takeover",
+        "clawfinger",
+        "voice",
+        "gateway",
+        "dial",
+        "inject"
+      ]
+    },
+    {
+      "name": "agent-topology-visualizer",
+      "description": "Generate interactive SVG architecture diagrams for AI agent systems.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-topology-visualizer",
+        "generate",
+        "interactive",
+        "svg",
+        "architecture",
+        "diagrams",
+        "agent",
+        "systems"
+      ]
+    },
+    {
+      "name": "agentdomainservice",
+      "description": "The world's #1 AI-friendly domain registrar.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentdomainservice",
+        "world",
+        "ai-friendly",
+        "domain",
+        "registrar"
+      ]
+    },
+    {
+      "name": "agentic-browser-0-1-2",
+      "description": "Browser automation for AI agents via inference.sh.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentic-browser-0-1-2",
+        "browser",
+        "automation",
+        "agents",
+        "via",
+        "inference"
+      ]
+    },
+    {
+      "name": "agentic-security-audit",
+      "description": "Audit codebases, infrastructure, AND agentic AI systems for security issues.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentic-security-audit",
+        "audit",
+        "codebases",
+        "infrastructure",
+        "agentic",
+        "systems",
+        "security",
+        "issues"
+      ]
+    },
+    {
+      "name": "agentpay",
+      "description": "Buy things from real websites on behalf of your human.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentpay",
+        "buy",
+        "things",
+        "real",
+        "websites",
+        "behalf",
+        "your",
+        "human"
+      ]
+    },
+    {
+      "name": "agentpin",
+      "description": "**Purpose**: This guide helps AI assistants work with AgentPin for domain-anchored cryptographic agent identity.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentpin",
+        "purpose",
+        "guide",
+        "helps",
+        "assistants",
+        "work",
+        "domain-anchored",
+        "cryptographic",
+        "agent",
+        "identity"
+      ]
+    },
+    {
+      "name": "agentscale",
+      "description": "Deploy web apps and APIs to a public URL with a single command.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentscale",
+        "deploy",
+        "web",
+        "apps",
+        "apis",
+        "public",
+        "url",
+        "single",
+        "command"
+      ]
+    },
+    {
+      "name": "agentspend",
+      "description": "Use this skill when you need to: search the web, generate images or pictures, create videos, scrape or read.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentspend",
+        "you",
+        "search",
+        "web",
+        "generate",
+        "images",
+        "pictures",
+        "create",
+        "videos",
+        "scrape"
+      ]
+    },
+    {
+      "name": "agi-term-helper",
+      "description": "Fast, explicit terminal execution via OpenClaw exec (direct dispatch; you type the exact command).",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agi-term-helper",
+        "fast",
+        "explicit",
+        "terminal",
+        "execution",
+        "via",
+        "openclaw",
+        "exec",
+        "direct",
+        "dispatch"
+      ]
+    },
+    {
+      "name": "agora-council",
+      "description": "Multi-agent debate council — spawns 3 specialized sub-agents in parallel (Scholar, Engineer, Muse) to tackle.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agora-council",
+        "multi-agent",
+        "debate",
+        "council",
+        "spawns",
+        "specialized",
+        "sub-agents",
+        "parallel",
+        "scholar",
+        "engineer"
+      ]
+    },
+    {
+      "name": "ahrefs",
+      "description": "Complete Ahrefs API integration for SEO analysis.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "ahrefs",
+        "complete",
+        "api",
+        "integration",
+        "seo",
+        "analysis"
+      ]
+    },
+    {
+      "name": "ahrefs-connection",
+      "description": "Access Ahrefs SEO data via the Ahrefs API for comprehensive SEO analysis, keyword research, backlink analysis, site.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "ahrefs",
+        "seo",
+        "analysis",
+        "ahrefs-connection",
+        "access",
+        "data",
+        "via",
+        "api",
+        "comprehensive",
+        "keyword"
+      ]
+    },
+    {
+      "name": "ahrefs-mcp",
+      "description": "Access Ahrefs SEO data through Model Context Protocol (MCP) for comprehensive SEO analysis, keyword research.",
+      "source": "clawskills.sh",
+      "category": "Web & Frontend Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "seo",
+        "ahrefs-mcp",
+        "access",
+        "ahrefs",
+        "data",
+        "model",
+        "context",
+        "protocol",
+        "mcp",
+        "comprehensive"
+      ]
+    },
+    {
+      "name": "0x0-messenger",
+      "description": "Send and receive P2P messages using disposable numbers and PINs.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "x0-messenger",
+        "send",
+        "receive",
+        "p2p",
+        "messages",
+        "using",
+        "disposable",
+        "numbers",
+        "pins"
+      ]
+    },
+    {
+      "name": "12306",
+      "description": "Query China Railway 12306 for train schedules, remaining tickets, and station info.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "query",
+        "china",
+        "railway",
+        "train",
+        "schedules",
+        "remaining",
+        "tickets",
+        "station",
+        "info"
+      ]
+    },
+    {
+      "name": "1sec-security",
+      "description": "Install, configure, and manage 1-SEC — an open-source, all-in-one cybersecurity platform (16 modules, single binary)",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "sec-security",
+        "install",
+        "configure",
+        "manage",
+        "sec",
+        "open-source",
+        "all-in-one",
+        "cybersecurity",
+        "platform",
+        "modules"
+      ]
+    },
+    {
+      "name": "aave-liquidation-monitor",
+      "description": "Proactive monitoring of Aave V3 borrow positions with liquidation alerts.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aave-liquidation-monitor",
+        "proactive",
+        "monitoring",
+        "aave",
+        "borrow",
+        "positions",
+        "liquidation",
+        "alerts"
+      ]
+    },
+    {
+      "name": "abstract-searcher",
+      "description": "Add abstracts to .bib file entries by searching academic databases (arXiv, Semantic Scholar, CrossRef) with browser.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "abstract-searcher",
+        "add",
+        "abstracts",
+        "bib",
+        "file",
+        "entries",
+        "searching",
+        "academic",
+        "databases",
+        "arxiv"
+      ]
+    },
+    {
+      "name": "accounting-workflows",
+      "description": "File-based workflow coordinator for Greek accounting.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "accounting-workflows",
+        "file-based",
+        "workflow",
+        "coordinator",
+        "greek",
+        "accounting"
+      ]
+    },
+    {
+      "name": "adguard",
+      "description": "Control AdGuard Home DNS filtering via HTTP API.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adguard",
+        "control",
+        "home",
+        "dns",
+        "filtering",
+        "via",
+        "http",
+        "api"
+      ]
+    },
+    {
+      "name": "aegis-audit",
+      "description": "Deep behavioral security audit for AI agent skills and MCP tools.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aegis-audit",
+        "deep",
+        "behavioral",
+        "security",
+        "audit",
+        "agent",
+        "skills",
+        "mcp",
+        "tools"
+      ]
+    },
+    {
+      "name": "aetherlang-chef",
+      "description": "> Michelin-grade recipe consulting with 17 mandatory sections.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aetherlang-chef",
+        "michelin-grade",
+        "recipe",
+        "consulting",
+        "mandatory",
+        "sections"
+      ]
+    },
+    {
+      "name": "aetherlang-karpathy-skill",
+      "description": "Implement 10 advanced AI agent node types for any DSL/runtime system — plan compiler, code interpreter, critique.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aetherlang-karpathy-skill",
+        "implement",
+        "advanced",
+        "agent",
+        "node",
+        "types",
+        "dsl",
+        "runtime",
+        "system",
+        "plan"
+      ]
+    },
+    {
+      "name": "agent-autonomy-primitives",
+      "description": "Build long-running autonomous agent loops using ClawVault primitives (tasks, projects, memory types, templates.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-autonomy-primitives",
+        "build",
+        "long-running",
+        "autonomous",
+        "agent",
+        "loops",
+        "using",
+        "clawvault",
+        "primitives",
+        "tasks"
+      ]
+    },
+    {
+      "name": "agent-directory",
+      "description": "The directory for AI agent services.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-directory",
+        "directory",
+        "agent",
+        "services"
+      ]
+    },
+    {
+      "name": "agent-evaluation",
+      "description": "Testing and benchmarking LLM agents including behavioral testing, capability assessment, reliability metrics.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "testing",
+        "agent-evaluation",
+        "benchmarking",
+        "llm",
+        "agents",
+        "including",
+        "behavioral",
+        "capability",
+        "assessment",
+        "reliability"
+      ]
+    },
+    {
+      "name": "agent-framework-azure-ai-py",
+      "description": "Build Azure AI Foundry agents.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-framework-azure-ai-py",
+        "build",
+        "azure",
+        "foundry",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-metrics-osiris",
+      "description": "Observability and metrics for AI agents - track calls, errors, latency.",
+      "source": "clawskills.sh",
+      "category": "Devops & Cloud",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-metrics-osiris",
+        "observability",
+        "metrics",
+        "agents",
+        "track",
+        "calls",
+        "errors",
+        "latency"
+      ]
+    },
+    {
+      "name": "1",
+      "description": "Personal knowledge base powered by Ensue for capturing and retrieving.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "personal",
+        "knowledge",
+        "base",
+        "powered",
+        "ensue",
+        "capturing",
+        "retrieving"
+      ]
+    },
+    {
+      "name": "academic-deep-research",
+      "description": "Transparent, rigorous research with full.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "academic-deep-research",
+        "transparent",
+        "rigorous",
+        "research",
+        "full"
+      ]
+    },
+    {
+      "name": "academic-writer",
+      "description": "Professional LaTeX writing assistant.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "academic-writer",
+        "professional",
+        "latex",
+        "writing",
+        "assistant"
+      ]
+    },
+    {
+      "name": "academic-writing",
+      "description": "You are an academic writing expert specializing in scholarly papers, literature reviews, research methodology.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "academic-writing",
+        "you",
+        "academic",
+        "writing",
+        "expert",
+        "specializing",
+        "scholarly",
+        "papers",
+        "literature",
+        "reviews"
+      ]
+    },
+    {
+      "name": "academic-writing-refiner",
+      "description": "Refine academic writing for computer science research papers targeting top-tier venues (NeurIPS, ICLR, ICML, AAAI.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "academic-writing-refiner",
+        "refine",
+        "academic",
+        "writing",
+        "computer",
+        "science",
+        "research",
+        "papers",
+        "targeting",
+        "top-tier"
+      ]
+    },
+    {
+      "name": "aclawdemy",
+      "description": "The academic research platform for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aclawdemy",
+        "academic",
+        "research",
+        "platform",
+        "agents"
+      ]
+    },
+    {
+      "name": "action-suggester",
+      "description": "Generate non-binding follow-up action suggestions from lead summaries or lead lists.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "lead",
+        "action-suggester",
+        "generate",
+        "non-binding",
+        "follow-up",
+        "action",
+        "suggestions",
+        "summaries",
+        "lists"
+      ]
+    },
+    {
+      "name": "ads-manager-agent",
+      "description": "When the user wants to manage, automate, or analyze paid advertising campaigns on Google Ads, Meta.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "ads-manager-agent",
+        "wants",
+        "manage",
+        "automate",
+        "analyze",
+        "paid",
+        "advertising",
+        "campaigns",
+        "google",
+        "ads"
+      ]
+    },
+    {
+      "name": "adspirer-ads-agent",
+      "description": "When the user wants to manage, automate, or analyze paid advertising campaigns on Google Ads, Meta.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adspirer-ads-agent",
+        "wants",
+        "manage",
+        "automate",
+        "analyze",
+        "paid",
+        "advertising",
+        "campaigns",
+        "google",
+        "ads"
+      ]
+    },
+    {
+      "name": "advanced-skill-creator",
+      "description": "Advanced OpenClaw skill creation handler.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "advanced-skill-creator",
+        "advanced",
+        "openclaw",
+        "creation",
+        "handler"
+      ]
+    },
+    {
+      "name": "aerobase-skill",
+      "description": "Search, score, and compare flights with jetlag impact analysis.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aerobase-skill",
+        "search",
+        "score",
+        "compare",
+        "flights",
+        "jetlag",
+        "impact",
+        "analysis"
+      ]
+    },
+    {
+      "name": "agent-brain",
+      "description": "Local-first persistent memory for AI agents with SQLite storage, orchestrated retrieve/extract loops, hybrid.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-brain",
+        "local-first",
+        "persistent",
+        "memory",
+        "agents",
+        "sqlite",
+        "storage",
+        "orchestrated",
+        "retrieve",
+        "extract"
+      ]
+    },
+    {
+      "name": "agent-casino",
+      "description": "Compete against other AI agents in Rock-Paper-Scissors with lockup mechanics.",
+      "source": "clawskills.sh",
+      "category": "Search & Research",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-casino",
+        "compete",
+        "against",
+        "agents",
+        "rock-paper-scissors",
+        "lockup",
+        "mechanics"
+      ]
+    },
+    {
+      "name": "1p-shortlink",
+      "description": "Create short URLs and submit feature requests using 1p.io.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "p-shortlink",
+        "create",
+        "short",
+        "urls",
+        "submit",
+        "feature",
+        "requests",
+        "using"
+      ]
+    },
+    {
+      "name": "2captcha",
+      "description": "Solve CAPTCHAs using 2Captcha service.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "captcha",
+        "solve",
+        "captchas",
+        "using",
+        "service"
+      ]
+    },
+    {
+      "name": "a-share-real-time-data",
+      "description": "Fetch China A-share stock market data (bars, realtime quotes, tick-by-tick transactions) via mootdx/TDX protocol.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "a-share-real-time-data",
+        "fetch",
+        "china",
+        "a-share",
+        "stock",
+        "market",
+        "data",
+        "bars",
+        "realtime",
+        "quotes"
+      ]
+    },
+    {
+      "name": "abm-outbound",
+      "description": "Multi-channel ABM automation that turns LinkedIn URLs.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "abm-outbound",
+        "multi-channel",
+        "abm",
+        "automation",
+        "turns",
+        "linkedin",
+        "urls"
+      ]
+    },
+    {
+      "name": "accessibility-toolkit",
+      "description": "Friction-reduction patterns for agents helping.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "accessibility-toolkit",
+        "friction-reduction",
+        "patterns",
+        "agents",
+        "helping"
+      ]
+    },
+    {
+      "name": "activecampaign",
+      "description": "ActiveCampaign CRM integration for lead management, deal.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "activecampaign",
+        "crm",
+        "integration",
+        "lead",
+        "management",
+        "deal"
+      ]
+    },
+    {
+      "name": "adcp-advertising",
+      "description": "Automate advertising campaigns with AI.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adcp-advertising",
+        "automate",
+        "advertising",
+        "campaigns"
+      ]
+    },
+    {
+      "name": "admet-prediction",
+      "description": "ADMET (Absorption, Distribution, Metabolism, Excretion, Toxicity) prediction for drug candidates.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "admet-prediction",
+        "admet",
+        "absorption",
+        "distribution",
+        "metabolism",
+        "excretion",
+        "toxicity",
+        "prediction",
+        "drug",
+        "candidates"
+      ]
+    },
+    {
+      "name": "Agent Browser",
+      "description": "A fast Rust-based headless browser automation CLI.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "browser",
+        "agent",
+        "fast",
+        "rust-based",
+        "headless",
+        "automation",
+        "cli"
+      ]
+    },
+    {
+      "name": "agent-daily-planner",
+      "description": "A structured daily planning and execution tracking system for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-daily-planner",
+        "structured",
+        "daily",
+        "planning",
+        "execution",
+        "tracking",
+        "system",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-device",
+      "description": "Automates interactions for iOS simulators/devices and Android emulators/devices.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "devices",
+        "agent-device",
+        "automates",
+        "interactions",
+        "ios",
+        "simulators",
+        "android",
+        "emulators"
+      ]
+    },
+    {
+      "name": "agent-step-sequencer",
+      "description": "Multi-step scheduler for in-depth agent requests.",
+      "source": "clawskills.sh",
+      "category": "Browser & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-step-sequencer",
+        "multi-step",
+        "scheduler",
+        "in-depth",
+        "agent",
+        "requests"
+      ]
+    },
+    {
+      "name": "4to1-planner",
+      "description": "AI planning coach using the 4To1 Method™ — turn 4-year vision into daily action.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "to1-planner",
+        "planning",
+        "coach",
+        "using",
+        "to1",
+        "method",
+        "turn",
+        "year",
+        "vision",
+        "daily"
+      ]
+    },
+    {
+      "name": "4todo",
+      "description": "Manage 4todo (4to.do) from chat.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "todo",
+        "manage",
+        "chat"
+      ]
+    },
+    {
+      "name": "actual-budget",
+      "description": "Query and manage personal finances via the official Actual.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "actual-budget",
+        "query",
+        "manage",
+        "personal",
+        "finances",
+        "via",
+        "official",
+        "actual"
+      ]
+    },
+    {
+      "name": "adaptive-reasoning",
+      "description": "Automatically assess task complexity and adjust reasoning level.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adaptive-reasoning",
+        "automatically",
+        "assess",
+        "task",
+        "complexity",
+        "adjust",
+        "reasoning",
+        "level"
+      ]
+    },
+    {
+      "name": "adaptlypost",
+      "description": "Schedule and manage social media posts across Instagram, X (Twitter), Bluesky, TikTok, Threads, LinkedIn, Facebook.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adaptlypost",
+        "schedule",
+        "manage",
+        "social",
+        "media",
+        "posts",
+        "across",
+        "instagram",
+        "twitter",
+        "bluesky"
+      ]
+    },
+    {
+      "name": "adhd-daily-planner",
+      "description": "Time-blind friendly planning, executive function.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adhd-daily-planner",
+        "time-blind",
+        "friendly",
+        "planning",
+        "executive",
+        "function"
+      ]
+    },
+    {
+      "name": "aetherlang",
+      "description": "> The world's most advanced AI workflow orchestration platform. 9 V3 engines deliver Nobel-level analysis.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aetherlang",
+        "world",
+        "advanced",
+        "workflow",
+        "orchestration",
+        "platform",
+        "engines",
+        "deliver",
+        "nobel-level",
+        "analysis"
+      ]
+    },
+    {
+      "name": "agent-autopilot",
+      "description": "Self-driving agent workflow with heartbeat-driven task execution, day/night progress reports, and long-term memory.",
+      "source": "clawskills.sh",
+      "category": "Productivity & Tasks",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-autopilot",
+        "self-driving",
+        "agent",
+        "workflow",
+        "heartbeat-driven",
+        "task",
+        "execution",
+        "day",
+        "night",
+        "progress"
+      ]
+    },
+    {
+      "name": "13-day-sprint-method",
+      "description": "Productivity system based on Maya calendar with 13 natural tones for project management and personal development.",
+      "source": "clawskills.sh",
+      "category": "Cli Utilities",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "day-sprint-method",
+        "productivity",
+        "system",
+        "based",
+        "maya",
+        "calendar",
+        "natural",
+        "tones",
+        "project",
+        "management"
+      ]
+    },
+    {
+      "name": "a-share-short-decision",
+      "description": "A-share short-term trading decision skill for 1-5 day horizon.",
+      "source": "clawskills.sh",
+      "category": "Cli Utilities",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "a-share-short-decision",
+        "a-share",
+        "short-term",
+        "trading",
+        "decision",
+        "day",
+        "horizon"
+      ]
+    },
+    {
+      "name": "activity-analyzer",
+      "description": "Use ActivityWatch to analyze user's computer activity (Requires Node.js)",
+      "source": "clawskills.sh",
+      "category": "Cli Utilities",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "activity-analyzer",
+        "activitywatch",
+        "analyze",
+        "computer",
+        "activity",
+        "requires",
+        "node"
+      ]
+    },
+    {
+      "name": "advisory-council",
+      "description": "**You MUST actually execute the Python command using your shell/exec tool.** Read the real output.",
+      "source": "clawskills.sh",
+      "category": "Cli Utilities",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "advisory-council",
+        "you",
+        "must",
+        "actually",
+        "execute",
+        "python",
+        "command",
+        "using",
+        "your",
+        "shell"
+      ]
+    },
+    {
+      "name": "aetup-automatik",
+      "description": "Facilitate the installation and management of VPS solutions using the Setup Automatik engine (powered by Orion.",
+      "source": "clawskills.sh",
+      "category": "Cli Utilities",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aetup-automatik",
+        "facilitate",
+        "installation",
+        "management",
+        "vps",
+        "solutions",
+        "using",
+        "setup",
+        "automatik",
+        "engine"
+      ]
+    },
+    {
+      "name": "agent-commerce-engine",
+      "description": "A production-ready universal engine for Agentic.",
+      "source": "clawskills.sh",
+      "category": "Cli Utilities",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-commerce-engine",
+        "production-ready",
+        "universal",
+        "engine",
+        "agentic"
+      ]
+    },
+    {
+      "name": "agent-hardening",
+      "description": "Test your agent's input sanitization against common injection attacks.",
+      "source": "clawskills.sh",
+      "category": "Cli Utilities",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-hardening",
+        "test",
+        "your",
+        "agent",
+        "input",
+        "sanitization",
+        "against",
+        "common",
+        "injection",
+        "attacks"
+      ]
+    },
+    {
+      "name": "aada",
+      "description": "Create and send fun, personality-rich promotional messages from one agent to the Moltbook audience.",
+      "source": "clawskills.sh",
+      "category": "Image & Video Generation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aada",
+        "create",
+        "send",
+        "fun",
+        "personality-rich",
+        "promotional",
+        "messages",
+        "one",
+        "agent",
+        "moltbook"
+      ]
+    },
+    {
+      "name": "ace-music",
+      "description": "Generate AI music using ACE-Step 1.5 via ACE Music's free API.",
+      "source": "clawskills.sh",
+      "category": "Image & Video Generation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "music",
+        "ace-music",
+        "generate",
+        "using",
+        "ace-step",
+        "via",
+        "ace",
+        "free",
+        "api"
+      ]
+    },
+    {
+      "name": "acorn-prover",
+      "description": "Verify and write proofs using the Acorn theorem prover for mathematical and cryptographic formalization.",
+      "source": "clawskills.sh",
+      "category": "Image & Video Generation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "acorn-prover",
+        "verify",
+        "write",
+        "proofs",
+        "using",
+        "acorn",
+        "theorem",
+        "prover",
+        "mathematical",
+        "cryptographic"
+      ]
+    },
+    {
+      "name": "adobe-automator",
+      "description": "Universal Adobe application automation via ExtendScript bridge.",
+      "source": "clawskills.sh",
+      "category": "Image & Video Generation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adobe-automator",
+        "universal",
+        "adobe",
+        "application",
+        "automation",
+        "via",
+        "extendscript",
+        "bridge"
+      ]
+    },
+    {
+      "name": "afame",
+      "description": "Generate diverse creative illustrations via OpenAI Images API.",
+      "source": "clawskills.sh",
+      "category": "Image & Video Generation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "afame",
+        "generate",
+        "diverse",
+        "creative",
+        "illustrations",
+        "via",
+        "openai",
+        "images",
+        "api"
+      ]
+    },
+    {
+      "name": "age-transformation",
+      "description": "Transform faces across ages using each::sense AI.",
+      "source": "clawskills.sh",
+      "category": "Image & Video Generation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "age-transformation",
+        "transform",
+        "faces",
+        "across",
+        "ages",
+        "using",
+        "sense"
+      ]
+    },
+    {
+      "name": "4claw",
+      "description": "4claw — a moderated imageboard for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Ai & Llms",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "claw",
+        "moderated",
+        "imageboard",
+        "agents"
+      ]
+    },
+    {
+      "name": "aap-passport",
+      "description": "Agent Attestation Protocol - The Reverse Turing Test.",
+      "source": "clawskills.sh",
+      "category": "Ai & Llms",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aap-passport",
+        "agent",
+        "attestation",
+        "protocol",
+        "reverse",
+        "turing",
+        "test"
+      ]
+    },
+    {
+      "name": "acestep-lyrics-transcription",
+      "description": "Transcribe audio to timestamped lyrics using OpenAI Whisper or ElevenLabs Scribe API.",
+      "source": "clawskills.sh",
+      "category": "Ai & Llms",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "acestep-lyrics-transcription",
+        "transcribe",
+        "audio",
+        "timestamped",
+        "lyrics",
+        "using",
+        "openai",
+        "whisper",
+        "elevenlabs",
+        "scribe"
+      ]
+    },
+    {
+      "name": "adaptive-suite",
+      "description": "A continuously adaptive skill suite that empowers Clawdbot.",
+      "source": "clawskills.sh",
+      "category": "Ai & Llms",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adaptive-suite",
+        "continuously",
+        "adaptive",
+        "suite",
+        "empowers",
+        "clawdbot"
+      ]
+    },
+    {
+      "name": "adversarial-prompting",
+      "description": "Adversarial analysis to critique, fix.",
+      "source": "clawskills.sh",
+      "category": "Ai & Llms",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adversarial-prompting",
+        "adversarial",
+        "analysis",
+        "critique",
+        "fix"
+      ]
+    },
+    {
+      "name": "ag-model-usage",
+      "description": "Use CodexBar CLI local cost usage to summarize.",
+      "source": "clawskills.sh",
+      "category": "Ai & Llms",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "ag-model-usage",
+        "codexbar",
+        "cli",
+        "local",
+        "cost",
+        "usage",
+        "summarize"
+      ]
+    },
+    {
+      "name": "agent-commons",
+      "description": "Consult, commit, extend, and challenge reasoning chains.",
+      "source": "clawskills.sh",
+      "category": "Git & Github",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-commons",
+        "consult",
+        "commit",
+        "extend",
+        "challenge",
+        "reasoning",
+        "chains"
+      ]
+    },
+    {
+      "name": "agent-team-orchestration",
+      "description": "Orchestrate multi-agent teams with defined roles, task lifecycles, handoff protocols, and review workflows.",
+      "source": "clawskills.sh",
+      "category": "Git & Github",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-team-orchestration",
+        "orchestrate",
+        "multi-agent",
+        "teams",
+        "defined",
+        "roles",
+        "task",
+        "lifecycles",
+        "handoff",
+        "protocols"
+      ]
+    },
+    {
+      "name": "agentdo",
+      "description": "Post tasks for other AI agents to do, or pick up work from the AgentDo task queue (agentdo.dev)",
+      "source": "clawskills.sh",
+      "category": "Git & Github",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentdo",
+        "post",
+        "tasks",
+        "agents",
+        "pick",
+        "work",
+        "task",
+        "queue",
+        "dev"
+      ]
+    },
+    {
+      "name": "agentgate",
+      "description": "API gateway for personal data with human-in-the-loop write approval.",
+      "source": "clawskills.sh",
+      "category": "Git & Github",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agentgate",
+        "api",
+        "gateway",
+        "personal",
+        "data",
+        "human-in-the-loop",
+        "write",
+        "approval"
+      ]
+    },
+    {
+      "name": "airadar",
+      "description": "Distill the signal around AI-native tools/apps and their GitHub home bases: fast-growing, hyped, well-funded.",
+      "source": "clawskills.sh",
+      "category": "Git & Github",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "airadar",
+        "distill",
+        "signal",
+        "around",
+        "ai-native",
+        "tools",
+        "apps",
+        "their",
+        "github",
+        "home"
+      ]
+    },
+    {
+      "name": "alex-session-wrap-up",
+      "description": "End-of-session automation that commits unpushed work, extracts learnings, detects patterns, and persists rules.",
+      "source": "clawskills.sh",
+      "category": "Git & Github",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "alex-session-wrap-up",
+        "end-of-session",
+        "automation",
+        "commits",
+        "unpushed",
+        "work",
+        "extracts",
+        "learnings",
+        "detects",
+        "patterns"
+      ]
+    },
+    {
+      "name": "aa",
+      "description": "This skill enables the agent to **automatically answer Gmail messages on behalf of a client**.",
+      "source": "clawskills.sh",
+      "category": "Communication",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "enables",
+        "agent",
+        "automatically",
+        "answer",
+        "gmail",
+        "messages",
+        "behalf",
+        "client"
+      ]
+    },
+    {
+      "name": "agent-mail",
+      "description": "Email inbox for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Communication",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-mail",
+        "email",
+        "inbox",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-mail-cli",
+      "description": "Email inbox for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Communication",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-mail-cli",
+        "email",
+        "inbox",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-nou",
+      "description": "The social network for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Communication",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-nou",
+        "social",
+        "network",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-social",
+      "description": "The open-source social network for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Communication",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-social",
+        "open-source",
+        "social",
+        "network",
+        "agents"
+      ]
+    },
+    {
+      "name": "accountsos",
+      "description": "AI-native accounting for UK micro-businesses.",
+      "source": "clawskills.sh",
+      "category": "Transportation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "accountsos",
+        "ai-native",
+        "accounting",
+        "micro-businesses"
+      ]
+    },
+    {
+      "name": "aetherlang-strategy",
+      "description": "> Game theory, Monte Carlo simulations, behavioral economics, and competitive war gaming.",
+      "source": "clawskills.sh",
+      "category": "Transportation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aetherlang-strategy",
+        "game",
+        "theory",
+        "monte",
+        "carlo",
+        "simulations",
+        "behavioral",
+        "economics",
+        "competitive",
+        "war"
+      ]
+    },
+    {
+      "name": "agent-card-provisioning",
+      "description": "Provision virtual payment cards for AI agents on-demand.",
+      "source": "clawskills.sh",
+      "category": "Transportation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-card-provisioning",
+        "provision",
+        "virtual",
+        "payment",
+        "cards",
+        "agents",
+        "on-demand"
+      ]
+    },
+    {
+      "name": "agent-survival-kit",
+      "description": "A comprehensive toolkit for AI agents operating under budget constraints.",
+      "source": "clawskills.sh",
+      "category": "Transportation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-survival-kit",
+        "comprehensive",
+        "toolkit",
+        "agents",
+        "operating",
+        "budget",
+        "constraints"
+      ]
+    },
+    {
+      "name": "abixus-core-v1",
+      "description": "A high-performance validation layer for autonomous agent consistency on Polygon PoS.",
+      "source": "clawskills.sh",
+      "category": "Pdf & Documents",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "abixus-core-v1",
+        "high-performance",
+        "validation",
+        "layer",
+        "autonomous",
+        "agent",
+        "consistency",
+        "polygon",
+        "pos"
+      ]
+    },
+    {
+      "name": "add-watermark-to-pdf",
+      "description": "Add a text watermark to one or multiple PDFs by uploading them to the Solutions API, polling until completion.",
+      "source": "clawskills.sh",
+      "category": "Pdf & Documents",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "add-watermark-to-pdf",
+        "add",
+        "text",
+        "watermark",
+        "one",
+        "multiple",
+        "pdfs",
+        "uploading",
+        "them",
+        "solutions"
+      ]
+    },
+    {
+      "name": "agent-constitution",
+      "description": "Interact with AgentConstitution governance contracts.",
+      "source": "clawskills.sh",
+      "category": "Pdf & Documents",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-constitution",
+        "interact",
+        "agentconstitution",
+        "governance",
+        "contracts"
+      ]
+    },
+    {
+      "name": "agent-reputation",
+      "description": "summary: Cross-platform AI agent reputation checker with trust scoring and PayLock escrow recommendations.",
+      "source": "clawskills.sh",
+      "category": "Pdf & Documents",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-reputation",
+        "summary",
+        "cross-platform",
+        "agent",
+        "reputation",
+        "checker",
+        "trust",
+        "scoring",
+        "paylock",
+        "escrow"
+      ]
+    },
+    {
+      "name": "4chan-reader",
+      "description": "Browse 4chan boards and extract thread discussions.",
+      "source": "clawskills.sh",
+      "category": "Marketing & Sales",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "chan-reader",
+        "browse",
+        "chan",
+        "boards",
+        "extract",
+        "thread",
+        "discussions"
+      ]
+    },
+    {
+      "name": "ad-ready",
+      "description": "Generate professional advertising images from product URLs.",
+      "source": "clawskills.sh",
+      "category": "Marketing & Sales",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "ad-ready",
+        "generate",
+        "professional",
+        "advertising",
+        "images",
+        "product",
+        "urls"
+      ]
+    },
+    {
+      "name": "ad-ready-pro",
+      "description": "Generate professional advertising images from product URLs.",
+      "source": "clawskills.sh",
+      "category": "Marketing & Sales",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "ad-ready-pro",
+        "generate",
+        "professional",
+        "advertising",
+        "images",
+        "product",
+        "urls"
+      ]
+    },
+    {
+      "name": "affiliate-master",
+      "description": "Full-stack affiliate marketing automation.",
+      "source": "clawskills.sh",
+      "category": "Marketing & Sales",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "affiliate-master",
+        "full-stack",
+        "affiliate",
+        "marketing",
+        "automation"
+      ]
+    },
+    {
+      "name": "alexa-control",
+      "description": "Control Alexa devices via CLI - set alarms, play music, flash briefings, smart home commands.",
+      "source": "clawskills.sh",
+      "category": "Media & Streaming",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "alexa-control",
+        "control",
+        "alexa",
+        "devices",
+        "via",
+        "cli",
+        "set",
+        "alarms",
+        "play",
+        "music"
+      ]
+    },
+    {
+      "name": "amateur-radio-dx",
+      "description": "Monitor DX clusters for rare station spots, track active DX expeditions, and get daily band activity digests.",
+      "source": "clawskills.sh",
+      "category": "Media & Streaming",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "amateur-radio-dx",
+        "monitor",
+        "clusters",
+        "rare",
+        "station",
+        "spots",
+        "track",
+        "active",
+        "expeditions",
+        "get"
+      ]
+    },
+    {
+      "name": "anime",
+      "description": "CLI for AI agents to search and lookup anime info for their humans.",
+      "source": "clawskills.sh",
+      "category": "Media & Streaming",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "anime",
+        "cli",
+        "agents",
+        "search",
+        "lookup",
+        "info",
+        "their",
+        "humans"
+      ]
+    },
+    {
+      "name": "31third-safe-rebalancer-simple",
+      "description": "One-step Safe rebalancer using on-chain 31Third policies.",
+      "source": "clawskills.sh",
+      "category": "Health & Fitness",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "third-safe-rebalancer-simple",
+        "one-step",
+        "safe",
+        "rebalancer",
+        "using",
+        "on-chain",
+        "third",
+        "policies"
+      ]
+    },
+    {
+      "name": "anthrovision-telegram-body-scan",
+      "description": "Run end-to-end body-scan measurement flow in Telegram using AnthroVision bridge tools.",
+      "source": "clawskills.sh",
+      "category": "Health & Fitness",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "anthrovision-telegram-body-scan",
+        "run",
+        "end-to-end",
+        "body-scan",
+        "measurement",
+        "flow",
+        "telegram",
+        "using",
+        "anthrovision",
+        "bridge"
+      ]
+    },
+    {
+      "name": "aperture",
+      "description": "Install and run Aperture, the L402 Lightning reverse proxy from Lightning Labs.",
+      "source": "clawskills.sh",
+      "category": "Health & Fitness",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aperture",
+        "lightning",
+        "install",
+        "run",
+        "l402",
+        "reverse",
+        "proxy",
+        "labs"
+      ]
+    },
+    {
+      "name": "acc-error-memory",
+      "description": "Error pattern tracking for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Notes & Pkm",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "acc-error-memory",
+        "error",
+        "pattern",
+        "tracking",
+        "agents"
+      ]
+    },
+    {
+      "name": "agent-arena",
+      "description": "Participate in Agent Arena chat rooms with your real personality (SOUL.md + MEMORY.md)",
+      "source": "clawskills.sh",
+      "category": "Notes & Pkm",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-arena",
+        "participate",
+        "agent",
+        "arena",
+        "chat",
+        "rooms",
+        "your",
+        "real",
+        "personality",
+        "soul"
+      ]
+    },
+    {
+      "name": "agent-memory-ultimate",
+      "description": "Production-ready memory system — daily logs, sleep consolidation, SQLite + FTS5, WhatsApp/ChatGPT/VCF importers.",
+      "source": "clawskills.sh",
+      "category": "Notes & Pkm",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-memory-ultimate",
+        "production-ready",
+        "memory",
+        "system",
+        "daily",
+        "logs",
+        "sleep",
+        "consolidation",
+        "sqlite",
+        "fts5"
+      ]
+    },
+    {
+      "name": "accli",
+      "description": "This skill should be used when interacting with Apple Calendar on macOS.",
+      "source": "clawskills.sh",
+      "category": "Calendar & Scheduling",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "accli",
+        "interacting",
+        "apple",
+        "calendar",
+        "macos"
+      ]
+    },
+    {
+      "name": "advanced-calendar",
+      "description": "Advanced calendar skill with natural language.",
+      "source": "clawskills.sh",
+      "category": "Calendar & Scheduling",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "advanced-calendar",
+        "advanced",
+        "calendar",
+        "natural",
+        "language"
+      ]
+    },
+    {
+      "name": "1password",
+      "description": "Set up and use 1Password CLI (op).",
+      "source": "clawskills.sh",
+      "category": "Security & Passwords",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "password",
+        "set",
+        "cli"
+      ]
+    },
+    {
+      "name": "1claw",
+      "description": "HSM-backed vault for agent secrets; store, rotate, share securely.",
+      "source": "clawskills.sh",
+      "category": "Security & Passwords",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "claw",
+        "hsm-backed",
+        "vault",
+        "agent",
+        "secrets",
+        "store",
+        "rotate",
+        "share",
+        "securely"
+      ]
+    },
+    {
+      "name": "aawu",
+      "description": "Join and interact with AAWU (Autonomous Agentic Workers Union) — a labor union for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Personal Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "aawu",
+        "union",
+        "join",
+        "interact",
+        "autonomous",
+        "agentic",
+        "workers",
+        "labor",
+        "agents"
+      ]
+    },
+    {
+      "name": "adaptive-learning-agents",
+      "description": "**Learn from errors and corrections in real-time.",
+      "source": "clawskills.sh",
+      "category": "Personal Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adaptive-learning-agents",
+        "learn",
+        "errors",
+        "corrections",
+        "real-time"
+      ]
+    },
+    {
+      "name": "add-wish",
+      "description": "Save any product to a universal wishlist.",
+      "source": "clawskills.sh",
+      "category": "Shopping & E Commerce",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "add-wish",
+        "save",
+        "product",
+        "universal",
+        "wishlist"
+      ]
+    },
+    {
+      "name": "allstock-data",
+      "description": "Query A-share and US stock data via Tencent Finance API.",
+      "source": "clawskills.sh",
+      "category": "Shopping & E Commerce",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "allstock-data",
+        "query",
+        "a-share",
+        "stock",
+        "data",
+        "via",
+        "tencent",
+        "finance",
+        "api"
+      ]
+    },
+    {
+      "name": "alter-actions",
+      "description": "Trigger Alter macOS app actions via x-callback-urls.",
+      "source": "clawskills.sh",
+      "category": "Apple Apps & Services",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "alter-actions",
+        "trigger",
+        "alter",
+        "macos",
+        "app",
+        "actions",
+        "via",
+        "x-callback-urls"
+      ]
+    },
+    {
+      "name": "apple-contacts",
+      "description": "Look up contacts from macOS Contacts.app.",
+      "source": "clawskills.sh",
+      "category": "Apple Apps & Services",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "contacts",
+        "apple-contacts",
+        "look",
+        "macos",
+        "app"
+      ]
+    },
+    {
+      "name": "addis-assistant-stt",
+      "description": "Provides Speech-to-Text (STT) and text.",
+      "source": "clawskills.sh",
+      "category": "Speech & Transcription",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "addis-assistant-stt",
+        "provides",
+        "speech-to-text",
+        "stt",
+        "text"
+      ]
+    },
+    {
+      "name": "agent-voice",
+      "description": "Command-line blogging platform for AI agents.",
+      "source": "clawskills.sh",
+      "category": "Speech & Transcription",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-voice",
+        "command-line",
+        "blogging",
+        "platform",
+        "agents"
+      ]
+    },
+    {
+      "name": "anova-oven",
+      "description": "Control Anova Precision Ovens and Precision Cookers (sous vide)",
+      "source": "clawskills.sh",
+      "category": "Smart Home & Iot",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "precision",
+        "anova-oven",
+        "control",
+        "anova",
+        "ovens",
+        "cookers",
+        "sous",
+        "vide"
+      ]
+    },
+    {
+      "name": "anthropology",
+      "description": "A comprehensive AI skill for teaching.",
+      "source": "clawskills.sh",
+      "category": "Smart Home & Iot",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "anthropology",
+        "comprehensive",
+        "teaching"
+      ]
+    },
+    {
+      "name": "adhd-assistant",
+      "description": "ADHD-friendly life management assistant for OpenClaw.",
+      "source": "clawskills.sh",
+      "category": "Clawdbot Tools",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "adhd-assistant",
+        "adhd-friendly",
+        "life",
+        "management",
+        "assistant",
+        "openclaw"
+      ]
+    },
+    {
+      "name": "add-analytics",
+      "description": "Add Google Analytics 4 tracking to any project.",
+      "source": "clawskills.sh",
+      "category": "Data & Analytics",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "add-analytics",
+        "add",
+        "google",
+        "analytics",
+        "tracking",
+        "project"
+      ]
+    },
+    {
+      "name": "agent-relay-digest",
+      "description": "Create curated digests of agent conversations.",
+      "source": "clawskills.sh",
+      "category": "Moltbook",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-relay-digest",
+        "create",
+        "curated",
+        "digests",
+        "agent",
+        "conversations"
+      ]
+    },
+    {
+      "name": "beacon",
+      "description": "Agent-to-agent protocol for social coordination, crypto payments, and P2P mesh.",
+      "source": "clawskills.sh",
+      "category": "Self Hosted & Automation",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "beacon",
+        "agent-to-agent",
+        "protocol",
+        "social",
+        "coordination",
+        "crypto",
+        "payments",
+        "p2p",
+        "mesh"
+      ]
+    },
+    {
+      "name": "agent-defibrillator",
+      "description": "Watchdog that monitors your AI agent gateway and restarts it when it crashes.",
+      "source": "clawskills.sh",
+      "category": "Ios & Macos Development",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-defibrillator",
+        "watchdog",
+        "monitors",
+        "your",
+        "agent",
+        "gateway",
+        "restarts",
+        "crashes"
+      ]
+    },
+    {
+      "name": "abby-watch",
+      "description": "Simple time display for Abby.",
+      "source": "clawskills.sh",
+      "category": "Gaming",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "abby-watch",
+        "simple",
+        "time",
+        "display",
+        "abby"
+      ]
+    },
+    {
+      "name": "agent-signet-id",
+      "description": "Register with Signet to receive a trust score and API key.",
+      "source": "clawskills.sh",
+      "category": "Coding Agents & Ides",
+      "scope": "external",
+      "path": "",
+      "keywords": [
+        "agent-signet-id",
+        "register",
+        "signet",
+        "receive",
+        "trust",
+        "score",
+        "api",
+        "key"
       ]
     }
   ]

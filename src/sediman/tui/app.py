@@ -97,6 +97,10 @@ class SedimanTUI:
                 from sediman.openbrowser.session import OpenBrowserSession
 
                 self._browser = OpenBrowserSession(headless=self.headless)
+            elif self.browser_backend == "agent-browser":
+                from sediman.agentbrowser.session import AgentBrowserSession
+
+                self._browser = AgentBrowserSession(headless=self.headless)
             else:
                 from sediman.browser.session import BrowserSession
 

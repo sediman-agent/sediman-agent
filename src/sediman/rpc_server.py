@@ -813,7 +813,7 @@ async def handle_skills_search(params: dict[str, Any], notify: NotifyFn | None =
     try:
         from sediman.skills.search import SkillSearchEngine
         search_engine = SkillSearchEngine()
-        results = search_engine.search(query, limit=limit)
+        results = await search_engine.search(query, limit=limit)
         return [
             {
                 "name": r.name,
@@ -824,7 +824,8 @@ async def handle_skills_search(params: dict[str, Any], notify: NotifyFn | None =
             }
             for r in results
         ]
-    except Exception:
+    except Exception as e:
+        logger.warning("skill_search_fallback", query=query, error=str(e))
         from sediman.skills.engine import SkillEngine
         engine = SkillEngine()
         all_skills = engine.list_skills()

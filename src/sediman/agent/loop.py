@@ -48,6 +48,7 @@ from sediman.agent.progress import (
 from sediman.browser.session import BrowserSession
 from sediman.llm.provider import LLMProvider
 from sediman.memory.manager import MemoryManager
+from sediman.agentbrowser.session import AgentBrowserSession
 
 logger = structlog.get_logger()
 
@@ -187,6 +188,9 @@ class AgentLoop:
         return self._subagent_factory
 
     def _get_browser_agent(self, recording_name: str | None = None, task: str = "") -> BrowserSubagent:
+        if isinstance(self.browser, AgentBrowserSession):
+            return self._get_agent_browser_agent(recording_name=recording_name, task=task)
+
         on_browser_step = None
         if self.on_step:
             browser_step_counter = [0]
@@ -219,6 +223,39 @@ class AgentLoop:
             recording_name=recording_name,
             memory_context=self._cached_memory_context,
             browser_use_llm=self._cached_browser_use_llm,
+        )
+
+    def _get_agent_browser_agent(self, recording_name: str | None = None, task: str = "") -> BrowserSubagent:
+        from sediman.agentbrowser.subagent import AgentBrowserSubagent
+
+        on_browser_step = None
+        if self.on_step:
+            browser_step_counter = [0]
+            def on_browser_step(action: str, url: str) -> None:
+                browser_step_counter[0] += 1
+                self.on_step(StepEvent(
+                    step=browser_step_counter[0],
+                    action=action,
+                    observation=url,
+                    phase="executing",
+                ))
+        if self._cached_memory_context is None:
+            try:
+                from sediman.memory.store import MemoryStore
+                memory_store = MemoryStore()
+                self._cached_memory_context = memory_store.format_for_system_prompt_filtered(
+                    task or "browser task", max_chars=800
+                )
+            except Exception:
+                self._cached_memory_context = ""
+        return AgentBrowserSubagent(
+            browser_session=self.browser,
+            llm_provider=self.llm,
+            max_steps=self.max_steps,
+            on_browser_step=on_browser_step,
+            conversation=self._conversation,
+            memory_context=self._cached_memory_context,
+            recording_name=recording_name,
         )
 
     async def run(self, task: str) -> AgentResult:
@@ -348,11 +385,8 @@ class AgentLoop:
         # ── Fast Path: Conversational (no browser) ──────────────
         if plan.strategy == Strategy.CONVERSATIONAL:
             self._emit(state, "Responding directly...", detail="No browser needed")
-            response_text = plan.response or ""
-            if not response_text:
-                response_text = "I'm Sediman. How can I help you?"
-            else:
-                await self._stream_text_async(response_text, phase="responding")
+            response_text = plan.response or "I'm Sediman. How can I help you?"
+            await self._stream_text_async(response_text, phase="responding")
             self._conversation.append({"role": "user", "content": task})
             self._conversation.append({"role": "assistant", "content": response_text})
             if len(self._conversation) > self.max_conversation:

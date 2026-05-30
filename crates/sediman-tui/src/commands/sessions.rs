@@ -94,7 +94,7 @@ pub async fn handle_resume(app: &mut App, _args: &str) {
 
 pub static CMD_SESSIONS: Command = Command {
     name: "/sessions",
-    aliases: &[],
+    aliases: &["/session"],
     description: "Show recent sessions",
     category: CommandCategory::Sessions,
 };

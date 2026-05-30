@@ -9,6 +9,32 @@ description = "A self-improving browser agent that runs 24/7"
 readme = "README.md"
 license = {text = "BSL-1.1"}
 requires-python = ">=3.11"
+keywords = [
+    "browser-automation",
+    "ai-agent",
+    "playwright",
+    "web-scraping",
+    "rpa",
+    "browser-agent",
+    "self-healing",
+    "skill-learning",
+    "cron-scheduling",
+    "chromium",
+    "headless-browser",
+    "automation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: Free For Educational Use",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Testing",
+]
 dependencies = [
     "browser-use>=0.2.0",
     "playwright>=1.40.0",
@@ -38,6 +64,12 @@ dependencies = [
 
 [project.scripts]
 sediman = "sediman.cli:main"
+
+[project.urls]
+Homepage = "https://sediman.ai"
+Repository = "https://github.com/sediman-agent/sediman-browse"
+Documentation = "https://github.com/sediman-agent/sediman-browse#readme"
+Changelog = "https://github.com/sediman-agent/sediman-browse/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]

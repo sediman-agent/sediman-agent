@@ -751,7 +751,7 @@ async fn handle_slash(app: &mut App, input: &str) {
         }
         "/schedule-add" => schedule::handle_schedule_add(app, args).await,
         "/schedule-remove" => schedule::handle_schedule_remove(app, args).await,
-        "/sessions" => sessions::handle_sessions(app, args).await,
+        "/sessions" | "/session" => sessions::handle_sessions(app, args).await,
         "/resume" => sessions::handle_resume(app, args).await,
         "/browser" => browser::handle_browser(app, args).await,
         "/screenshot" => browser::handle_screenshot(app, args).await,

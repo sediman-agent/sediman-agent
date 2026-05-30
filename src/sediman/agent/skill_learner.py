@@ -31,7 +31,7 @@ class SkillLearnerAgent:
             return None
 
         if self._engine and success:
-            similar = self._engine.find_similar(task[:64], task)
+            similar = await self._engine.find_similar(task)
             if similar:
                 quick_steps = self._extract_steps_from_actions(browser_actions)
                 if len(quick_steps) >= 2:
@@ -341,7 +341,7 @@ class SkillLearnerAgent:
                 logger.debug("skill_already_exists", name=name)
                 return None
 
-            similar = engine.find_similar(name, description)
+            similar = await engine.find_similar(f"{name} {description}")
             if similar:
                 logger.info("skill_similar_found", new_name=name, similar_to=similar.get("name"), action="merging_into_similar")
                 updates = {"description": description, "steps": steps}

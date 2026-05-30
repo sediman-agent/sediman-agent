@@ -53,9 +53,16 @@ async fn ensure_backend(
     model: Option<&str>,
     base_url: Option<&str>,
 ) -> Option<tokio::process::Child> {
-    // If socket already exists, backend is running
+    // If socket exists, verify the backend is actually responsive
     if tokio::fs::metadata(socket_path).await.is_ok() {
-        return None;
+        let bridge = sediman_tui_bridge::ApiClient::new(socket_path);
+        match tokio::time::timeout(Duration::from_secs(2), bridge.status()).await {
+            Ok(Ok(_)) => return None, // backend is alive
+            _ => {
+                eprintln!("Stale socket detected at {}, removing...", socket_path);
+                let _ = tokio::fs::remove_file(socket_path).await;
+            }
+        }
     }
 
     if no_spawn {
@@ -171,12 +178,28 @@ async fn main() {
 
     let bridge = sediman_tui_bridge::ApiClient::new(&args.socket);
 
-    // Sync provider/model/base-url with the backend (in case it was already running)
-    let _ = bridge.switch_model(
-        &args.provider,
-        args.model.as_deref(),
-        args.base_url.as_deref(),
-    ).await;
+    // Sync provider/model/base-url with the backend (in case it was already running).
+    // Retry a few times because the backend may have just started.
+    let mut synced = false;
+    for attempt in 0..5 {
+        match bridge.switch_model(
+            &args.provider,
+            args.model.as_deref(),
+            args.base_url.as_deref(),
+        ).await {
+            Ok(()) => { synced = true; break; }
+            Err(e) if attempt < 4 => {
+                eprintln!("switch_model attempt {} failed: {}, retrying...", attempt + 1, e);
+                tokio::time::sleep(Duration::from_millis(200 * (attempt + 1) as u64)).await;
+            }
+            Err(e) => {
+                eprintln!("Warning: Could not switch model ({})", e);
+            }
+        }
+    }
+    if synced {
+        eprintln!("Model synced: {} / {:?}", args.provider, args.model);
+    }
 
     // Load persisted config
     let saved_config = crate::config::TuiConfig::load();

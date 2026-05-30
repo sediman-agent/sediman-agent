@@ -129,7 +129,7 @@ install_sediman() {
 download_tui_binary() {
     local platform="$1"
     local tui_bin="$SEDIMAN_BIN_DIR/sediman-tui"
-    local github_repo="sediman/sediman-browse"
+    local github_repo="sediman-agent/sediman-browse"
 
     if [ -x "$tui_bin" ] && [ "$FORCE" != "true" ]; then
         info "sediman-tui already installed at $tui_bin"

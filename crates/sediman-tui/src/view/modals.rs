@@ -121,7 +121,7 @@ pub fn render_help_modal(buf: &mut CellBuffer, area: Rect, app: &App) {
             ("/screenshot", "Capture browser screenshot"),
         ]),
         ("Sessions", &[
-            ("/sessions", "List saved sessions"),
+            ("/sessions", "List saved sessions (/session)"),
             ("/memory", "Show agent memory store"),
             ("/remember <text>", "Save to agent memory"),
             ("/resume <id>", "Resume a saved session"),
@@ -204,7 +204,12 @@ pub fn render_info_modal(
     let inner_x = frame.inner_x;
     let inner_w = frame.inner_w;
     let mut y = frame.modal.y + 2;
-    let max_y = frame.modal.bottom() - 1;
+    let needs_indicator = line_count > content_h;
+    let max_y = if needs_indicator {
+        frame.modal.bottom() - 2
+    } else {
+        frame.modal.bottom() - 1
+    };
     let scroll = scroll as usize;
 
     for (i, line) in lines.iter().enumerate() {

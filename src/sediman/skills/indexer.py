@@ -301,6 +301,14 @@ _DEFAULT_SOURCES = [
         "branch": "main",
         "skill_by_marker": True,
     },
+    {
+        "name": "clawskills.sh",
+        "type": "awesome-openclaw",
+        "owner": "VoltAgent",
+        "repo": "awesome-openclaw-skills",
+        "path": "categories",
+        "branch": "main",
+    },
 ]
 
 _ROOT_EXCLUDE = {".cursor-plugin", ".claude-plugin", ".github", ".codex", "schemas", "scripts", "src", "tests", "bin", ".husky"}

@@ -367,24 +367,36 @@ class SkillEngine:
         if self.use_cache:
             self._read_cache[name] = existing
 
-    def find_similar(self, description: str, limit: int = 5) -> list[dict[str, Any]]:
-        from sediman.memory.vector import VectorStore
-        vs = VectorStore()
+    async def find_similar(self, description: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Search for skills similar to the given description.
+
+        Uses SkillSearchEngine for semantic + keyword search over actual skills,
+        falling back to simple keyword matching if the engine is unavailable.
+        """
         try:
-            results = vs.search(description, k=limit, threshold=0.3)
-            return [{"text": r["text"], "score": r["score"]} for r in results]
+            from sediman.skills.search import SkillSearchEngine
+            search_engine = SkillSearchEngine()
+            results = await search_engine.search(description, scope="internal", k=limit)
+            return [
+                {"text": r.name, "score": r.score, "name": r.name, "description": r.description}
+                for r in results
+            ]
         except Exception:
+            logger.warning("find_similar_fallback_to_keyword", description=description[:50])
             all_skills = self.list_skills()
             desc_lower = description.lower()
-            scored = []
+            scored: list[tuple[int, dict[str, Any]]] = []
             for s in all_skills:
-                name = s.get("name", "").lower()
-                desc = s.get("description", "").lower()
-                score = sum(1 for w in desc_lower.split() if w in name or w in desc)
+                s_name = s.get("name", "").lower()
+                s_desc = s.get("description", "").lower()
+                score = sum(1 for w in desc_lower.split() if w in s_name or w in s_desc)
                 if score > 0:
                     scored.append((score, s))
             scored.sort(key=lambda x: -x[0])
-            return [{"text": s[1].get("name", ""), "score": s[0]} for s in scored[:limit]]
+            return [
+                {"text": s[1].get("name", ""), "score": s[0], "name": s[1].get("name", ""), "description": s[1].get("description", "")}
+                for s in scored[:limit]
+            ]
 
     def verify_and_rollback(self, name: str, llm=None) -> tuple[bool, str]:
         existing = self.read(name)

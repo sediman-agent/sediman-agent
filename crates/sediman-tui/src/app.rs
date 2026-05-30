@@ -177,7 +177,14 @@ impl App {
         register_commands(&mut registry);
 
         let mut completer = Completer::new();
-        let command_names: Vec<String> = registry.all().iter().map(|c| c.name.to_string()).collect();
+        let mut command_names: Vec<String> = registry.all().iter().map(|c| c.name.to_string()).collect();
+        for cmd in registry.all() {
+            for alias in cmd.aliases {
+                command_names.push(alias.to_string());
+            }
+        }
+        command_names.sort();
+        command_names.dedup();
         completer.set_candidates(command_names);
 
         Self {

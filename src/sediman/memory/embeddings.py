@@ -249,8 +249,37 @@ class TfidfEmbeddingProvider(EmbeddingProvider):
             norm = sum(v * v for v in row) ** 0.5
             if norm > 0:
                 row = [v / norm for v in row]
+            else:
+                # Zero vector — all words are unseen. Re-fit with this text
+                # included so at least partial vocabulary overlap is captured.
+                row = self._partial_refit_embed(texts[i])
             rows.append(row)
         return rows
+
+    def _partial_refit_embed(self, text: str) -> list[float]:
+        """Re-fit the vectorizer including the unseen text and return its embedding."""
+        try:
+            import numpy as np
+            old_vocab = list(self._vectorizer.get_feature_names_out())
+            # Combine existing vocabulary with new text tokens
+            new_tokens = text.lower().split()
+            combined_texts = [" ".join(old_vocab)] + [text]
+            self._vectorizer.fit(combined_texts)
+            self._vocab = set(self._vectorizer.get_feature_names_out())
+            self._dim = len(self._vocab)
+            self._persist_vocab()
+            self._cache.clear()
+            matrix = self._vectorizer.transform([text])
+            row = matrix[0].toarray()[0].tolist()
+            norm = sum(v * v for v in row) ** 0.5
+            if norm > 0:
+                row = [v / norm for v in row]
+            # Pad or trim to match expected dimension
+            if len(row) < self._dim:
+                row.extend([0.0] * (self._dim - len(row)))
+            return row
+        except Exception:
+            return [0.0] * self._dim
 
     @property
     def dimension(self) -> int:
