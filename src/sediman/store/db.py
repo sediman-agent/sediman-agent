@@ -4,12 +4,12 @@ import asyncio
 import aiosqlite
 import structlog
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import AsyncIterator
+
+from sediman.config import DATA_DIR
 
 logger = structlog.get_logger()
 
-DEFAULT_DATA_DIR = Path.home() / ".sediman"
 DB_NAME = "state.db"
 
 _SCHEMA = """
@@ -115,7 +115,7 @@ async def _create_conn() -> aiosqlite.Connection:
 
 
 async def acquire() -> aiosqlite.Connection:
-    DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     await _init_pool()
     async with _pool_lock:
         while _pool:
@@ -158,4 +158,4 @@ async def init_db() -> None:
 
 
 def get_db_path() -> Path:
-    return DEFAULT_DATA_DIR / DB_NAME
+    return DATA_DIR / DB_NAME
