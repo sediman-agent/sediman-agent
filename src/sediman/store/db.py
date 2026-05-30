@@ -106,6 +106,7 @@ async def _create_conn() -> aiosqlite.Connection:
     db_path = get_db_path()
     conn = await aiosqlite.connect(db_path, timeout=10)
     conn.row_factory = aiosqlite.Row
+    conn._db_path = str(db_path)
     for pragma in _PERF_PRAGMAS:
         try:
             await conn.execute(pragma)
@@ -117,10 +118,17 @@ async def _create_conn() -> aiosqlite.Connection:
 async def acquire() -> aiosqlite.Connection:
     DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
     await _init_pool()
+    current_path = str(get_db_path())
     async with _pool_lock:
         while _pool:
             conn = _pool.pop()
             try:
+                if getattr(conn, '_db_path', '') != current_path:
+                    try:
+                        await conn.close()
+                    except Exception:
+                        pass
+                    continue
                 await conn.execute("SELECT 1")
             except Exception:
                 try:
