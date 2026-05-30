@@ -10,6 +10,8 @@ Teach it once. It repeats forever. 24/7.
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-green.svg)]()
 [![Discord](https://img.shields.io/discord/1376637192334123070?color=5865F2&label=Discord&logo=discord&logoColor=white)](https://discord.gg/yFbZ58eJ)
 
+<a href="https://www.producthunt.com/products/sediman-agent?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-sediman-agent" target="_blank" rel="noopener noreferrer"><img alt="Sediman Agent - Teach it once. It repeats forever. AI browser automation. | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1159366&amp;theme=light&amp;t=1780152148762"></a>
+
 </div>
 
 ---
