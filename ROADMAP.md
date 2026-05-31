@@ -50,6 +50,17 @@ Features planned to close the gap with OpenCode / Claude Code and beyond.
 - [x] **Shell command execution** — `!` prefix for running commands
 - [x] **Theme system** — built-in themes + custom JSON theme loading
 
+### Terminator Mode (Autonomous Coding)
+
+- [x] **Phase 1: Validation gates** — `InlineVerifier` runs lint/format/test after each issue; `review` subagent critiques diff (PASS/NEEDS_FIX/REJECT); `debug` subagent diagnoses root cause on failure
+- [x] **Phase 2: Dependency-aware scheduling** — issues with `depends_on` only start when deps are resolved; scratchpad cross-issue communication for API/file sharing
+- [x] **Phase 3: Integration merge** — `integrate` subagent merges all feature branches, resolves conflicts, runs full test suite
+- [x] **Phase 4: Adaptive resilience** — re-decomposition when >50% fail; checkpoint rollback before spawn; progressive retry with exponential backoff and enriched context
+- [x] **Phase 5: Quality gates & timeline** — configurable gate pipeline (pre-merge/post-merge/final); structured workflow timeline with per-issue timing and phase tracking
+- [x] **Phase 6: Learning** — per-issue and workflow trajectories saved to TrajectoryDB; failure pattern library with persistent JSON storage and keyword-matched warnings
+- [x] **Phase 7: Adversarial hardening** — `redteam` subagent writes adversarial tests for edge cases; contract verification between dependent issues' APIs
+- [x] **New agent templates** — `integrate` (merge agent, 50 iterations), `redteam` (adversarial test engineer)
+
 ### Architecture
 
 - [x] **Unix socket JSON-RPC bridge** — replaced HTTP + WebSocket with `/tmp/sediman.sock` (Unix domain socket). ~15x faster than localhost HTTP loopback
