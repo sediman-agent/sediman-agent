@@ -82,3 +82,5 @@ DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 AGENTBROWSER_BINARY = os.environ.get("SEDIMAN_AGENTBROWSER_BINARY", "")
+
+AUTH_FILE = DATA_DIR / "auth.json"

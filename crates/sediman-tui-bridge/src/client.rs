@@ -349,6 +349,77 @@ impl ApiClient {
         self.call::<serde_json::Value>("model.switch", params).await?;
         Ok(())
     }
+
+    pub async fn list_providers(&self) -> BridgeResult<Vec<ProviderInfo>> {
+        let resp = self
+            .call::<serde_json::Value>("model.list_providers", serde_json::json!({}))
+            .await?;
+        let providers = resp
+            .get("providers")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let mut result = Vec::new();
+        for p in providers {
+            result.push(ProviderInfo {
+                name: p.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                default_model: p.get("default_model").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                default_base_url: p.get("default_base_url").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                category: p.get("category").and_then(|v| v.as_str()).unwrap_or("cloud").to_string(),
+                needs_api_key: p.get("needs_api_key").and_then(|v| v.as_bool()).unwrap_or(true),
+                has_key: p.get("has_key").and_then(|v| v.as_bool()).unwrap_or(false),
+            });
+        }
+        Ok(result)
+    }
+
+    pub async fn list_models(&self, provider: Option<&str>) -> BridgeResult<Vec<ModelInfo>> {
+        let mut params = serde_json::json!({});
+        if let Some(p) = provider {
+            params["provider"] = serde_json::json!(p);
+        }
+        let resp = self.call::<serde_json::Value>("model.list", params).await?;
+        let models = resp
+            .get("models")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        let mut result = Vec::new();
+        for m in models {
+            result.push(ModelInfo {
+                id: m.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                name: m.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                provider: m.get("provider").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            });
+        }
+        Ok(result)
+    }
+
+    pub async fn auth_set(&self, provider: &str, key: &str) -> BridgeResult<()> {
+        self.call::<serde_json::Value>(
+            "auth.set",
+            serde_json::json!({"provider": provider, "key": key}),
+        )
+        .await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProviderInfo {
+    pub name: String,
+    pub default_model: String,
+    pub default_base_url: Option<String>,
+    pub category: String,
+    pub needs_api_key: bool,
+    pub has_key: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct ModelInfo {
+    pub id: String,
+    pub name: String,
+    pub provider: String,
 }
 
 #[cfg(test)]

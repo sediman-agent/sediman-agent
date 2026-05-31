@@ -207,6 +207,34 @@ async fn main() {
 
     let mut app_state = app::App::new(args.provider, args.model, args.base_url, headless, bridge);
 
+    // Fetch available providers from the Python backend
+    match app_state.bridge.list_providers().await {
+        Ok(providers) => {
+            eprintln!("Loaded {} providers from backend", providers.len());
+            app_state.available_providers = providers;
+        }
+        Err(e) => {
+            eprintln!("Warning: Could not fetch providers ({})", e);
+        }
+    }
+
+    // Fetch available models
+    match app_state.bridge.list_models(None).await {
+        Ok(models) => {
+            let current = format!("{}/{}", app_state.provider, app_state.model.as_deref().unwrap_or("default"));
+            app_state.model_list = models.into_iter().map(|m| {
+                let is_current = m.id == current;
+                app::ModelEntry {
+                    id: m.id,
+                    name: m.name,
+                    provider: m.provider,
+                    is_current,
+                }
+            }).collect();
+        }
+        Err(_) => {}
+    }
+
     // Apply saved theme
     if !saved_config.theme.is_empty() {
         if let Some(theme) = sediman_tui_core::styling::load_theme(&saved_config.theme) {

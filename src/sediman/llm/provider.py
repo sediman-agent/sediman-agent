@@ -468,18 +468,173 @@ PROVIDERS: dict[str, dict[str, str | None]] = {
         "model": "gpt-4o",
         "base_url": None,
         "api_key_env": "OPENAI_API_KEY",
+        "category": "cloud",
     },
-    "ollama": {
-        "model": "qwen3",
-        "base_url": "http://localhost:11434/v1",
-        "api_key_env": None,
+    "anthropic": {
+        "model": "claude-sonnet-4-20250514",
+        "base_url": "https://api.anthropic.com/v1",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "category": "cloud",
+    },
+    "gemini": {
+        "model": "gemini-2.5-pro",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "api_key_env": "GEMINI_API_KEY",
+        "category": "cloud",
+    },
+    "mistral": {
+        "model": "mistral-large-latest",
+        "base_url": "https://api.mistral.ai/v1",
+        "api_key_env": "MISTRAL_API_KEY",
+        "category": "cloud",
+    },
+    "xai": {
+        "model": "grok-3",
+        "base_url": "https://api.x.ai/v1",
+        "api_key_env": "XAI_API_KEY",
+        "category": "cloud",
+    },
+    "cohere": {
+        "model": "command-r-plus",
+        "base_url": "https://api.cohere.ai/v2",
+        "api_key_env": "COHERE_API_KEY",
+        "category": "cloud",
+    },
+    "glm": {
+        "model": "glm-4-flash",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "api_key_env": "GLM_API_KEY",
+        "category": "cloud-cn",
+    },
+    "deepseek": {
+        "model": "deepseek-chat",
+        "base_url": "https://api.deepseek.com/v1",
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "category": "cloud-cn",
+    },
+    "dashscope": {
+        "model": "qwen-plus",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "api_key_env": "DASHSCOPE_API_KEY",
+        "category": "cloud-cn",
+    },
+    "siliconflow": {
+        "model": "Qwen/Qwen2.5-72B-Instruct",
+        "base_url": "https://api.siliconflow.cn/v1",
+        "api_key_env": "SILICONFLOW_API_KEY",
+        "category": "cloud-cn",
     },
     "minimax": {
         "model": "MiniMax-Text-01",
         "base_url": "https://api.minimaxi.com/v1",
         "api_key_env": "MINIMAX_API_KEY",
+        "category": "cloud-cn",
+    },
+    "minimax-global": {
+        "model": "MiniMax-Text-01",
+        "base_url": "https://api.minimaxi.chat/v1",
+        "api_key_env": "MINIMAX_API_KEY",
+        "category": "cloud",
+    },
+    "openrouter": {
+        "model": "openai/gpt-4o",
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key_env": "OPENROUTER_API_KEY",
+        "category": "inference",
+    },
+    "groq": {
+        "model": "llama-3.3-70b-versatile",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "category": "inference",
+    },
+    "together": {
+        "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        "base_url": "https://api.together.xyz/v1",
+        "api_key_env": "TOGETHER_API_KEY",
+        "category": "inference",
+    },
+    "fireworks": {
+        "model": "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        "base_url": "https://api.fireworks.ai/inference/v1",
+        "api_key_env": "FIREWORKS_API_KEY",
+        "category": "inference",
+    },
+    "cerebras": {
+        "model": "llama-3.3-70b",
+        "base_url": "https://api.cerebras.ai/v1",
+        "api_key_env": "CEREBRAS_API_KEY",
+        "category": "inference",
+    },
+    "deepinfra": {
+        "model": "meta-llama/Meta-Llama-3.1-70B-Instruct",
+        "base_url": "https://api.deepinfra.com/v1/openai",
+        "api_key_env": "DEEPINFRA_API_KEY",
+        "category": "inference",
+    },
+    "perplexity": {
+        "model": "sonar-pro",
+        "base_url": "https://api.perplexity.ai",
+        "api_key_env": "PERPLEXITY_API_KEY",
+        "category": "inference",
+    },
+    "ollama": {
+        "model": "qwen3",
+        "base_url": "http://localhost:11434/v1",
+        "api_key_env": None,
+        "category": "local",
+    },
+    "vllm": {
+        "model": "auto",
+        "base_url": "http://localhost:8000/v1",
+        "api_key_env": None,
+        "category": "local",
+    },
+    "sglang": {
+        "model": "auto",
+        "base_url": "http://localhost:30000/v1",
+        "api_key_env": None,
+        "category": "local",
+    },
+    "llamacpp": {
+        "model": "auto",
+        "base_url": "http://127.0.0.1:8080/v1",
+        "api_key_env": None,
+        "category": "local",
+    },
+    "lmstudio": {
+        "model": "auto",
+        "base_url": "http://127.0.0.1:1234/v1",
+        "api_key_env": None,
+        "category": "local",
     },
 }
+
+PROVIDER_CATEGORIES: dict[str, str] = {
+    "cloud": "Cloud Providers",
+    "cloud-cn": "Chinese Cloud Providers",
+    "inference": "Inference Platforms",
+    "local": "Local / Self-hosted",
+}
+
+
+def list_providers() -> list[dict[str, Any]]:
+    from sediman.auth import has_key
+
+    result: list[dict[str, Any]] = []
+    for name, preset in PROVIDERS.items():
+        needs_key = preset.get("api_key_env") is not None
+        result.append({
+            "name": name,
+            "default_model": preset.get("model"),
+            "default_base_url": preset.get("base_url"),
+            "category": preset.get("category", "cloud"),
+            "needs_api_key": needs_key,
+            "api_key_env": preset.get("api_key_env"),
+            "has_key": has_key(name) or (not needs_key),
+        })
+    return result
+
 
 PLANNING_MODEL_MAP: dict[str, str] = {
     "gpt-4o": "gpt-4o-mini",
@@ -497,15 +652,20 @@ def create_provider(
     base_url: str | None = None,
     api_key: str | None = None,
 ) -> OpenAICompatibleProvider:
+    from sediman.auth import get_key as _get_auth_key
+
     preset = PROVIDERS.get(provider)
     if not preset:
         raise ValueError(
-            f"Unknown provider: {provider}. Available: {', '.join(PROVIDERS.keys())}"
+            f"Unknown provider: {provider}. Available: {', '.join(sorted(PROVIDERS.keys()))}"
         )
 
     resolved_model = model or preset["model"]
     resolved_base_url = base_url or preset.get("base_url")
     resolved_key = api_key
+
+    if not resolved_key:
+        resolved_key = _get_auth_key(provider)
 
     if not resolved_key and preset.get("api_key_env"):
         resolved_key = os.environ.get(preset["api_key_env"])

@@ -351,83 +351,160 @@ pub fn render_model_picker(buf: &mut CellBuffer, area: Rect, app: &App) {
         Style::new().fg(t.text_muted).bg(t.background));
 }
 
-/// Providers shown in the picker. Others can be set via `/provider <url>`.
-const KNOWN_PROVIDERS: &[&str] = &["openai", "ollama"];
-
 pub fn render_provider_picker(buf: &mut CellBuffer, area: Rect, app: &App) {
+    render_provider_list(buf, area, app, " Provider ", false);
+}
+
+pub fn render_connect_picker(buf: &mut CellBuffer, area: Rect, app: &App) {
+    render_provider_list(buf, area, app, " Connect Provider ", true);
+}
+
+pub fn render_api_key_prompt(buf: &mut CellBuffer, area: Rect, app: &App) {
     let t = &app.theme;
-    let current = app.provider.as_str();
-    let modal_w = 48u16;
-    let modal_h = 12u16;
+    let target = app.connect_target.as_deref().unwrap_or("unknown");
+    let modal_w = 50u16;
+    let modal_h = 8u16;
     let frame = ModalFrame::new(buf, area, app, modal_w, modal_h);
-    let inner_w = frame.inner_w;
+    let inner_x = frame.inner_x;
 
     frame.draw_border(buf, Style::new().fg(t.primary), Style::new().fg(t.border));
-    frame.draw_title(buf, " Provider ", Style::new()
+    frame.draw_title(buf, &format!(" {} ", target), Style::new()
         .fg(t.primary).bg(t.background).add_modifier(TextAttributes::bold()));
     frame.draw_close_hint(buf, " Esc ", Style::new().fg(t.text_muted).bg(t.background));
 
-    let inner_x = frame.inner_x;
     let mut y = frame.modal.y + 2;
+    buf.draw_str(inner_x, y, &format!("Enter API key for {}:", target),
+        Style::new().fg(t.text).bg(t.background));
+    y += 1;
 
-    // Input field for custom URL
     let input_bg = t.background_panel;
     for sx in (frame.modal.x + 1)..(frame.modal.right() - 1) {
         buf.put_char(sx, y, ' ', Style::new().bg(input_bg).fg(t.text));
     }
     buf.draw_str(inner_x, y, "\u{276f} ", Style::new().fg(t.primary).bg(input_bg));
-    if app.provider_picker_input.is_empty() {
-        buf.draw_str(inner_x + 2, y, "Type custom URL...", Style::new().fg(t.text_muted).bg(input_bg));
+
+    if app.api_key_input.is_empty() {
+        buf.draw_str(inner_x + 2, y, "sk-...", Style::new().fg(t.text_muted).bg(input_bg));
         buf.put_char(inner_x + 2, y, '\u{2588}', Style::new().fg(t.primary).bg(input_bg));
     } else {
-        let max_input = inner_w.saturating_sub(4);
-        let display: String = app.provider_picker_input.chars().take(max_input).collect();
+        let masked: String = "\u{2022}".repeat(app.api_key_input.len().min(30));
+        let display: String = masked.chars().take(frame.inner_w.saturating_sub(4)).collect();
+        buf.draw_str(inner_x + 2, y, &display, Style::new().fg(t.text).bg(input_bg));
+    }
+
+    let hints_y = frame.modal.bottom().saturating_sub(2);
+    buf.draw_str(frame.modal.x + 2, hints_y, " Enter confirm \u{2502} Esc cancel",
+        Style::new().fg(t.text_muted).bg(t.background));
+}
+
+fn render_provider_list(buf: &mut CellBuffer, area: Rect, app: &App, title: &str, show_key_status: bool) {
+    let t = &app.theme;
+    let current = app.provider.as_str();
+    let filter = app.provider_filter.to_lowercase();
+
+    let cat_order: &[(&str, &str)] = &[
+        ("cloud", "Cloud Providers"),
+        ("cloud-cn", "Chinese Cloud"),
+        ("inference", "Inference Platforms"),
+        ("local", "Local / Self-hosted"),
+    ];
+
+    let mut categories: Vec<(&str, Vec<(&str, bool, bool)>)> = Vec::new();
+    let mut total_items = 0usize;
+    for (cat_key, cat_label) in cat_order {
+        let mut items: Vec<(&str, bool, bool)> = Vec::new();
+        for p in &app.available_providers {
+            if p.category != *cat_key { continue; }
+            if !filter.is_empty() && !p.name.to_lowercase().contains(&filter) && !p.default_model.to_lowercase().contains(&filter) {
+                continue;
+            }
+            items.push((&p.name, p.has_key, p.needs_api_key));
+        }
+        total_items += items.len();
+        if !items.is_empty() {
+            categories.push((*cat_label, items));
+        }
+    }
+
+    let total_rows = total_items + categories.len() * 2;
+    let max_visible = (area.height / 2).saturating_sub(6).max(6) as usize;
+    let modal_h = (total_rows as u16 + 5).min(max_visible as u16 + 5).min(area.height.saturating_sub(2));
+    let modal_w = (area.width * 7 / 10).clamp(52u16, 72u16);
+    let frame = ModalFrame::new(buf, area, app, modal_w, modal_h);
+    let inner_x = frame.inner_x;
+
+    frame.draw_border(buf, Style::new().fg(t.primary), Style::new().fg(t.border));
+    frame.draw_title(buf, title, Style::new()
+        .fg(t.primary).bg(t.background).add_modifier(TextAttributes::bold()));
+    frame.draw_close_hint(buf, " Esc ", Style::new().fg(t.text_muted).bg(t.background));
+
+    let mut y = frame.modal.y + 2;
+
+    let input_bg = t.background_panel;
+    for sx in (frame.modal.x + 1)..(frame.modal.right() - 1) {
+        buf.put_char(sx, y, ' ', Style::new().bg(input_bg).fg(t.text));
+    }
+    buf.draw_str(inner_x, y, "\u{276f} ", Style::new().fg(t.primary).bg(input_bg));
+    if app.provider_filter.is_empty() {
+        buf.draw_str(inner_x + 2, y, "Search providers...", Style::new().fg(t.text_muted).bg(input_bg));
+        buf.put_char(inner_x + 2, y, '\u{2588}', Style::new().fg(t.primary).bg(input_bg));
+    } else {
+        let display: String = app.provider_filter.chars().take(frame.inner_w.saturating_sub(4) as usize).collect();
         buf.draw_str(inner_x + 2, y, &display, Style::new().fg(t.text).bg(input_bg));
         let cx = inner_x + 2 + display_width(&display);
         if cx < frame.modal.right() - 2 {
             buf.put_char(cx, y, '\u{2588}', Style::new().fg(t.primary).bg(input_bg));
         }
     }
-    y += 1;
+    y += 2;
 
-    // Separator
-    for sx in (frame.modal.x + 1)..(frame.modal.right() - 1) {
-        buf.put_char(sx, y, '\u{2500}', Style::new().fg(t.border_dim));
-    }
-    y += 1;
+    let max_y = frame.modal.bottom().saturating_sub(3);
+    let mut idx = 0usize;
 
-    // Quick-select: openai, ollama
-    buf.draw_str(inner_x, y, "Quick select:", Style::new().fg(t.text_muted).bg(t.background));
-    y += 1;
-
-    for (i, name) in KNOWN_PROVIDERS.iter().enumerate() {
-        if y >= frame.modal.bottom().saturating_sub(3) { break; }
-        let selected = i == app.provider_picker_index;
-        let is_current = *name == current;
-
-        if selected {
-            for sx in (frame.modal.x + 1)..(frame.modal.right() - 1) {
-                buf.put_char(sx, y, ' ', Style::new().bg(t.primary).fg(t.background_darker));
-            }
-            let marker = if is_current { "\u{25c6} " } else { "  " };
-            buf.draw_str(inner_x, y, &format!("{}\u{25b8} {}", marker, name),
-                Style::new().bg(t.primary).fg(t.background_darker).add_modifier(TextAttributes::bold()));
-        } else {
-            let marker = if is_current { "\u{25c6} " } else { "  " };
-            buf.draw_str(inner_x, y, &format!("{} {}", marker, name),
-                Style::new().fg(if is_current { t.primary } else { t.text }).bg(t.background));
-        }
+    for (cat_label, items) in &categories {
+        if y >= max_y { break; }
+        buf.draw_str(inner_x, y, &format!("\u{2500} {} ", cat_label),
+            Style::new().fg(t.text_muted).bg(t.background).add_modifier(TextAttributes::bold()));
         y += 1;
-    }
+        for (name, has_key, needs_key) in items {
+            if y >= max_y { break; }
+            let selected = idx == app.provider_picker_index;
+            let is_current = *name == current;
 
-    let _ = y; // used in loop above, last increment not read
+            let key_marker = if show_key_status {
+                if *needs_key {
+                    if *has_key { " \u{2713}" } else { "" }
+                } else {
+                    " (local)"
+                }
+            } else {
+                ""
+            };
+            let display = format!("{}{}", name, key_marker);
+
+            if selected {
+                for sx in (frame.modal.x + 1)..(frame.modal.right() - 1) {
+                    buf.put_char(sx, y, ' ', Style::new().bg(t.primary).fg(t.background_darker));
+                }
+                let marker = if is_current { "\u{25c6} " } else { "  " };
+                buf.draw_str(inner_x, y, &format!("{}\u{25b8} {}", marker, display),
+                    Style::new().bg(t.primary).fg(t.background_darker).add_modifier(TextAttributes::bold()));
+            } else {
+                let marker = if is_current { "\u{25c6} " } else { "  " };
+                buf.draw_str(inner_x, y, &format!("{} {}", marker, display),
+                    Style::new().fg(if is_current { t.primary } else { t.text }).bg(t.background));
+            }
+            y += 1;
+            idx += 1;
+        }
+    }
 
     let hints_sep_y = frame.modal.bottom().saturating_sub(3);
     let hints_y = frame.modal.bottom().saturating_sub(2);
     for sx in (frame.modal.x + 1)..(frame.modal.right() - 1) {
         buf.put_char(sx, hints_sep_y, '\u{2500}', Style::new().fg(t.border_dim));
     }
-    buf.draw_str(frame.modal.x + 2, hints_y, " Enter confirm \u{2502} Type URL for other \u{2502} \u{25c6} current ",
+    buf.draw_str(frame.modal.x + 2, hints_y, " Enter select \u{2502} Type to search \u{2502} \u{25c6} current",
         Style::new().fg(t.text_muted).bg(t.background));
 }
 

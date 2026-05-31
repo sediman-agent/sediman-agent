@@ -51,7 +51,7 @@ pub async fn handle_export(app: &mut App, _args: &str) {
     let mut content = String::new();
     for msg in &app.messages {
         match msg {
-            crate::app::ChatMessage::User { text, task_num } => {
+            crate::app::ChatMessage::User { text, task_num, .. } => {
                 content.push_str(&format!("[{}] {}\n", task_num, text));
             }
             crate::app::ChatMessage::Agent { steps, result, success, elapsed_secs, .. } => {
@@ -63,10 +63,10 @@ pub async fn handle_export(app: &mut App, _args: &str) {
                     content.push_str(&format!("{} ({}s): {}\n", status, elapsed_secs, r));
                 }
             }
-            crate::app::ChatMessage::System { text } => {
+            crate::app::ChatMessage::System { text, .. } => {
                 content.push_str(&format!("# {}\n", text));
             }
-            crate::app::ChatMessage::Error { text } => {
+            crate::app::ChatMessage::Error { text, .. } => {
                 content.push_str(&format!("! {}\n", text));
             }
         }

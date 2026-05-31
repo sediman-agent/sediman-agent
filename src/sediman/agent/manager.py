@@ -169,11 +169,13 @@ class ManagerAgent:
         decompose_prompt = (
             system_prompt
             + "\n\n## Task Decomposition\n\n"
-            "Break this task into independent subtasks that can run in parallel.\n"
-            "Each subtask should be a complete, self-contained browser task.\n"
+            "Break this task into subtasks. Most should be independent and parallelizable.\n"
+            "If some subtasks have ordering constraints (e.g. infrastructure before API before UI),\n"
+            "specify depends_on with the titles of prerequisite subtasks.\n"
+            "Each subtask should be a complete, self-contained task.\n"
             f"{seed_hint}"
             f"Maximum {max_subtasks} subtasks.\n\n"
-            'Respond with JSON: {"subtasks": ["task1", "task2", ...]}'
+            'Respond with JSON: {"subtasks": [{"title": "task1", "depends_on": []}, {"title": "task2", "depends_on": ["task1"]}]}'
         )
 
         messages = [
@@ -190,9 +192,10 @@ class ManagerAgent:
                 subtasks = data.get("subtasks", [])
                 steps = []
                 for i, subtask in enumerate(subtasks[:max_subtasks]):
+                    desc = subtask if isinstance(subtask, str) else subtask.get("title", str(subtask))
                     steps.append(PlanStep(
                         id=i,
-                        description=subtask,
+                        description=desc,
                         strategy=Strategy.DELEGATE,
                     ))
                 return steps
@@ -414,9 +417,27 @@ class ManagerAgent:
         messages: list[dict[str, Any]],
         on_token: Callable[[str], None] | None = None,
     ) -> str | None:
-        """Call the LLM and collect the full response. Tries non-streaming first
-        (most reliable), then falls back to streaming, then tries without system message."""
+        """Call the LLM and collect the full response.
+
+        When on_token is provided (streaming mode), prefer real LLM streaming
+        so the caller sees tokens as they arrive from the API. Falls back to
+        non-streaming, then tries without system message.
+        """
         last_error: str | None = None
+
+        if on_token:
+            chunks: list[str] = []
+            try:
+                async for token in self.llm.chat_stream(messages=messages, tools=[]):
+                    if token:
+                        chunks.append(token)
+                        on_token(token)
+                text = "".join(chunks)
+                if text.strip():
+                    return text
+            except Exception as e:
+                last_error = str(e)
+                logger.warning("plan_stream_failed, falling back to chat", error=last_error)
 
         try:
             response = await self.llm.chat(messages=messages, tools=[])
@@ -427,23 +448,21 @@ class ManagerAgent:
                         on_token(chunk)
                 return response_text
         except Exception as e:
-            last_error = str(e)
-            logger.warning("plan_chat_failed, falling back to streaming", error=last_error)
-
-        chunks: list[str] = []
-        try:
-            async for token in self.llm.chat_stream(messages=messages, tools=[]):
-                if token:
-                    chunks.append(token)
-                    if on_token:
-                        on_token(token)
-        except Exception as e:
             last_error = last_error or str(e)
-            logger.warning("plan_stream_failed", error=str(e))
+            logger.warning("plan_chat_failed", error=str(e))
 
-        text = "".join(chunks)
-        if text.strip():
-            return text
+        if not on_token:
+            chunks = []
+            try:
+                async for token in self.llm.chat_stream(messages=messages, tools=[]):
+                    if token:
+                        chunks.append(token)
+            except Exception as e:
+                last_error = last_error or str(e)
+                logger.warning("plan_stream_fallback_failed", error=str(e))
+            text = "".join(chunks)
+            if text.strip():
+                return text
 
         user_content = ""
         for m in messages:

@@ -28,7 +28,7 @@ pub async fn handle_compress(app: &mut App, _args: &str) {
     if app.messages.len() > keep_count {
         let drain_count = app.messages.len() - keep_count;
         app.messages.drain(..drain_count);
-        app.messages.insert(0, crate::app::ChatMessage::System { text: format!("(compressed {} older messages)", drain_count) });
+        app.messages.insert(0, crate::app::ChatMessage::System { text: format!("(compressed {} older messages)", drain_count), timestamp: std::time::Instant::now() });
     }
     app.add_system_message("Conversation compressed.".into());
 }

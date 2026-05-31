@@ -3,6 +3,14 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
 use sediman_tui_bridge::ApiClient;
+
+#[derive(Clone, Debug)]
+pub struct ModelEntry {
+    pub id: String,
+    pub name: String,
+    pub provider: String,
+    pub is_current: bool,
+}
 use sediman_tui_core::{
     renderer::{CellBuffer, AnsiWriter, DiffEngine},
     event::{AppEvent, EventLoop},
@@ -30,6 +38,8 @@ pub enum AppModal {
     Help,
     ModelPicker,
     ProviderPicker,
+    ConnectPicker,
+    ApiKeyPrompt,
     MemoryEditor,
     SoulEditor,
     SkillBrowser,
@@ -124,6 +134,12 @@ pub struct App {
     pub model_picker_input: String,
     pub provider_picker_index: usize,
     pub provider_picker_input: String,
+    pub available_providers: Vec<sediman_tui_bridge::ProviderInfo>,
+    pub connect_target: Option<String>,
+    pub api_key_input: String,
+    pub provider_filter: String,
+    pub model_list: Vec<ModelEntry>,
+    pub model_filter: String,
     // Memory editor state
     pub memory_entries: Vec<(String, String)>, // (target, content)
     pub memory_editor_input: String,
@@ -149,6 +165,7 @@ pub enum ChatMessage {
     User {
         text: String,
         task_num: usize,
+        timestamp: Instant,
     },
     Agent {
         steps: Vec<String>,
@@ -157,12 +174,15 @@ pub enum ChatMessage {
         elapsed_secs: u64,
         skill_created: Option<String>,
         scheduled_job: Option<String>,
+        timestamp: Instant,
     },
     System {
         text: String,
+        timestamp: Instant,
     },
     Error {
         text: String,
+        timestamp: Instant,
     },
 }
 
@@ -243,6 +263,12 @@ impl App {
             model_picker_input: String::new(),
             provider_picker_index: 0,
             provider_picker_input: String::new(),
+            available_providers: Vec::new(),
+            connect_target: None,
+            api_key_input: String::new(),
+            provider_filter: String::new(),
+            model_list: Vec::new(),
+            model_filter: String::new(),
             memory_entries: Vec::new(),
             memory_editor_input: String::new(),
             memory_editor_index: 0,
@@ -269,17 +295,17 @@ impl App {
     }
 
     pub fn add_system_message(&mut self, text: String) {
-        self.messages.push(ChatMessage::System { text });
+        self.messages.push(ChatMessage::System { text, timestamp: Instant::now() });
         self.auto_scroll = true;
     }
 
     pub fn add_user_message(&mut self, text: String, task_num: usize) {
-        self.messages.push(ChatMessage::User { text, task_num });
+        self.messages.push(ChatMessage::User { text, task_num, timestamp: Instant::now() });
         self.auto_scroll = true;
     }
 
     pub fn add_error_message(&mut self, text: String) {
-        self.messages.push(ChatMessage::Error { text });
+        self.messages.push(ChatMessage::Error { text, timestamp: Instant::now() });
         self.auto_scroll = true;
     }
 
@@ -294,6 +320,7 @@ impl App {
             elapsed_secs: 0,
             skill_created: None,
             scheduled_job: None,
+            timestamp: Instant::now(),
         });
         self.auto_scroll = true;
     }
@@ -631,18 +658,18 @@ mod tests {
 
     #[test]
     fn test_chat_message_system_variant() {
-        let msg = ChatMessage::System { text: "info".into() };
+        let msg = ChatMessage::System { text: "info".into(), timestamp: Instant::now() };
         match msg {
-            ChatMessage::System { text } => assert_eq!(text, "info"),
+            ChatMessage::System { text, .. } => assert_eq!(text, "info"),
             _ => panic!("Expected System variant"),
         }
     }
 
     #[test]
     fn test_chat_message_error_variant() {
-        let msg = ChatMessage::Error { text: "fail".into() };
+        let msg = ChatMessage::Error { text: "fail".into(), timestamp: Instant::now() };
         match msg {
-            ChatMessage::Error { text } => assert_eq!(text, "fail"),
+            ChatMessage::Error { text, .. } => assert_eq!(text, "fail"),
             _ => panic!("Expected Error variant"),
         }
     }

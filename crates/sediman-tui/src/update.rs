@@ -7,7 +7,7 @@ use sediman_tui_core::event::AppEvent;
 
 use crate::app::{App, AppModal};
 use crate::commands::{
-    browser, delegate, hub, memory, misc, model, plan, provider, record, schedule, sessions,
+    browser, connect, delegate, hub, memory, misc, model, plan, provider, record, schedule, sessions,
     skills, soul, system, terminal, theming,
 };
 
@@ -158,56 +158,61 @@ pub async fn handle_message(app: &mut App, event: AppEvent, event_tx: &mpsc::Unb
                     }
                 }
 
-                // ProviderPicker — input field for custom URL + quick-select list
+                // ProviderPicker — dynamic provider list with search
                 if matches!(app.active_modal, Some(AppModal::ProviderPicker)) {
+                    handle_provider_picker(app, key).await;
+                    return;
+                }
+
+                // ConnectPicker — dynamic provider list with search + key status
+                if matches!(app.active_modal, Some(AppModal::ConnectPicker)) {
+                    handle_connect_picker(app, key).await;
+                    return;
+                }
+
+                // ApiKeyPrompt — type API key, Enter to save
+                if matches!(app.active_modal, Some(AppModal::ApiKeyPrompt)) {
                     match key.code {
-                        KeyCode::Esc | KeyCode::Char('q') => {
-                            app.provider_picker_input.clear();
+                        KeyCode::Esc => {
+                            app.api_key_input.clear();
+                            app.connect_target = None;
                             app.active_modal = None;
                             return;
                         }
                         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            app.provider_picker_input.clear();
+                            app.api_key_input.clear();
+                            app.connect_target = None;
                             app.active_modal = None;
                             return;
                         }
-                        KeyCode::Up | KeyCode::Char('k') => {
-                            if app.provider_picker_index > 0 {
-                                app.provider_picker_index -= 1;
-                            }
-                            return;
-                        }
-                        KeyCode::Down | KeyCode::Char('j') => {
-                            let max = 1usize; // openai(0), ollama(1) = max index 1
-                            if app.provider_picker_index < max {
-                                app.provider_picker_index += 1;
-                            }
-                            return;
-                        }
                         KeyCode::Enter => {
-                            if !app.provider_picker_input.is_empty() {
-                                // Use typed custom URL/name as provider
-                                let name = app.provider_picker_input.trim().to_string();
-                                app.provider = name.clone();
-                                app.add_system_message(format!("Provider: {}", name));
-                            } else {
-                                // Use selected quick-pick
-                                let providers = ["openai", "ollama"];
-                                if let Some(&name) = providers.get(app.provider_picker_index) {
-                                    app.provider = name.to_string();
-                                    app.add_system_message(format!("Provider: {}", name));
+                            if !app.api_key_input.is_empty() {
+                                let target = app.connect_target.clone().unwrap_or_default();
+                                let key_val = app.api_key_input.clone();
+                                match app.bridge.auth_set(&target, &key_val).await {
+                                    Ok(()) => {
+                                        app.provider = target.clone();
+                                        if let Ok(providers) = app.bridge.list_providers().await {
+                                            app.available_providers = providers;
+                                        }
+                                        app.add_system_message(format!("Key saved for {} — provider switched.", target));
+                                    }
+                                    Err(e) => {
+                                        app.add_error_message(format!("Failed to save key: {}", e));
+                                    }
                                 }
                             }
-                            app.provider_picker_input.clear();
+                            app.api_key_input.clear();
+                            app.connect_target = None;
                             app.active_modal = None;
                             return;
                         }
                         KeyCode::Backspace | KeyCode::Delete => {
-                            app.provider_picker_input.pop();
+                            app.api_key_input.pop();
                             return;
                         }
                         KeyCode::Char(c) => {
-                            app.provider_picker_input.push(c);
+                            app.api_key_input.push(c);
                             return;
                         }
                         _ => return,
@@ -717,6 +722,134 @@ pub async fn handle_message(app: &mut App, event: AppEvent, event_tx: &mpsc::Unb
     }
 }
 
+fn filtered_provider_count(app: &App) -> usize {
+    let filter = app.provider_filter.to_lowercase();
+    app.available_providers
+        .iter()
+        .filter(|p| {
+            filter.is_empty()
+                || p.name.to_lowercase().contains(&filter)
+                || p.default_model.to_lowercase().contains(&filter)
+        })
+        .count()
+}
+
+fn filtered_provider_at(app: &App, index: usize) -> Option<&sediman_tui_bridge::ProviderInfo> {
+    let filter = app.provider_filter.to_lowercase();
+    app.available_providers
+        .iter()
+        .filter(|p| {
+            filter.is_empty()
+                || p.name.to_lowercase().contains(&filter)
+                || p.default_model.to_lowercase().contains(&filter)
+        })
+        .nth(index)
+}
+
+async fn handle_provider_picker(app: &mut App, key: crossterm::event::KeyEvent) {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => {
+            app.provider_filter.clear();
+            app.provider_picker_index = 0;
+            app.active_modal = None;
+        }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.provider_filter.clear();
+            app.provider_picker_index = 0;
+            app.active_modal = None;
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            if app.provider_picker_index > 0 {
+                app.provider_picker_index -= 1;
+            }
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            let count = filtered_provider_count(app);
+            if app.provider_picker_index < count.saturating_sub(1) {
+                app.provider_picker_index += 1;
+            }
+        }
+        KeyCode::Enter => {
+            if let Some(p) = filtered_provider_at(app, app.provider_picker_index) {
+                let name = p.name.clone();
+                let default_model = p.default_model.clone();
+                let default_url = p.default_base_url.clone();
+                app.provider = name.clone();
+                if app.model.is_none() || app.model.as_deref() == Some("default") {
+                    app.model = Some(default_model);
+                }
+                let _ = app.bridge.switch_model(&name, app.model.as_deref(), default_url.as_deref()).await;
+                app.add_system_message(format!("Provider: {}", name));
+            }
+            app.provider_filter.clear();
+            app.provider_picker_index = 0;
+            app.active_modal = None;
+        }
+        KeyCode::Backspace | KeyCode::Delete => {
+            app.provider_filter.pop();
+            app.provider_picker_index = 0;
+        }
+        KeyCode::Char(c) => {
+            app.provider_filter.push(c);
+            app.provider_picker_index = 0;
+        }
+        _ => {}
+    }
+}
+
+async fn handle_connect_picker(app: &mut App, key: crossterm::event::KeyEvent) {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('q') => {
+            app.provider_filter.clear();
+            app.provider_picker_index = 0;
+            app.active_modal = None;
+        }
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.provider_filter.clear();
+            app.provider_picker_index = 0;
+            app.active_modal = None;
+        }
+        KeyCode::Up | KeyCode::Char('k') => {
+            if app.provider_picker_index > 0 {
+                app.provider_picker_index -= 1;
+            }
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            let count = filtered_provider_count(app);
+            if app.provider_picker_index < count.saturating_sub(1) {
+                app.provider_picker_index += 1;
+            }
+        }
+        KeyCode::Enter => {
+            if let Some(p) = filtered_provider_at(app, app.provider_picker_index).cloned() {
+                if !p.needs_api_key {
+                    app.provider = p.name.clone();
+                    let _ = app.bridge.switch_model(&p.name, Some(&p.default_model), p.default_base_url.as_deref()).await;
+                    app.add_system_message(format!("Provider: {} (local, no key needed)", p.name));
+                    app.provider_filter.clear();
+                    app.provider_picker_index = 0;
+                    app.active_modal = None;
+                } else {
+                    app.connect_target = Some(p.name.clone());
+                    app.api_key_input.clear();
+                    app.active_modal = Some(AppModal::ApiKeyPrompt);
+                }
+            }
+        }
+        KeyCode::Backspace | KeyCode::Delete => {
+            app.provider_filter.pop();
+            app.provider_picker_index = 0;
+        }
+        KeyCode::Char(c) => {
+            app.provider_filter.push(c);
+            app.provider_picker_index = 0;
+        }
+        _ => {}
+    }
+}
+
 fn scroll_up(app: &mut App, amount: u16) {
     app.scroll_offset = app.scroll_offset.saturating_sub(amount);
     app.auto_scroll = false;
@@ -795,6 +928,7 @@ async fn handle_slash(app: &mut App, input: &str) {
         "/remember" => memory::handle_remember(app, args).await,
         "/model" | "/models" => model::handle_model(app, args).await,
         "/provider" => provider::handle_provider(app, args).await,
+        "/connect" => connect::handle_connect(app, args).await,
         "/schedule" => {
             schedule::handle_schedule(app, args).await;
             refresh_sidebar(app).await;
@@ -1150,7 +1284,7 @@ mod tests {
     async fn test_handle_slash_unknown() {
         let mut app = test_app();
         handle_slash(&mut app, "/nonexistent").await;
-        let has_unknown = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Unknown command")));
+        let has_unknown = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Unknown command")));
         assert!(has_unknown);
     }
 
@@ -1174,7 +1308,7 @@ mod tests {
         let mut app = test_app();
         handle_slash(&mut app, "/color magenta_fuchsia").await;
         assert!(app.session_color.is_none());
-        let has_err = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Unknown color")));
+        let has_err = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Unknown color")));
         assert!(has_err);
     }
 
@@ -1198,7 +1332,7 @@ mod tests {
         let mut app = test_app();
         handle_slash(&mut app, "/rename ").await;
         assert!(app.session_name.is_none());
-        let has_unnamed = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("(unnamed)")));
+        let has_unnamed = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("(unnamed)")));
         assert!(has_unnamed);
     }
 
@@ -1230,7 +1364,7 @@ mod tests {
     async fn test_handle_slash_delegate_empty() {
         let mut app = test_app();
         handle_slash(&mut app, "/delegate").await;
-        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Usage")));
+        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Usage")));
         assert!(has_usage);
     }
 
@@ -1238,7 +1372,7 @@ mod tests {
     async fn test_handle_slash_parallel_too_many() {
         let mut app = test_app();
         handle_slash(&mut app, "/parallel a | b | c | d | e | f").await;
-        let has_max = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Max 5")));
+        let has_max = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Max 5")));
         assert!(has_max);
     }
 
@@ -1246,7 +1380,7 @@ mod tests {
     async fn test_handle_slash_parallel_empty() {
         let mut app = test_app();
         handle_slash(&mut app, "/parallel").await;
-        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Usage")));
+        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Usage")));
         assert!(has_usage);
     }
 
@@ -1254,7 +1388,7 @@ mod tests {
     async fn test_handle_slash_parallel_pipes_only() {
         let mut app = test_app();
         handle_slash(&mut app, "/parallel  |  |  ").await;
-        let has_empty = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("No tasks")));
+        let has_empty = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("No tasks")));
         assert!(has_empty);
     }
 
@@ -1270,7 +1404,7 @@ mod tests {
     async fn test_handle_slash_btw_empty() {
         let mut app = test_app();
         handle_slash(&mut app, "/btw").await;
-        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Usage")));
+        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Usage")));
         assert!(has_usage);
     }
 
@@ -1278,7 +1412,7 @@ mod tests {
     async fn test_handle_slash_btw_with_question() {
         let mut app = test_app();
         handle_slash(&mut app, "/btw what is 2+2").await;
-        let has_q = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Side question")));
+        let has_q = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Side question")));
         assert!(has_q);
     }
 
@@ -1289,7 +1423,7 @@ mod tests {
             app.add_system_message(format!("msg {}", i));
         }
         handle_slash(&mut app, "/compress").await;
-        let has_compress_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("compressed")));
+        let has_compress_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("compressed")));
         assert!(has_compress_msg);
         assert!(app.messages.len() <= 22);
     }
@@ -1308,7 +1442,7 @@ mod tests {
     async fn test_handle_slash_terminal_empty_shows_status() {
         let mut app = test_app();
         handle_slash(&mut app, "/terminal").await;
-        let has_status = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Terminal access")));
+        let has_status = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Terminal access")));
         assert!(has_status);
     }
 
@@ -1316,7 +1450,7 @@ mod tests {
     async fn test_handle_slash_terminal_invalid() {
         let mut app = test_app();
         handle_slash(&mut app, "/terminal maybe").await;
-        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Usage")));
+        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Usage")));
         assert!(has_usage);
     }
 
@@ -1369,7 +1503,7 @@ mod tests {
         let tx = test_tx();
         handle_message(&mut app, AppEvent::AgentError("timeout".into()), &tx).await;
         assert!(!app.agent_running);
-        let has_err = app.messages.iter().any(|m| matches!(m, ChatMessage::Error { text } if text.contains("timeout")));
+        let has_err = app.messages.iter().any(|m| matches!(m, ChatMessage::Error { text, .. } if text.contains("timeout")));
         assert!(has_err);
     }
 
@@ -1387,7 +1521,7 @@ mod tests {
         let mut app = test_app();
         let tx = test_tx();
         handle_message(&mut app, AppEvent::CommandOutput("output text".into()), &tx).await;
-        let has_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text == "output text"));
+        let has_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text == "output text"));
         assert!(has_msg);
     }
 
@@ -1726,7 +1860,7 @@ mod tests {
         let tx = test_tx();
         let key = crossterm::event::KeyEvent::new(crossterm::event::KeyCode::Char('d'), crossterm::event::KeyModifiers::NONE);
         handle_message(&mut app, AppEvent::Key(key), &tx).await;
-        let has_err = app.messages.iter().any(|m| matches!(m, ChatMessage::Error { text } if text.contains("not installed")));
+        let has_err = app.messages.iter().any(|m| matches!(m, ChatMessage::Error { text, .. } if text.contains("not installed")));
         assert!(has_err);
     }
 
@@ -1745,7 +1879,7 @@ mod tests {
         let key = crossterm::event::KeyEvent::new(crossterm::event::KeyCode::Char('d'), crossterm::event::KeyModifiers::NONE);
         handle_message(&mut app, AppEvent::Key(key), &tx).await;
         let has_uninstall = app.messages.iter().any(|m| {
-            matches!(m, ChatMessage::System { text } if text.contains("Uninstalling"))
+            matches!(m, ChatMessage::System { text, .. } if text.contains("Uninstalling"))
         });
         assert!(has_uninstall);
     }
@@ -1756,7 +1890,7 @@ mod tests {
     async fn test_handle_slash_hub_update_routing() {
         let mut app = test_app();
         handle_slash(&mut app, "/hub update my-skill").await;
-        let has_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Updating")));
+        let has_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Updating")));
         assert!(has_msg);
     }
 
@@ -1765,7 +1899,7 @@ mod tests {
         let mut app = test_app();
         handle_slash(&mut app, "/hub remove my-skill").await;
         let has_remove = app.active_modal.is_some()
-            || app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Removed")));
+            || app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Removed")));
         assert!(has_remove);
     }
 
@@ -1774,7 +1908,7 @@ mod tests {
         let mut app = test_app();
         handle_slash(&mut app, "/hub check-update my-skill").await;
         let has_check = app.active_modal.is_some()
-            || app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("up to date") || text.contains("Update available")));
+            || app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("up to date") || text.contains("Update available")));
         assert!(has_check);
     }
 
@@ -1782,7 +1916,7 @@ mod tests {
     async fn test_handle_slash_hub_publish_routing() {
         let mut app = test_app();
         handle_slash(&mut app, "/hub publish my-skill").await;
-        let has_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Publishing") || text.contains("Connection")));
+        let has_msg = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Publishing") || text.contains("Connection")));
         assert!(has_msg);
     }
 
@@ -1790,7 +1924,7 @@ mod tests {
     async fn test_handle_slash_hub_update_empty() {
         let mut app = test_app();
         handle_slash(&mut app, "/hub update").await;
-        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Usage")));
+        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Usage")));
         assert!(has_usage);
     }
 
@@ -1798,7 +1932,7 @@ mod tests {
     async fn test_handle_slash_hub_remove_empty() {
         let mut app = test_app();
         handle_slash(&mut app, "/hub remove").await;
-        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Usage")));
+        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Usage")));
         assert!(has_usage);
     }
 
@@ -1806,7 +1940,7 @@ mod tests {
     async fn test_handle_slash_hub_check_update_empty() {
         let mut app = test_app();
         handle_slash(&mut app, "/hub check-update").await;
-        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text } if text.contains("Usage")));
+        let has_usage = app.messages.iter().any(|m| matches!(m, ChatMessage::System { text, .. } if text.contains("Usage")));
         assert!(has_usage);
     }
 

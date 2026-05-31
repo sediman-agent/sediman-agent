@@ -345,7 +345,11 @@ class AgentLoop:
             previous_failure = state.errors[-1]
 
         # Emit streaming plan reasoning if on_step is wired
+        _planning_streamed = False
+
         def on_plan_token(token: str) -> None:
+            nonlocal _planning_streamed
+            _planning_streamed = True
             self._stream_text(token, phase="planning")
 
         plan = await self._manager.plan(
@@ -386,7 +390,8 @@ class AgentLoop:
         if plan.strategy == Strategy.CONVERSATIONAL:
             self._emit(state, "Responding directly...", detail="No browser needed")
             response_text = plan.response or "I'm Sediman. How can I help you?"
-            await self._stream_text_async(response_text, phase="responding")
+            if not _planning_streamed or not plan.response:
+                await self._stream_text_async(response_text, phase="responding")
             self._conversation.append({"role": "user", "content": task})
             self._conversation.append({"role": "assistant", "content": response_text})
             if len(self._conversation) > self.max_conversation:
@@ -769,8 +774,15 @@ class AgentLoop:
         def _on_tool_call(name: str, args: dict[str, Any]) -> None:
             self._emit(state, f"Tool: {name}", detail=str(args)[:100], tool_name=name)
 
+        def _on_tool_streaming(token: str) -> None:
+            self._stream_text(token, phase="executing")
+
         try:
-            response = await tool_loop.run(messages=messages, system=system_prompt, on_tool_call=_on_tool_call)
+            response = await tool_loop.run_streaming(
+                messages=messages, system=system_prompt,
+                on_tool_call=_on_tool_call,
+                on_streaming_text=_on_tool_streaming if self.on_streaming_text else None,
+            )
             result = response.text or ""
             if not result or len(result.strip()) < 50:
                 return None
@@ -1492,11 +1504,7 @@ class AgentLoop:
         if not token:
             return
         try:
-            if len(token) <= 4:
-                self.on_streaming_text(token, phase)
-            else:
-                for i in range(0, len(token), 3):
-                    self.on_streaming_text(token[i:i + 3], phase)
+            self.on_streaming_text(token, phase)
         except Exception:
             pass
 
@@ -1513,7 +1521,7 @@ class AgentLoop:
                 self.on_streaming_text(chunk, phase)
             except Exception:
                 pass
-            if i > 0 and i % 60 == 0:
+            if i > 0 and i % 18 == 0:
                 await asyncio.sleep(0)
 
     def _build_step_events(self, state: AgentState) -> list[StepEvent]:

@@ -88,10 +88,10 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
     // ── Render all messages ──
     for msg in &app.messages {
         match msg {
-            ChatMessage::User { text, task_num } => {
+            ChatMessage::User { text, task_num, timestamp } => {
+                let ago = format_ago(timestamp.elapsed());
                 lines.push((String::new(), Style::new()));
-                // User message: bold prompt prefix
-                lines.push((format!("  \u{276f} Task #{}", task_num),
+                lines.push((format!("  \u{276f} Task #{}  {}", task_num, ago),
                     Style::new().fg(app.theme.secondary).add_modifier(TextAttributes::bold())));
                 push_wrapped(&mut lines, &format!("    {}", text), Style::new().fg(app.theme.text), max_width);
             }
@@ -127,6 +127,8 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
                     let elapsed_str = format_elapsed(*elapsed_secs);
                     lines.push((format!("  {} Done \u{00b7} {}", icon, elapsed_str),
                         Style::new().fg(color).add_modifier(TextAttributes::bold())));
+                    lines.push((format!("    \u{25a3} {} \u{00b7} {}", app.provider, app.model.as_deref().unwrap_or("default")),
+                        Style::new().fg(app.theme.text_muted)));
 
                     if !res.is_empty() {
                         lines.push((String::new(), Style::new()));
@@ -151,11 +153,11 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
                     }
                 }
             }
-            ChatMessage::System { text } => {
+            ChatMessage::System { text, .. } => {
                 lines.push((String::new(), Style::new()));
                 push_wrapped(&mut lines, &format!("  {}", text), Style::new().fg(app.theme.text_muted), max_width);
             }
-            ChatMessage::Error { text } => {
+            ChatMessage::Error { text, .. } => {
                 lines.push((String::new(), Style::new()));
                 push_wrapped(&mut lines, &format!("  \u{2717} {}", text), Style::new().fg(app.theme.error), max_width);
             }
@@ -281,6 +283,17 @@ pub fn format_elapsed(secs: u64) -> String {
         format!("{}m {:02}s", secs / 60, secs % 60)
     } else {
         format!("{}s", secs)
+    }
+}
+
+fn format_ago(duration: std::time::Duration) -> String {
+    let secs = duration.as_secs();
+    if secs < 60 {
+        format!("{}s ago", secs)
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else {
+        format!("{}h ago", secs / 3600)
     }
 }
 

@@ -315,6 +315,37 @@ async def handle_model_list_providers(params: dict[str, Any], notify: NotifyFn |
     return {"providers": providers}
 
 
+async def handle_model_list(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
+    from sediman.llm.provider import PROVIDERS as _P
+    provider_name = (params.get("provider") or "").strip()
+    models = []
+    if provider_name and provider_name in _P:
+        preset = _P[provider_name]
+        default_model = preset.get("model", "")
+        if default_model and default_model != "auto":
+            models.append({
+                "id": f"{provider_name}/{default_model}",
+                "name": default_model,
+                "provider": provider_name,
+            })
+        for m in _P.get(provider_name, {}).get("extra_models", []):
+            models.append({
+                "id": f"{provider_name}/{m}",
+                "name": m,
+                "provider": provider_name,
+            })
+    else:
+        for name, preset in _P.items():
+            default_model = preset.get("model", "")
+            if default_model and default_model != "auto":
+                models.append({
+                    "id": f"{name}/{default_model}",
+                    "name": default_model,
+                    "provider": name,
+                })
+    return {"models": models}
+
+
 async def handle_terminal_set(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
     from sediman.agent.tools import set_terminal_allowed
     allowed = bool(params.get("allowed", False))
@@ -905,6 +936,7 @@ HANDLERS: dict[str, Callable] = {
     "schedule.remove": handle_schedule_remove,
     "model.switch": handle_model_switch,
     "model.list_providers": handle_model_list_providers,
+    "model.list": handle_model_list,
     "terminal.set": handle_terminal_set,
     "terminal.status": handle_terminal_status,
     "record.start": handle_record_start,
@@ -959,6 +991,18 @@ async def handle_connection(
 ) -> None:
     """Handle a single client connection (one or more JSON-RPC requests)."""
     notify: NotifyFn | None = None
+    _drain_task: asyncio.Task | None = None
+
+    async def _flush_writer() -> None:
+        try:
+            await writer.drain()
+        except Exception:
+            pass
+
+    def _schedule_flush() -> None:
+        nonlocal _drain_task
+        if _drain_task is None or _drain_task.done():
+            _drain_task = asyncio.get_event_loop().create_task(_flush_writer())
 
     async def _notify(method: str, params: dict[str, Any]) -> None:
         try:
@@ -972,6 +1016,7 @@ async def handle_connection(
         try:
             msg = (json.dumps({"jsonrpc": "2.0", "method": method, "params": params}) + "\n").encode()
             writer.write(msg)
+            _schedule_flush()
         except Exception:
             pass
 

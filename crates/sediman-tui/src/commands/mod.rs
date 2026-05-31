@@ -3,6 +3,7 @@ pub mod hub;
 pub mod memory;
 pub mod model;
 pub mod provider;
+pub mod connect;
 pub mod schedule;
 pub mod sessions;
 pub mod browser;
@@ -33,6 +34,7 @@ pub fn register_commands(registry: &mut CommandRegistry) {
     registry.register(&memory::CMD_REMEMBER);
     registry.register(&model::CMD_MODEL);
     registry.register(&provider::CMD_PROVIDER);
+    registry.register(&connect::CMD_CONNECT);
     registry.register(&schedule::CMD_SCHEDULE);
     registry.register(&schedule::CMD_SCHEDULE_ADD);
     registry.register(&schedule::CMD_SCHEDULE_REMOVE);
@@ -72,7 +74,7 @@ mod tests {
         let mut registry = CommandRegistry::new();
         register_commands(&mut registry);
         let all = registry.all();
-        assert_eq!(all.len(), 42);
+        assert_eq!(all.len(), 43);
     }
 
     #[test]
