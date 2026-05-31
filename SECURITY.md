@@ -2,10 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in Sediman, please report it privately:
-
-- **Email**: security@sediman.ai
-- **GitHub**: Use the [private vulnerability reporting](https://github.com/sediman-agent/sediman-browse/security/advisories/new) feature
+If you discover a security
 
 Please do not file public issues for security vulnerabilities.
 
@@ -15,7 +12,7 @@ We aim to acknowledge reports within 48 hours and provide a fix or mitigation wi
 
 ## Scope
 
-- The Sediman agent core, browser automation, and skill execution system
+- The OpenSkynet agent core, browser automation, and skill execution system
 - The FastAPI server and RPC server
 - The Rust TUI bridge
 - Docker and deployment configurations
