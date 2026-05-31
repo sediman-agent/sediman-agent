@@ -25,6 +25,10 @@ Teach it once. It repeats forever. 24/7 Slavery.
 curl -fsSL https://raw.githubusercontent.com/sediman-agent/OpenSkynet/main/install | bash
 ```
 
+Then you can run with
+```
+terminator
+```
 
 ### Agents
 
