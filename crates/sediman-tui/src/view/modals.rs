@@ -414,6 +414,81 @@ pub fn render_api_key_prompt(buf: &mut CellBuffer, area: Rect, app: &App) {
         Style::new().fg(t.text_muted).bg(t.background));
 }
 
+pub fn render_provider_picker(buf: &mut CellBuffer, area: Rect, app: &App) {
+    let t = &app.theme;
+    let providers = &app.available_providers;
+    if providers.is_empty() {
+        return;
+    }
+
+    const NUM_VISIBLE: usize = 10;
+    let visible = providers.len().min(NUM_VISIBLE);
+    let modal_w: u16 = (area.width * 50 / 100).clamp(40, 52);
+    let modal_h = (4u16 + visible as u16).min(area.height.saturating_sub(2));
+    let frame = ModalFrame::new(buf, area, app, modal_w, modal_h);
+    let inner_x = frame.inner_x;
+    let inner_w = frame.inner_w;
+
+    draw_rounded_border(buf, frame.modal, Style::new().fg(t.text_muted).bg(t.background));
+
+    buf.draw_str(inner_x, frame.modal.y + 1, "Select Provider",
+        Style::new().fg(t.primary).bg(t.background).add_modifier(TextAttributes::bold()));
+
+    let list_start_y = frame.modal.y + 3;
+    let scroll = app.provider_picker_scroll;
+    let end_idx = (scroll + NUM_VISIBLE).min(providers.len());
+
+    let mut last_cat: Option<&str> = None;
+    let mut row = 0usize;
+    for (i, p) in providers.iter().enumerate() {
+        if i < scroll || i >= end_idx { continue; }
+        let row_y = list_start_y + row as u16;
+        if row_y >= frame.modal.bottom().saturating_sub(1) { break; }
+
+        if last_cat != Some(p.category.as_str()) {
+            last_cat = Some(p.category.as_str());
+            let cat_label = match p.category.as_str() {
+                "cloud" => "Cloud",
+                "cloud-cn" => "Cloud (CN)",
+                "inference" => "Inference",
+                "local" => "Local",
+                other => other,
+            };
+            buf.draw_str(inner_x, row_y, &format!("  {}", cat_label),
+                Style::new().fg(t.text_muted).bg(t.background).add_modifier(TextAttributes::bold()));
+            row += 1;
+            if row >= NUM_VISIBLE { break; }
+            continue;
+        }
+
+        let selected = i == app.provider_picker_idx;
+        let key_icon = if p.needs_api_key {
+            if p.has_key { "\u{2713} " } else { "\u{2022} " }
+        } else {
+            "  "
+        };
+        let display = format!("{}{}", key_icon, truncate_str(&p.name, inner_w.saturating_sub(4)));
+
+        let row_y = list_start_y + row as u16;
+        if row_y >= frame.modal.bottom().saturating_sub(1) { break; }
+        if selected {
+            for sx in (frame.modal.x + 1)..(frame.modal.right() - 1) {
+                buf.put_char(sx, row_y, ' ', Style::new().bg(t.primary).fg(t.background));
+            }
+            buf.draw_str(inner_x, row_y, &display,
+                Style::new().bg(t.primary).fg(t.background).add_modifier(TextAttributes::bold()));
+        } else {
+            let style = if p.needs_api_key && !p.has_key {
+                Style::new().fg(t.text_muted).bg(t.background)
+            } else {
+                Style::new().fg(t.text).bg(t.background)
+            };
+            buf.draw_str(inner_x, row_y, &display, style);
+        }
+        row += 1;
+    }
+}
+
 pub fn render_memory_editor(buf: &mut CellBuffer, area: Rect, app: &App) {
     let t = &app.theme;
     let entry_count = app.memory_entries.len();

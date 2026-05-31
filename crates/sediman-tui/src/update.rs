@@ -172,6 +172,85 @@ pub async fn handle_message(app: &mut App, event: AppEvent, event_tx: &mpsc::Unb
                     }
                 }
 
+                // ProviderPicker — select provider, Enter to connect
+                if matches!(app.active_modal, Some(AppModal::ProviderPicker)) {
+                    match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => {
+                            app.active_modal = None;
+                            return;
+                        }
+                        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                            app.active_modal = None;
+                            return;
+                        }
+                        KeyCode::Up => {
+                            if app.provider_picker_idx > 0 {
+                                app.provider_picker_idx -= 1;
+                            } else {
+                                app.provider_picker_idx = app.available_providers.len().saturating_sub(1);
+                            }
+                            if app.provider_picker_idx < app.provider_picker_scroll {
+                                app.provider_picker_scroll = app.provider_picker_idx;
+                            }
+                            return;
+                        }
+                        KeyCode::Down => {
+                            if app.provider_picker_idx < app.available_providers.len().saturating_sub(1) {
+                                app.provider_picker_idx += 1;
+                            } else {
+                                app.provider_picker_idx = 0;
+                                app.provider_picker_scroll = 0;
+                            }
+                            let visible = 10;
+                            if app.provider_picker_idx >= app.provider_picker_scroll + visible {
+                                app.provider_picker_scroll = app.provider_picker_idx - (visible - 1);
+                            }
+                            return;
+                        }
+                        KeyCode::Enter => {
+                            if let Some(p) = app.available_providers.get(app.provider_picker_idx).cloned() {
+                                let name = p.name.clone();
+                                let default_model = p.default_model.clone();
+                                let default_url = p.default_base_url.clone();
+                                let needs_key = p.needs_api_key && !p.has_key;
+
+                                if needs_key {
+                                    app.connect_target = Some(name);
+                                    app.connect_pending_model = Some(default_model);
+                                    app.api_key_input.clear();
+                                    app.active_modal = Some(AppModal::ApiKeyPrompt);
+                                    return;
+                                }
+
+                                if let Err(e) = app.bridge.switch_model(
+                                    &name,
+                                    Some(&default_model),
+                                    default_url.as_deref(),
+                                ).await {
+                                    app.add_error_message(format!("Failed to switch: {}", e));
+                                    app.active_modal = None;
+                                    return;
+                                }
+                                app.provider = name.clone();
+                                app.model = Some(default_model);
+                                if let Some(url) = default_url {
+                                    app.base_url = Some(url);
+                                }
+                                app.add_system_message(format!("Switched to {}", app.display_model_id()));
+                            }
+                            app.active_modal = None;
+                            if let Ok(providers) = app.bridge.list_providers().await {
+                                app.available_providers = providers;
+                            }
+                            if let Ok(models) = app.bridge.list_models(None).await {
+                                app.model_list = models;
+                            }
+                            return;
+                        }
+                        _ => return,
+                    }
+                }
+
                 // CoderPicker — select coder backend
                 if matches!(app.active_modal, Some(AppModal::CoderPicker)) {
                     const CODER_BACKENDS: &[&str] = &["internal", "claude-code", "codex", "opencode"];
@@ -1092,11 +1171,21 @@ pub async fn handle_message(app: &mut App, event: AppEvent, event_tx: &mpsc::Unb
             app.pending_resize = Some((w, h));
         }
         AppEvent::Paste(text) => {
-            let line_count = text.lines().count();
-            if line_count > 1 {
-                app.editor.insert_str(&format!("[paste {} lines]", line_count));
+            if matches!(app.active_modal, Some(AppModal::ApiKeyPrompt)) {
+                let single_line = text.lines().next().unwrap_or("");
+                app.api_key_input.push_str(single_line);
+            } else if matches!(app.active_modal, Some(AppModal::ModelPicker)) {
+                let single_line = text.lines().next().unwrap_or("");
+                app.model_dialog_filter.push_str(single_line);
+                app.model_dialog_model_idx = 0;
+                app.model_dialog_scroll = 0;
             } else {
-                app.editor.insert_str(&text);
+                let line_count = text.lines().count();
+                if line_count > 1 {
+                    app.editor.insert_str(&format!("[paste {} lines]", line_count));
+                } else {
+                    app.editor.insert_str(&text);
+                }
             }
         }
         AppEvent::Shutdown => {

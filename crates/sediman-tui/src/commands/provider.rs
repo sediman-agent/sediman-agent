@@ -4,7 +4,9 @@ use crate::app::App;
 
 pub async fn handle_provider(app: &mut App, args: &str) {
     if args.is_empty() {
-        app.open_model_dialog();
+        app.provider_picker_idx = 0;
+        app.provider_picker_scroll = 0;
+        app.active_modal = Some(crate::app::AppModal::ProviderPicker);
         return;
     }
 
@@ -18,7 +20,7 @@ pub async fn handle_provider(app: &mut App, args: &str) {
     let (default_model, default_url, needs_key) = match provider_info {
         Some(p) => (p.default_model.clone(), p.default_base_url.clone(), p.needs_api_key),
         None => {
-            app.add_error_message(format!("Unknown provider: {}. Use /models to see available.", name));
+            app.add_error_message(format!("Unknown provider: {}. Use /provider to see available.", name));
             return;
         }
     };

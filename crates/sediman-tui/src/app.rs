@@ -31,8 +31,8 @@ pub enum AppModal {
     Help {
         scroll: u16,
     },
-    /// OpenCode-style unified model picker: ←/→ switch provider, ↑/↓ switch model
     ModelPicker,
+    ProviderPicker,
     ApiKeyPrompt,
     MemoryEditor,
     SoulEditor,
@@ -135,6 +135,8 @@ pub struct App {
     pub model_dialog_model_idx: usize,
     pub model_dialog_scroll: usize,
     pub model_dialog_filter: String,
+    pub provider_picker_idx: usize,
+    pub provider_picker_scroll: usize,
     pub available_providers: Vec<sediman_tui_bridge::ProviderInfo>,
     pub connect_target: Option<String>,
     pub connect_pending_model: Option<String>,
@@ -313,6 +315,8 @@ impl App {
             model_dialog_model_idx: 0,
             model_dialog_scroll: 0,
             model_dialog_filter: String::new(),
+            provider_picker_idx: 0,
+            provider_picker_scroll: 0,
             available_providers: Vec::new(),
             connect_target: None,
             connect_pending_model: None,
