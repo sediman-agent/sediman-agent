@@ -24,6 +24,10 @@ class Integration(ABC):
         """Optional background listener for inbound messages."""
         pass
 
+    async def close(self) -> None:
+        """Clean up resources (HTTP clients, bot connections)."""
+        pass
+
     @abstractmethod
     def get_tools(self) -> list[tuple[ToolDefinition, Any]]:
         ...

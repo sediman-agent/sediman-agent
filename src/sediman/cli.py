@@ -1608,20 +1608,31 @@ async def _show_sessions() -> None:
     console.print(table)
 
 
-def _send_notification(notify: str, text: str) -> None:
-    """Send a notification via integration target (e.g. discord:alerts)."""
+async def _send_notification_async(notify: str, text: str) -> None:
     if ":" not in notify:
         return
     integration_name, target = notify.split(":", 1)
     try:
-        import asyncio
         from sediman.integrations import get_integration
         inst = get_integration(integration_name)
         if inst:
-            asyncio.run(inst.send(target, text))
+            await inst.send(target, text)
     except Exception as e:
         import structlog
         structlog.get_logger().warning("notification_failed", notify=notify, error=str(e))
+
+
+def _send_notification(notify: str, text: str) -> None:
+    """Send a notification via integration target (e.g. discord:alerts)."""
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop and loop.is_running():
+        asyncio.ensure_future(_send_notification_async(notify, text))
+    else:
+        asyncio.run(_send_notification_async(notify, text))
 
 
 if __name__ == "__main__":

@@ -141,6 +141,18 @@ def _reset_state() -> None:
 
 async def _shutdown() -> None:
     global _browser, _agent_loop
+    from sediman.integrations import stop_listeners, get_integration
+    try:
+        await stop_listeners()
+    except Exception:
+        pass
+    for _name in list(_INTEGRATION_REGISTRY_NAMES):
+        inst = get_integration(_name)
+        if inst and hasattr(inst, "close"):
+            try:
+                await inst.close()
+            except Exception:
+                pass
     if _browser:
         try:
             await _browser.stop()
@@ -1088,16 +1100,20 @@ async def handle_connection(
 
 async def serve() -> None:
     """Start the Unix socket JSON-RPC server with cron scheduler."""
-    global _cron_scheduler
+    global _cron_scheduler, _INTEGRATION_REGISTRY_NAMES
 
     if os.path.exists(SOCKET):
         os.unlink(SOCKET)
 
-    # Start the cron scheduler alongside the RPC server
     from sediman.scheduler.cron import CronScheduler
     _cron_scheduler = CronScheduler()
     _cron_scheduler.start()
     logger.info("cron_scheduler_started")
+
+    from sediman.integrations import setup_integrations, start_listeners
+    setup_integrations()
+    _INTEGRATION_REGISTRY_NAMES = list(_registry_names())
+    await start_listeners()
 
     server = await asyncio.start_unix_server(handle_connection, path=SOCKET)
     logger.info("rpc_server_started", socket=SOCKET)
@@ -1106,8 +1122,17 @@ async def serve() -> None:
         async with server:
             await server.serve_forever()
     finally:
+        await _shutdown()
         _cron_scheduler.stop()
         _cron_scheduler = None
+
+
+def _registry_names() -> list[str]:
+    from sediman.integrations import list_integrations
+    return list(list_integrations().keys())
+
+
+_INTEGRATION_REGISTRY_NAMES: list[str] = []
 
 
 def main() -> None:
@@ -1122,14 +1147,10 @@ def main() -> None:
     init_state(provider=provider, model=model, base_url=base_url, terminal=terminal)
     _init_sentry()
 
-    from sediman.integrations import setup_integrations, start_listeners
-    setup_integrations()
-
     try:
         asyncio.run(serve())
     except KeyboardInterrupt:
         logger.info("rpc_server_shutdown")
-        asyncio.run(_shutdown())
 
 
 if __name__ == "__main__":

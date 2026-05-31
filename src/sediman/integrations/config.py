@@ -52,3 +52,4 @@ def load_config() -> dict[str, Any]:
 def save_config(config: dict[str, Any]) -> None:
     INTEGRATIONS_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     INTEGRATIONS_CONFIG_PATH.write_text(json.dumps(config, indent=2))
+    INTEGRATIONS_CONFIG_PATH.chmod(0o600)

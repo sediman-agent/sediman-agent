@@ -64,3 +64,5 @@ benchmarks/skill_generalization/recordings/
 benchmarks/skill_generalization/skills/
 *.benchmark_results.jsonl
 *.benchmark_report.html
+
+paper/

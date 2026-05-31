@@ -53,9 +53,23 @@ def update_config(name: str, updates: dict[str, Any]) -> dict[str, Any]:
     return config[name]
 
 
+async def _close_integration(inst: Integration) -> None:
+    try:
+        await inst.close()
+    except Exception:
+        pass
+
+
 def _reload_integration(name: str, cfg: dict[str, Any]) -> None:
     global _registry
     old = _registry.pop(name, None)
+    if old:
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_close_integration(old))
+        except RuntimeError:
+            asyncio.run(_close_integration(old))
     if cfg.get("enabled") and cfg.get("token"):
         inst = _build_integration(name, cfg)
         if inst:
@@ -110,6 +124,11 @@ async def stop_listeners() -> None:
     if _listener_tasks:
         await asyncio.gather(*_listener_tasks, return_exceptions=True)
     _listener_tasks = []
+    for name, inst in list(_registry.items()):
+        try:
+            await inst.close()
+        except Exception:
+            pass
 
 
 async def send_message(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import structlog
@@ -9,6 +10,9 @@ from sediman.integrations.models import Channel, Message
 from sediman.agent.tool_dispatch import ToolDefinition, ToolResult
 
 logger = structlog.get_logger()
+
+_MAX_RETRIES = 3
+_RATE_LIMIT_BASE_DELAY = 1.0
 
 
 class DiscordIntegration(Integration):
@@ -31,8 +35,23 @@ class DiscordIntegration(Integration):
             )
         return self._http
 
-    async def send(self, target: str, content: str, **kwargs: Any) -> str:
+    async def _request_with_retry(self, method: str, url: str, **kwargs: Any) -> Any:
         http = await self._ensure_http()
+        do_request = getattr(http, method)
+        for attempt in range(_MAX_RETRIES):
+            resp = await do_request(url, **kwargs)
+            if resp.status_code == 429:
+                retry_after = float(resp.headers.get("Retry-After", _RATE_LIMIT_BASE_DELAY * (2 ** attempt)))
+                logger.warning("discord_rate_limited", retry_after=retry_after, attempt=attempt + 1)
+                await asyncio.sleep(retry_after)
+                continue
+            if resp.status_code >= 400:
+                body = resp.text[:200]
+                raise RuntimeError(f"Discord API error {resp.status_code}: {body}")
+            return resp.json()
+        raise RuntimeError(f"Discord API rate limit exceeded after {_MAX_RETRIES} retries")
+
+    async def send(self, target: str, content: str, **kwargs: Any) -> str:
         channel_id = self._resolve_target(target)
         payload: dict[str, Any] = {"content": content}
         if kwargs.get("embed_title") or kwargs.get("embed_desc"):
@@ -44,22 +63,15 @@ class DiscordIntegration(Integration):
             if kwargs.get("embed_url"):
                 embed["url"] = kwargs["embed_url"]
             payload["embeds"] = [embed]
-        resp = await http.post(f"/channels/{channel_id}/messages", json=payload)
-        if resp.status_code >= 400:
-            body = resp.text[:200]
-            raise RuntimeError(f"Discord API error {resp.status_code}: {body}")
-        data = resp.json()
+        data = await self._request_with_retry("post", f"/channels/{channel_id}/messages", json=payload)
         logger.info("discord_message_sent", channel=channel_id, message_id=data.get("id"))
         return f"Message sent to Discord channel {channel_id} (id: {data.get('id')})"
 
     async def read(self, target: str, limit: int = 10) -> list[dict[str, Any]]:
-        http = await self._ensure_http()
         channel_id = self._resolve_target(target)
-        resp = await http.get(f"/channels/{channel_id}/messages", params={"limit": min(limit, 100)})
-        if resp.status_code >= 400:
-            body = resp.text[:200]
-            raise RuntimeError(f"Discord API error {resp.status_code}: {body}")
-        messages = resp.json()
+        messages = await self._request_with_retry(
+            "get", f"/channels/{channel_id}/messages", params={"limit": min(limit, 100)}
+        )
         results = []
         for msg in messages:
             results.append({
@@ -73,10 +85,17 @@ class DiscordIntegration(Integration):
 
     def _resolve_target(self, target: str) -> str:
         channels = self._config.get("channels", {})
-        named = channels.get(target)
-        if named:
-            return named
-        return target
+        if target in channels:
+            return channels[target]
+        if target.isdigit():
+            return target
+        available = ", ".join(channels.keys()) if channels else "none"
+        raise ValueError(
+            f"Discord channel '{target}' is not configured. "
+            f"Configured channels: {available}. "
+            "Use a raw numeric channel ID or configure a named channel via "
+            "'sediman integration configure discord --channel <name>:<id>'."
+        )
 
     def get_tools(self) -> list[tuple[ToolDefinition, Any]]:
         return [
@@ -155,28 +174,68 @@ class DiscordIntegration(Integration):
 
     async def listen(self) -> None:
         """Start a background Discord bot that can process commands."""
-        import asyncio
         token = self._config.get("token", "")
         if not token:
             return
         try:
             import discord
-            intents = discord.Intents.default()
-            intents.message_content = True
-            client = discord.Client(intents=intents)
-
-            @client.event
-            async def on_ready():
-                logger.info("discord_bot_ready", user=str(client.user))
-
-            @client.event
-            async def on_message(message):
-                if message.author.bot:
-                    return
-                if message.content.startswith("!"):
-                    logger.info("discord_command_received", command=message.content, author=str(message.author))
-            await client.start(token)
         except ImportError:
             logger.warning("discord.py not installed, listener unavailable")
-        except Exception as e:
-            logger.error("discord_listener_error", error=str(e))
+            return
+
+        intents = discord.Intents.default()
+        intents.message_content = True
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                self._client = discord.Client(intents=intents)
+
+                @self._client.event
+                async def on_ready():
+                    logger.info("discord_bot_ready", user=str(self._client.user))
+
+                @self._client.event
+                async def on_message(message):
+                    if message.author.bot:
+                        return
+                    if message.content.startswith("!"):
+                        logger.info("discord_command_received", command=message.content, author=str(message.author))
+
+                await self._client.start(token)
+            except discord.ConnectionClosed as e:
+                logger.warning("discord_connection_closed", code=e.code, attempt=attempt + 1)
+                if self._client:
+                    try:
+                        await self._client.close()
+                    except Exception:
+                        pass
+                    self._client = None
+                if attempt + 1 < max_retries:
+                    delay = min(2 ** attempt, 60)
+                    logger.info("discord_reconnecting", delay=delay)
+                    await asyncio.sleep(delay)
+                    continue
+                logger.error("discord_max_retries_reached")
+            except Exception as e:
+                logger.error("discord_listener_error", error=str(e))
+                if self._client:
+                    try:
+                        await self._client.close()
+                    except Exception:
+                        pass
+                    self._client = None
+            break
+
+    async def close(self) -> None:
+        if self._client:
+            try:
+                await self._client.close()
+            except Exception:
+                pass
+            self._client = None
+        if self._http:
+            try:
+                await self._http.aclose()
+            except Exception:
+                pass
+            self._http = None

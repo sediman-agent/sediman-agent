@@ -329,11 +329,20 @@ async def _execute_cron_job_inner(job: dict[str, Any]) -> str:
         if notify and ":" in notify:
             try:
                 integration_name, target = notify.split(":", 1)
-                from sediman.integrations import get_integration
+                from sediman.integrations import get_integration, setup_integrations
                 inst = get_integration(integration_name)
+                if inst is None:
+                    setup_integrations()
+                    inst = get_integration(integration_name)
                 if inst:
                     summary = result[:500] if result else "No result"
                     await inst.send(target, f"Cron job [{job['id'][:8]}] completed:\n\n{summary}")
+                else:
+                    logger.warning(
+                        "cron_notification_no_integration",
+                        notify=notify,
+                        hint="Integration not enabled or not configured",
+                    )
             except Exception as e:
                 logger.warning("cron_notification_failed", notify=notify, error=str(e))
 

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use sediman_tui_core::command::{Command, CommandCategory};
 
 use crate::app::{App, AppModal, ModalLine};
@@ -16,33 +17,6 @@ pub async fn handle_usage(app: &mut App, _args: &str) {
             ModalLine::normal(format!("  Model         {}/{}", app.provider, app.model.as_deref().unwrap_or("default"))),
             ModalLine::normal(format!("  Agent         {}", if app.agent_running { "running" } else { "idle" })),
         ],
-        scroll: 0,
-    });
-}
-
-pub async fn handle_doctor(app: &mut App, _args: &str) {
-    let mut lines = vec![
-        ModalLine::heading("  Sediman Diagnostics"),
-        ModalLine::blank(),
-    ];
-    match app.bridge.status().await {
-        Ok(status) => {
-            lines.push(ModalLine::normal(format!("  API server    ok (uptime: {}s)", status.uptime_secs)));
-            lines.push(ModalLine::normal(format!(
-                "  Browser       {}",
-                if status.browser_open { "open" } else { "closed" }
-            )));
-        }
-        Err(_) => {
-            lines.push(ModalLine::error("  API server    NOT REACHABLE"));
-        }
-    }
-    lines.push(ModalLine::normal("  Config dir    ~/.sediman/"));
-    lines.push(ModalLine::normal(format!("  Mode          {}", app.permission.current_label())));
-
-    app.active_modal = Some(AppModal::Info {
-        title: "Diagnostics".into(),
-        lines,
         scroll: 0,
     });
 }
@@ -145,13 +119,6 @@ pub static CMD_USAGE: Command = Command {
     name: "/usage",
     aliases: &[],
     description: "Show session usage stats",
-    category: CommandCategory::Utilities,
-};
-
-pub static CMD_DOCTOR: Command = Command {
-    name: "/doctor",
-    aliases: &[],
-    description: "Diagnose installation and settings",
     category: CommandCategory::Utilities,
 };
 
