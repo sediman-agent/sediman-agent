@@ -4,7 +4,7 @@
 
 **Your AI Terminator**
 
-<img width="1024" height="1024" alt="ChatGPT Image May 31, 2026, 01_05_18 PM" src="https://github.com/user-attachments/assets/4c45d3d6-77ba-4d38-ac3e-72da508b3501" />
+<img width="256" height="256" alt="ChatGPT Image May 31, 2026, 01_05_18 PM" src="https://github.com/user-attachments/assets/4c45d3d6-77ba-4d38-ac3e-72da508b3501" />
 
 Teach it once. It repeats forever. 24/7.
 
