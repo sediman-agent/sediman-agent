@@ -2044,7 +2044,7 @@ dependencies = [
 
 [[package]]
 name = "sediman-tui"
-version = "0.1.5"
+version = "0.2.2"
 dependencies = [
  "arboard",
  "chrono",
@@ -2063,13 +2063,14 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "unicode-width 0.2.2",
  "wgpu",
  "winit",
 ]
 
 [[package]]
 name = "sediman-tui-bridge"
-version = "0.1.5"
+version = "0.2.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -2080,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "sediman-tui-core"
-version = "0.1.5"
+version = "0.2.2"
 dependencies = [
  "arboard",
  "bytemuck",
