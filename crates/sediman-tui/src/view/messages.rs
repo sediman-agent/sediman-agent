@@ -170,7 +170,7 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
     let max_scroll = total_lines.saturating_sub(visible_height);
 
     if app.auto_scroll {
-        app.scroll_offset = 0;
+        app.scroll_offset = max_scroll;
     }
     let scroll = app.scroll_offset.min(max_scroll);
 

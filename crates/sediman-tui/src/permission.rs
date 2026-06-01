@@ -33,7 +33,7 @@ impl PermissionManager {
     }
 
     pub fn is_allowed(&self, _command: &str) -> bool {
-        !matches!(self.current_label(), "plan" | "ask")
+        matches!(self.current_label(), "auto")
     }
 
     pub fn set_plan_mode(&mut self, enabled: bool) {
@@ -114,8 +114,8 @@ mod tests {
     #[test]
     fn test_is_allowed_accept_edits() {
         let mut pm = PermissionManager::new();
-        pm.cycle(); // acceptEdits
-        assert!(pm.is_allowed("any command"));
+        pm.cycle(); // acceptEdits — should NOT auto-approve shell commands
+        assert!(!pm.is_allowed("any command"));
     }
 
     #[test]
