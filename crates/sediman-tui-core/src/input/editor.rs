@@ -292,6 +292,9 @@ impl TextEditor {
     }
 
     pub fn history_down(&mut self) {
+        if self.history.is_empty() {
+            return;
+        }
         match self.history_pos {
             Some(p) if p < self.history.len() - 1 => {
                 let new_pos = p + 1;

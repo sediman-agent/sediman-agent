@@ -39,7 +39,7 @@ impl Completer {
             self.selected = Some(idx);
             self.filtered.get(idx).cloned()
         } else {
-            self.selected = None;
+            self.selected = Some(0);
             self.filtered.first().cloned()
         }
     }

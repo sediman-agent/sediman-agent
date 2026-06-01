@@ -5,8 +5,7 @@ use super::{Cell, CellBuffer, Color, Style};
 
 #[derive(Default)]
 pub struct AnsiWriter {
-    last_fg: Option<Color>,
-    last_bg: Option<Color>,
+    last_style: Option<Style>,
 }
 
 impl AnsiWriter {
@@ -77,10 +76,7 @@ impl AnsiWriter {
     }
 
     fn write_style_io(&mut self, out: &mut dyn IoWrite, style: Style) -> io::Result<()> {
-        let fg_changed = self.last_fg != style.fg;
-        let bg_changed = self.last_bg != style.bg;
-
-        if fg_changed || bg_changed {
+        if self.last_style != Some(style) {
             out.write_all(b"\x1b[0")?;
             if let Some(fg) = style.fg {
                 Self::write_color_io(out, 38, fg)?;
@@ -99,8 +95,7 @@ impl AnsiWriter {
             if style.attrs.reverse { out.write_all(b";7")?; }
             if style.attrs.strikethrough { out.write_all(b";9")?; }
             out.write_all(b"m")?;
-            self.last_fg = style.fg;
-            self.last_bg = style.bg;
+            self.last_style = Some(style);
         }
         Ok(())
     }
@@ -177,8 +172,7 @@ mod tests {
     #[test]
     fn test_ansi_writer_new() {
         let w = AnsiWriter::new();
-        assert!(w.last_fg.is_none());
-        assert!(w.last_bg.is_none());
+        assert!(w.last_style.is_none());
     }
 
     #[test]
@@ -369,5 +363,20 @@ mod tests {
         let mut output = Vec::new();
         writer.write(&mut output, &[]).unwrap();
         assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_write_attribute_only_change_is_emitted() {
+        let mut w = AnsiWriter::new();
+        let changes = vec![
+            Change { x: 0, y: 0, cell: Cell::new('A', Style::new().fg(Color::WHITE)) },
+            Change { x: 1, y: 0, cell: Cell::new('B', Style::new().fg(Color::WHITE).add_modifier(TextAttributes::bold())) },
+        ];
+        let mut out = Vec::new();
+        w.write(&mut out, &changes).unwrap();
+        let s = String::from_utf8(out).unwrap();
+        // Both cells have the same fg (WHITE) but different attributes.
+        // The second cell MUST still emit an SGR sequence with the bold attribute.
+        assert!(s.contains(";1"), "bold attribute should be emitted even when colors match");
     }
 }
