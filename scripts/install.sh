@@ -15,12 +15,12 @@ CYAN='\033[36m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-SEDIMAN_BIN_DIR="$HOME/.sediman/bin"
+TERMINATOR_BIN_DIR="$HOME/.terminator/bin"
 SKIP_BROWSER=false
 FORCE=false
 FROM_SOURCE=false
 GIT_BRANCH="main"
-GITHUB_REPO="sediman-agent/sediman-agent"
+GITHUB_REPO="sediman-agent/OpenSkynet"
 
 for arg in "$@"; do
     case "$arg" in
@@ -158,10 +158,10 @@ install_sediman() {
 
 download_tui_binary() {
     local platform="$1"
-    local tui_bin="$SEDIMAN_BIN_DIR/sediman-tui"
+    local tui_bin="$TERMINATOR_BIN_DIR/terminator"
 
     if [ -x "$tui_bin" ] && [ "$FORCE" != "true" ]; then
-        info "sediman-tui already installed at $tui_bin"
+        info "terminator TUI already installed at $tui_bin"
         return 0
     fi
 
@@ -177,9 +177,9 @@ download_tui_binary() {
     local archive_name="sediman-${latest_tag}-${platform}.tar.gz"
     local download_url="https://github.com/${GITHUB_REPO}/releases/download/${latest_tag}/${archive_name}"
 
-    info "Downloading sediman-tui ${latest_tag} for ${platform}..."
+    info "Downloading terminator TUI ${latest_tag} for ${platform}..."
 
-    mkdir -p "$SEDIMAN_BIN_DIR"
+    mkdir -p "$TERMINATOR_BIN_DIR"
 
     local tmp_dir
     tmp_dir="$(mktemp -d)"
@@ -193,7 +193,11 @@ download_tui_binary() {
 
     tar xzf "$tmp_dir/$archive_name" -C "$tmp_dir" 2>/dev/null || true
 
-    if [ -f "$tmp_dir/sediman-tui" ]; then
+    if [ -f "$tmp_dir/terminator" ]; then
+        cp "$tmp_dir/terminator" "$tui_bin"
+    elif [ -f "$tmp_dir/bin/terminator" ]; then
+        cp "$tmp_dir/bin/terminator" "$tui_bin"
+    elif [ -f "$tmp_dir/sediman-tui" ]; then
         cp "$tmp_dir/sediman-tui" "$tui_bin"
     elif [ -f "$tmp_dir/bin/sediman-tui" ]; then
         cp "$tmp_dir/bin/sediman-tui" "$tui_bin"
@@ -203,7 +207,7 @@ download_tui_binary() {
     fi
 
     chmod +x "$tui_bin"
-    info "sediman-tui installed to $tui_bin"
+    info "terminator TUI installed to $tui_bin"
 }
 
 install_browser() {
@@ -241,17 +245,17 @@ add_to_path() {
         shell_rc="$HOME/.bashrc"
     fi
 
-    local path_line="export PATH=\"$SEDIMAN_BIN_DIR:\$PATH\""
+    local path_line="export PATH=\"$TERMINATOR_BIN_DIR:\$PATH\""
 
-    if [ -f "$shell_rc" ] && grep -qF "$SEDIMAN_BIN_DIR" "$shell_rc" 2>/dev/null; then
+    if [ -f "$shell_rc" ] && grep -qF "$TERMINATOR_BIN_DIR" "$shell_rc" 2>/dev/null; then
         return 0
     fi
 
     echo "" >> "$shell_rc"
-    echo "# Added by Sediman installer" >> "$shell_rc"
+    echo "# Added by OpenSkynet installer" >> "$shell_rc"
     echo "$path_line" >> "$shell_rc"
 
-    info "Added $SEDIMAN_BIN_DIR to PATH in $shell_rc"
+    info "Added $TERMINATOR_BIN_DIR to PATH in $shell_rc"
 }
 
 main() {
@@ -268,7 +272,7 @@ main() {
     install_uv
     install_sediman
 
-    if [ "$FORCE" = "true" ] || [ ! -x "$SEDIMAN_BIN_DIR/sediman-tui" ]; then
+    if [ "$FORCE" = "true" ] || [ ! -x "$TERMINATOR_BIN_DIR/terminator" ]; then
         download_tui_binary "$platform"
         add_to_path
     fi
@@ -279,11 +283,11 @@ main() {
     echo -e "  ${BOLD}${GREEN}Installation complete!${RESET}"
     echo ""
     echo -e "  ${DIM}Next steps:${RESET}"
-    echo -e "  1. Run ${CYAN}sediman init${RESET} to configure your API key"
-    echo -e "  2. Run ${CYAN}sediman run \"your task\"${RESET} to start"
+    echo -e "  1. Run ${CYAN}terminator${RESET} to launch the TUI"
+    echo -e "  2. Or run ${CYAN}sediman run \"your task\"${RESET} for CLI"
     echo ""
 
-    if [ ! -x "$SEDIMAN_BIN_DIR/sediman-tui" ]; then
+    if [ ! -x "$TERMINATOR_BIN_DIR/terminator" ]; then
         echo -e "  ${DIM}For the TUI, build from source:${RESET}"
         echo -e "  ${CYAN}cargo build --release -p sediman-tui${RESET}"
         echo ""

@@ -11,7 +11,7 @@ RESET='\033[0m'
 info()  { echo -e "  ${GREEN}+${RESET} $*"; }
 warn()  { echo -e "  ${RED}!${RESET} $*"; }
 
-SEDIMAN_BIN_DIR="$HOME/.sediman/bin"
+TERMINATOR_BIN_DIR="$HOME/.terminator/bin"
 SEDIMAN_DATA_DIR="$HOME/.sediman"
 REMOVE_DATA=false
 
@@ -34,27 +34,27 @@ echo -e "  ${BOLD}Sediman Uninstaller${RESET}"
 echo ""
 
 if command -v uv &>/dev/null; then
-    info "Removing sediman-browse Python tool..."
-    uv tool uninstall sediman-browse 2>/dev/null || true
+    info "Removing openskynet Python tool..."
+    uv tool uninstall openskynet 2>/dev/null || true
 fi
 
-if [ -d "$SEDIMAN_BIN_DIR" ]; then
-    info "Removing $SEDIMAN_BIN_DIR..."
-    rm -rf "$SEDIMAN_BIN_DIR"
+if [ -d "$TERMINATOR_BIN_DIR" ]; then
+    info "Removing $TERMINATOR_BIN_DIR..."
+    rm -rf "$TERMINATOR_BIN_DIR"
 fi
 
 if [ "$REMOVE_DATA" = "true" ]; then
-    warn "Removing all Sediman data at $SEDIMAN_DATA_DIR..."
+    warn "Removing all data at $SEDIMAN_DATA_DIR..."
     rm -rf "$SEDIMAN_DATA_DIR"
 else
     info "Keeping data at $SEDIMAN_DATA_DIR (use --remove-data to delete)"
 fi
 
 for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
-    if [ -f "$rc" ] && grep -qF ".sediman/bin" "$rc" 2>/dev/null; then
+    if [ -f "$rc" ] && grep -qF ".terminator/bin" "$rc" 2>/dev/null; then
         info "Removing PATH entry from $rc..."
-        sed -i.bak '/# Added by Sediman installer/d' "$rc"
-        sed -i.bak '/.sediman\/bin/d' "$rc"
+        sed -i.bak '/# Added by OpenSkynet installer/d' "$rc"
+        sed -i.bak '/.terminator\/bin/d' "$rc"
         rm -f "${rc}.bak" 2>/dev/null || true
     fi
 done

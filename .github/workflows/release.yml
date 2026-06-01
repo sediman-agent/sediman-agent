@@ -40,7 +40,7 @@ jobs:
       - name: Package
         run: |
           mkdir -p dist/bin
-          cp target/${{ matrix.target }}/release/sediman-tui dist/bin/
+          cp target/${{ matrix.target }}/release/sediman-tui dist/bin/terminator
           cd dist && tar czf ${{ matrix.artifact }}.tar.gz bin/
       - uses: actions/upload-artifact@v4
         with:
@@ -97,7 +97,7 @@ jobs:
           cd bundle
           tar xzf ${{ matrix.tui_artifact }}.tar.gz
           cd ..
-          cp bundle/bin/sediman-tui release/
+          cp bundle/bin/terminator release/ || cp bundle/bin/sediman-tui release/terminator
           cp bundle/wheel/*.whl release/
           cp scripts/install.sh release/
           cp scripts/uninstall.sh release/
