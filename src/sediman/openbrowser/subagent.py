@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Callable
 
 import structlog
 
 from sediman.agent.tool_dispatch import ToolRegistry, ToolLoop, ToolResult
 from sediman.llm.provider import LLMProvider, ToolDefinition
 from sediman.openbrowser.client import OpenBrowserClient
+from sediman.types import BrowserResult
 
 logger = structlog.get_logger()
 
@@ -29,12 +29,6 @@ You interact with web pages through structured semantic trees and numbered eleme
 - If a page requires JavaScript rendering and looks empty, note that OpenBrowser may not render it fully
 - Never guess element IDs — always get a fresh snapshot first
 """
-
-
-@dataclass
-class BrowserResult:
-    text: str
-    actions: list[dict[str, Any]]
 
 
 class OpenBrowserSubagent:

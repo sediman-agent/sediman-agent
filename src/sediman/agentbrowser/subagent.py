@@ -1,21 +1,15 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Callable
 
 import structlog
 
 from sediman.agentbrowser.session import AgentBrowserSession
 from sediman.llm.provider import LLMProvider
+from sediman.types import BrowserResult
 
 logger = structlog.get_logger()
-
-
-@dataclass
-class BrowserResult:
-    text: str
-    actions: list[dict[str, Any]]
 
 
 class AgentBrowserSubagent:

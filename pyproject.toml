@@ -3,8 +3,8 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sediman-browse"
-version = "0.1.1"
+name = "openskynet"
+version = "0.1.5"
 description = "A self-improving browser agent that runs 24/7"
 readme = "README.md"
 license = {text = "BSL-1.1"}
@@ -67,9 +67,9 @@ sediman = "sediman.cli:main"
 
 [project.urls]
 Homepage = "https://sediman.ai"
-Repository = "https://github.com/sediman-agent/sediman-agent"
-Documentation = "https://github.com/sediman-agent/sediman-agent#readme"
-Changelog = "https://github.com/sediman-agent/sediman-agent/blob/main/docs/CHANGELOG.md"
+Repository = "https://github.com/sediman-agent/OpenSkynet"
+Documentation = "https://github.com/sediman-agent/OpenSkynet#readme"
+Changelog = "https://github.com/sediman-agent/OpenSkynet/blob/main/docs/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Sediman will be documented in this file.
+All notable changes to OpenSkynet will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Install script GitHub repo reference (`sediman-agent/sediman-browse`)
+- Install script GitHub repo reference (`sediman-agent/OpenSkynet`)
 - CONTRIBUTING.md clone URL
 - README.md broken issue links
 - Org name consistency across all files (`sediman-agent`)

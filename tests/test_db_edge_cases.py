@@ -84,7 +84,7 @@ class TestSchemaIntegrity:
         assert "sessions_au" in triggers
 
 
-@pytest.mark.skip(reason="DB pool does not handle DEFAULT_DATA_DIR changes between test modules — see issue #TODO")
+@pytest.mark.skip(reason="DB pool does not handle DEFAULT_DATA_DIR changes between test modules")
 class TestDbOperations:
     @pytest.mark.asyncio
     async def test_insert_and_query_session(self, tmp_sediman_dir):

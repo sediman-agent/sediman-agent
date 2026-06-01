@@ -1,6 +1,6 @@
 # Awesome Sediman Skills
 
-A curated collection of skills and examples for [Sediman](https://github.com/sediman-agent/sediman-browse) — the self-improving browser agent.
+A curated collection of skills and examples for [OpenSkynet](https://github.com/sediman-agent/OpenSkynet) — the self-improving browser agent.
 
 ## What are Sediman Skills?
 
@@ -76,7 +76,7 @@ verification:
 
 Have a useful skill? We welcome contributions!
 
-1. Fork [sediman-agent/sediman-browse](https://github.com/sediman-agent/sediman-browse)
+1. Fork [sediman-agent/OpenSkynet](https://github.com/sediman-agent/OpenSkynet)
 2. Add your skill to `skills/<source>/<skill-name>/SKILL.md`
 3. Open a PR
 

@@ -20,7 +20,7 @@
 ### 安裝
 
 ```
-curl -fsSL https://raw.githubusercontent.com/sediman-agent/OpenSkynet/main/install | bash
+curl -fsSL https://raw.githubusercontent.com/sediman-agent/OpenSkynet/main/scripts/install.sh | bash
 ```
 
 設定 API 金鑰後即可使用：
