@@ -4,7 +4,7 @@ category: cloud
 api_key_env: MINIMAX_API_KEY
 base_url: https://api.minimaxi.chat/v1
 models:
-  default: MiniMax-M2.5
+  default: MiniMax-M3
   list:
     - id: MiniMax-M2.5
       name: MiniMax M2.5
@@ -14,3 +14,5 @@ models:
       name: MiniMax M2.1
     - id: MiniMax-M2
       name: MiniMax M2
+    - id: MiniMax-M3
+      name: MiniMax M3
