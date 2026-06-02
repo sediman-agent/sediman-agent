@@ -4,6 +4,13 @@ All notable changes to OpenSkynet will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.11] - 2026-06-02
+
+### Fixed
+
+- Release workflow: publish available platform binaries even if one build is stuck (fail-fast disabled, per-platform graceful skipping)
+- Previous releases v0.2.8–v0.2.10 published zero assets because `x86_64-apple-darwin` blocked the entire pipeline
+
 ## [0.2.10] - 2026-06-02
 
 ### Fixed
