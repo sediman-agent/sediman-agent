@@ -4,6 +4,12 @@ All notable changes to OpenSkynet will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.9] - 2026-06-02
+
+### Fixed
+
+- `sediman --version` showing stale `0.1.5` instead of actual package version. Replaced hardcoded `__version__` in `src/sediman/__init__.py` with dynamic `importlib.metadata.version("openskynet")`.
+
 ## [0.2.8] - 2026-06-02
 
 ### Added
