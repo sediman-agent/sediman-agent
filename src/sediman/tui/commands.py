@@ -128,7 +128,10 @@ _HELP_CATEGORIES = [
     ("Utilities", ["/btw", "/doctor", "/export"]),
 ]
 
-_SLASH_NAMES = sorted(c.split()[0] for c in _SLASH_COMMANDS)
+_SLASH_NAMES = sorted(
+    [c.split()[0] for c in _SLASH_COMMANDS],
+    key=lambda x: x,
+)
 
 
 async def handle_task(tui: SedimanTUI, task: str) -> None:
@@ -148,6 +151,7 @@ async def handle_task(tui: SedimanTUI, task: str) -> None:
         try:
             result = await agent.run(task)
         except AgentInterruptedError:
+            cprint("\n  \033[33m-- Interrupted --\033[0m\n")
             return
         except Exception as e:
             cprint(f"\n  \033[31mX Task failed: {e}\033[0m\n")
@@ -1364,22 +1368,21 @@ async def cmd_usage(tui: SedimanTUI, _args: str) -> None:
 
 
 async def cmd_color(tui: SedimanTUI, args: str) -> None:
-    colors = ["red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"]
-    _COLOR_ANSI = {
-        "red": 31,
-        "green": 32,
-        "yellow": 33,
-        "blue": 34,
-        "purple": 35,
-        "cyan": 36,
-        "orange": 38,
-        "pink": 38,
-    }
+    colors = [
+        "red",
+        "blue",
+        "green",
+        "yellow",
+        "purple",
+        "orange",
+        "pink",
+        "cyan",
+    ]
     if not args.strip():
         current = tui._session_color or "default"
         if current != "default":
-            code = _COLOR_ANSI.get(current, 37)
-            cprint(f"  Current color: \033[{code}m● {current}\033[0m")
+            idx = colors.index(current)
+            cprint(f"  Current color: \033[{31 + idx}m● {current}\033[0m")
         else:
             cprint("  Current color: default")
         cprint("  Usage: \033[36m/color " + " | ".join(colors) + " | random\033[0m")
@@ -1395,8 +1398,8 @@ async def cmd_color(tui: SedimanTUI, args: str) -> None:
         )
         return
     tui._session_color = color
-    code = _COLOR_ANSI.get(color, 37)
-    cprint(f"  \033[32m+ Session color set to \033[{code}m● {color}\033[0m")
+    idx = colors.index(color)
+    cprint(f"  \033[32m+ Session color set to \033[{31 + idx}m● {color}\033[0m")
 
 
 async def cmd_rename(tui: SedimanTUI, args: str) -> None:
@@ -1668,6 +1671,5 @@ async def cmd_branch(tui: SedimanTUI, args: str) -> None:
 
 
 async def cmd_branches(tui: SedimanTUI, _args: str) -> None:
-    """List named branch checkpoints. Alias for /checkpoint."""
-    cprint("  \033[2m(Alias for /checkpoint)\033[0m")
+    """List named branch checkpoints."""
     await cmd_checkpoint_list(tui, "")

@@ -7,7 +7,6 @@ import queue
 import threading
 from typing import Any
 
-from sediman.tui.display import cprint
 from sediman.tui.logging import suppress_logging
 
 
@@ -102,7 +101,7 @@ class SchedulerManager:
             )
         active = sum(1 for j in jobs if j.get("enabled", True))
         if jobs:
-            cprint(f"  \033[36m[Scheduler]\033[0m {active} active job(s)")
+            print(f"  \033[36m[Scheduler]\033[0m {active} active job(s)")
         return active
 
     def _run_scheduled_job(self, job: dict[str, Any]) -> None:
@@ -140,6 +139,6 @@ class SchedulerManager:
         while True:
             try:
                 msg = self._cron_messages.get_nowait()
-                cprint(msg)
+                print(msg)
             except queue.Empty:
                 break
