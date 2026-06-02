@@ -240,3 +240,112 @@ class TestSubagentSession:
             browser_session=MagicMock(),
         )
         assert session._is_browser_task("go to x") is False
+
+
+class TestCodingTaskArtifacts:
+    """Regression tests for issue #155: coding task tool args / artifacts."""
+
+    @pytest.fixture
+    def mock_llm(self):
+        return MagicMock()
+
+    @pytest.fixture
+    def template_code(self):
+        return AgentTemplate(
+            name="code",
+            description="Code agent",
+            system_prompt="You code.",
+            permissions={"terminal": "allow", "write_file": "allow", "browser": "deny"},
+        )
+
+    @pytest.mark.asyncio
+    async def test_coding_task_extracts_file_artifacts(self, mock_llm, template_code):
+        """Files edited by the coding agent should appear as artifacts."""
+        from sediman.agent.coding_agent import CodingResult
+
+        coding_result = CodingResult(
+            text="Fixed the bug",
+            tool_calls=["read_file", "write_file", "terminal"],
+            files_edited=["/tmp/src/fix.py", "/tmp/tests/test_fix.py"],
+            success=True,
+        )
+
+        registry = ToolRegistry()
+        session = SubagentSession(
+            template=template_code,
+            task="fix the bug",
+            parent_context={},
+            tool_registry=registry,
+            llm_provider=mock_llm,
+        )
+        session._run_coding_step = AsyncMock(return_value=coding_result)
+
+        result = await session.run()
+
+        assert result.success is True
+        # Must have extracted artifacts for each edited file
+        assert len(result.artifacts) == 2
+        paths = [a.path for a in result.artifacts]
+        assert "/tmp/src/fix.py" in paths
+        assert "/tmp/tests/test_fix.py" in paths
+        for art in result.artifacts:
+            assert art.kind == "file"
+
+    @pytest.mark.asyncio
+    async def test_coding_task_no_edits_no_artifacts(self, mock_llm, template_code):
+        """If coding agent edited no files, there should be no file artifacts."""
+        from sediman.agent.coding_agent import CodingResult
+
+        coding_result = CodingResult(
+            text="Just read stuff",
+            tool_calls=["read_file"],
+            files_edited=[],
+            success=True,
+        )
+
+        registry = ToolRegistry()
+        session = SubagentSession(
+            template=template_code,
+            task="read the code",
+            parent_context={},
+            tool_registry=registry,
+            llm_provider=mock_llm,
+        )
+        session._run_coding_step = AsyncMock(return_value=coding_result)
+
+        result = await session.run()
+        assert result.success is True
+        assert len(result.artifacts) == 0
+
+    @pytest.mark.asyncio
+    async def test_coding_task_actions_include_tool_names(self, mock_llm, template_code):
+        """actions_taken should still list tool names from coding result."""
+        from sediman.agent.coding_agent import CodingResult
+
+        coding_result = CodingResult(
+            text="Done",
+            tool_calls=["read_file", "terminal", "write_file"],
+            files_edited=["/tmp/a.py"],
+            success=True,
+        )
+
+        registry = ToolRegistry()
+        session = SubagentSession(
+            template=template_code,
+            task="do stuff",
+            parent_context={},
+            tool_registry=registry,
+            llm_provider=mock_llm,
+        )
+        session._run_coding_step = AsyncMock(return_value=coding_result)
+
+        result = await session.run()
+        tool_names = [a["tool"] for a in result.actions_taken]
+        assert "read_file" in tool_names
+        assert "terminal" in tool_names
+        # The write_file entry from files_edited should also be present
+        assert "write_file" in tool_names
+        # The write_file entry should have proper data
+        wf_actions = [a for a in result.actions_taken if a["tool"] == "write_file" and "data" in a]
+        assert len(wf_actions) == 1
+        assert wf_actions[0]["data"]["path"] == "/tmp/a.py"
