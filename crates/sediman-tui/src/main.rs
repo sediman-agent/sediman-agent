@@ -122,16 +122,23 @@ async fn ensure_backend(
         return None;
     }
 
+    let project_root = find_project_root();
     let root = std::env::var("SEDIMAN_ROOT").ok().map(PathBuf::from)
-        .or_else(find_project_root)
+        .or_else(|| project_root.clone())
         .unwrap_or_else(default_install_root);
     eprintln!("  Backend root: {}", root.display());
 
-    let work_dir = std::env::current_dir().unwrap_or_else(|_| root.clone());
-    eprintln!("  Working dir: {}", work_dir.display());
+    let cwd = std::env::current_dir().unwrap_or_else(|_| root.clone());
 
     for (cmd, args) in &candidates {
         eprintln!("Starting backend: {} {}", cmd, args.join(" "));
+
+        let is_uv_run = *cmd == "uv";
+        let work_dir = if is_uv_run {
+            project_root.as_ref().unwrap_or(&cwd)
+        } else {
+            &cwd
+        };
 
         let mut child_cmd = tokio::process::Command::new(cmd);
         child_cmd
@@ -141,7 +148,7 @@ async fn ensure_backend(
             .env("SEDIMAN_ROOT", &root)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::piped())
-            .current_dir(&work_dir);
+            .current_dir(work_dir);
 
         if let Some(m) = model {
             child_cmd.env("SEDIMAN_MODEL", m);
