@@ -4,6 +4,12 @@ All notable changes to OpenSkynet will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.13] - 2026-06-02
+
+### Fixed
+
+- Release workflow v3: each platform uploads directly to GitHub Release independently — no more central publish job blocked by stuck runners
+
 ## [0.2.12] - 2026-06-02
 
 ### Fixed

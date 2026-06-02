@@ -9,8 +9,8 @@ permissions:
   packages: write
 
 jobs:
-  build-and-package:
-    name: Build & package (${{ matrix.platform }})
+  release-tui:
+    name: Build & release TUI (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -36,20 +36,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-      - name: Build TUI binary
+      - name: Build
         run: cargo build --release -p sediman-tui --target ${{ matrix.target }}
       - name: Package
         run: |
           mkdir -p dist/bin
           cp target/${{ matrix.target }}/release/sediman-tui dist/bin/terminator
           cd dist && tar czf sediman-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz bin/
-      - uses: actions/upload-artifact@v4
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: sediman-${{ matrix.platform }}
-          path: dist/sediman-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz
+          files: dist/sediman-${{ github.ref_name }}-${{ matrix.platform }}.tar.gz
+          generate_release_notes: true
 
-  build-wheel:
-    name: Build Python wheel
+  release-wheel:
+    name: Build & release Python wheel
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -64,48 +65,21 @@ jobs:
           version: "latest"
       - name: Build wheel
         run: uv build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: python-wheel
-          path: dist/*.whl
-
-  publish-github:
-    name: Publish to GitHub Releases
-    runs-on: ubuntu-latest
-    needs: [build-and-package, build-wheel]
-    if: always()
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: sediman-*
-          path: artifacts/
-          merge-multiple: true
-        continue-on-error: true
-      - uses: actions/download-artifact@v4
-        with:
-          name: python-wheel
-          path: artifacts/
-        continue-on-error: true
-      - name: List artifacts
-        run: ls -la artifacts/ || true
       - name: Generate checksums
-        run: |
-          cd artifacts
-          sha256sum *.tar.gz *.whl > checksums.txt 2>/dev/null || true
-      - name: Create GitHub Release
+        run: cd dist && sha256sum *.whl > checksums.txt
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/*.tar.gz
-            artifacts/*.whl
-            artifacts/checksums.txt
+            dist/*.whl
+            dist/checksums.txt
           generate_release_notes: true
 
   publish-pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: [build-wheel]
-    if: always() && needs.build-wheel.result == 'success'
+    needs: [release-wheel]
+    if: always() && needs.release-wheel.result == 'success'
     environment: pypi
     permissions:
       id-token: write
@@ -114,6 +88,7 @@ jobs:
         with:
           name: python-wheel
           path: dist/
+        continue-on-error: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
