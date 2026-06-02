@@ -4,7 +4,7 @@ External skills (from repo skills/data/) have pre-computed embeddings stored in
 skill_embeddings.npz, committed alongside index.json. Loading is instant
 via numpy memory-mapping.
 
-Internal skills (from ~/.sediman/skills/) are lazily indexed on first search.
+Internal skills (from ~/.terminator/skills/) are lazily indexed on first search.
 Their embeddings are cached in a local SQLite database and only re-computed
 when the skill file's mtime changes.
 """

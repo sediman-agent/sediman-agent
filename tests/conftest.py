@@ -9,7 +9,7 @@ import pytest
 
 @pytest.fixture
 def tmp_sediman_dir(tmp_path: Path):
-    """Redirect ~/.sediman to a temp dir for all tests."""
+    """Redirect data dir to a temp dir for all tests."""
     mem_dir = tmp_path / "memories"
     mem_dir.mkdir(parents=True, exist_ok=True)
 

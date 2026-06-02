@@ -82,7 +82,7 @@ The TUI works but has a long way to go visually. Top priorities:
 - [ ] **Side panel** — skills/memory/schedule/status tabs rendered alongside main content
 - [ ] **Notification system** — cron job completion, long-running task alerts
 - [ ] **Tab completion** — wire the existing `Completer` into the input handler
-- [ ] **Config file** — `~/.sediman/config.toml` for persistent settings
+- [ ] **Config file** — `~/.terminator/config.toml` for persistent settings
 - [ ] **Session autosave/resume** — persist and restore conversation state
 - [ ] **WebSocket reconnection** — graceful recovery on backend restart
 - [ ] **Visual theme polish** — match OpenCode's color scheme and typography

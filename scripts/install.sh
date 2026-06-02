@@ -288,6 +288,14 @@ main() {
     platform="$(detect_platform)"
     info "Detected platform: $platform"
 
+    if [ -d "$HOME/.sediman" ]; then
+        warn "Legacy data found at ~/.sediman/ (old installation)."
+        warn "Your data now lives at ~/.terminator/. You can:"
+        warn "  Run: mv ~/.sediman ~/.terminator    (migrate)"
+        warn "  Run: rm -rf ~/.sediman              (delete)"
+        echo ""
+    fi
+
     ensure_uv_in_path
     install_uv
     install_sediman

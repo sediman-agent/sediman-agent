@@ -9,7 +9,7 @@ import structlog
 
 logger = structlog.get_logger()
 
-WORKTREE_DIR = ".sediman-worktrees"
+WORKTREE_DIR = ".terminator-worktrees"
 STASH_MESSAGE = "sediman-terminator-preflight"
 
 

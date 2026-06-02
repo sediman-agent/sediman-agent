@@ -6,5 +6,5 @@ services:
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - ~/.sediman:/root/.sediman
+      - ~/.terminator:/root/.terminator
     restart: unless-stopped

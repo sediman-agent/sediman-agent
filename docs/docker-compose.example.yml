@@ -21,7 +21,7 @@ services:
       # - OPENAI_MODEL=gpt-4o        # model override
       # - SEDIMAN_LOG_LEVEL=debug     # log verbosity
     volumes:
-      - ~/.sediman:/root/.sediman     # skills, memory, cron jobs
+      - ~/.terminator:/root/.terminator     # skills, memory, cron jobs
       # - ./config.yaml:/app/config.yaml  # custom config
     restart: unless-stopped
     # deploy:

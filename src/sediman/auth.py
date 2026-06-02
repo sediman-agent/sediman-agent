@@ -1,4 +1,4 @@
-"""Credentials store — persists API keys per provider in ~/.sediman/auth.json.
+"""Credentials store — persists API keys per provider in ~/.terminator/auth.json.
 
 Modeled after opencode's auth system. File permissions are 0600 (user-only).
 """
