@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 
 import click
@@ -170,24 +171,29 @@ def chat(
     proxy: str | None,
     browser_backend: str,
 ) -> None:
-    """Interactive agent session with slash commands."""
-    _validate_startup(provider, model, base_url)
+    """Interactive agent session with slash commands (launches Rust TUI)."""
+    import shutil
 
-    from sediman.tui import SedimanTUI
+    tui_binary = shutil.which("terminator") or shutil.which("sediman-tui")
+    if tui_binary:
+        args = ["--provider", provider]
+        if model:
+            args += ["--model", model]
+        if base_url:
+            args += ["--base-url", base_url]
+        if headless:
+            args.append("--headless")
+        sys.exit(os.system(f'"{tui_binary}" {" ".join(args)}'))
 
-    tui = SedimanTUI(
-        provider=provider, model=model, base_url=base_url, headless=headless,
-        browser_backend=browser_backend,
+    from sediman.display import friendly_error
+
+    friendly_error(
+        RuntimeError(
+            "Rust TUI binary not found. Install with: make install-tui\n"
+            "  Or run: cargo build --release -p sediman-tui"
+        )
     )
-    try:
-        tui.run()
-    except KeyboardInterrupt:
-        pass
-    except Exception as exc:
-        from sediman.display import friendly_error
-
-        friendly_error(exc)
-        sys.exit(1)
+    sys.exit(1)
 
 
 @main.group()
