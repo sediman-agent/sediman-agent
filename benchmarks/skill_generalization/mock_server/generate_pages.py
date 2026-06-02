@@ -633,7 +633,7 @@ canvas{{width:100%;height:100%}}
       <h2>Data Verification Complete</h2>
       <p style="margin-bottom:16px;">All security checks have passed. The following data has been verified:</p>
       <div class="{c()}">
-        <canvas id="verifyCanvas" width="400" height="80"></canvas>
+        <canvas id="verifyCanvas" width="400" height="120"></canvas>
       </div>
       <div style="margin:16px 0;">
         <button class="{c()}" onclick="resetProgress();">Download Report</button>
@@ -688,7 +688,6 @@ function showLayer(n) {{
 
 // ===== PROGRESS RESET =====
 function resetProgress() {{
-    resetCount++;
     currentLayer = 0;
     resetCount = 0;
     consentChecked = false;
