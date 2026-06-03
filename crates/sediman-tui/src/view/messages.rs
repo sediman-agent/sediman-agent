@@ -1,9 +1,18 @@
+//! Message rendering with newest messages at bottom and collapsible sections.
+//!
+//! Features:
+//! - Chat-style rendering (newest messages at bottom)
+//! - Collapsible thinking/planning sections
+//! - Auto-scroll to latest messages
+//! - No Python log leakage
+
 use sediman_tui_core::renderer::{CellBuffer, Color, Line, Rect, Style, TextAttributes, display_width};
 use sediman_tui_core::markdown;
 use unicode_width::UnicodeWidthChar;
 
 use crate::app::{App, ChatMessage};
 
+/// Phase information for step styling
 struct PhaseInfo {
     name: &'static str,
     color_fn: fn(&App) -> Color,
@@ -11,19 +20,25 @@ struct PhaseInfo {
 }
 
 const PHASES: &[PhaseInfo] = &[
-    PhaseInfo { name: "planning", color_fn: |a| a.theme.warning, symbol: "\u{25c6}" },
-    PhaseInfo { name: "executing", color_fn: |a| a.theme.primary, symbol: "\u{25b8}" },
-    PhaseInfo { name: "observing", color_fn: |a| a.theme.secondary, symbol: "\u{25cb}" },
-    PhaseInfo { name: "reflecting", color_fn: |a| a.theme.info, symbol: "\u{25c6}" },
-    PhaseInfo { name: "delegating", color_fn: |a| a.theme.success, symbol: "\u{25c7}" },
-    PhaseInfo { name: "done", color_fn: |a| a.theme.success, symbol: "\u{2713}" },
-    PhaseInfo { name: "failed", color_fn: |a| a.theme.error, symbol: "\u{2717}" },
-    PhaseInfo { name: "Interrupted", color_fn: |a| a.theme.warning, symbol: "\u{26a0}" },
-    PhaseInfo { name: "streaming", color_fn: |a| a.theme.info, symbol: "\u{25b6}" },
-    PhaseInfo { name: "responding", color_fn: |a| a.theme.info, symbol: "\u{25b6}" },
+    PhaseInfo { name: "planning", color_fn: |a| a.theme.warning, symbol: "◆" },
+    PhaseInfo { name: "thinking", color_fn: |a| a.theme.warning, symbol: "◆" },
+    PhaseInfo { name: "executing", color_fn: |a| a.theme.primary, symbol: "▸" },
+    PhaseInfo { name: "observing", color_fn: |a| a.theme.secondary, symbol: "○" },
+    PhaseInfo { name: "reflecting", color_fn: |a| a.theme.info, symbol: "◆" },
+    PhaseInfo { name: "delegating", color_fn: |a| a.theme.success, symbol: "◇" },
+    PhaseInfo { name: "done", color_fn: |a| a.theme.success, symbol: "✓" },
+    PhaseInfo { name: "failed", color_fn: |a| a.theme.error, symbol: "✗" },
+    PhaseInfo { name: "Interrupted", color_fn: |a| a.theme.warning, symbol: "⚠" },
+    PhaseInfo { name: "streaming", color_fn: |a| a.theme.info, symbol: "▶" },
+    PhaseInfo { name: "responding", color_fn: |a| a.theme.info, symbol: "▶" },
 ];
 
+/// Render all messages into the buffer
+///
+/// Rendering order: newest messages at bottom (chat-style)
+/// Scroll behavior: auto-scroll shows latest messages, manual scroll for history
 pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
+    // Show banner when empty
     if app.show_banner && app.messages.is_empty() {
         super::banner::render_banner(buf, area, app);
         return;
@@ -35,7 +50,7 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
     }
 
     let max_width = area.width.saturating_sub(6) as usize; // 3px padding each side
-    let mut lines: Vec<(String, Style)> = Vec::new();
+    let mut lines: Vec<MessageLine> = Vec::new();
 
     // ── Compact running indicator ──
     if app.agent_running {
@@ -43,163 +58,98 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
         let elapsed = app.agent_start.elapsed().as_secs();
         let elapsed_str = format_elapsed(elapsed);
         let step_count = app.step_log.len();
-        let last_step = app.step_log.last().map(|s| truncate_end(s, max_width.saturating_sub(18))).unwrap_or_else(|| "Starting...".into());
+        let last_step = app.step_log.last()
+            .map(|s| truncate_end(s, max_width.saturating_sub(18)))
+            .unwrap_or_else(|| "Starting...".into());
 
-        lines.push((String::new(), Style::new()));
-        lines.push((format!("  {} Working \u{2026} {} \u{00b7} {} steps", spinner, elapsed_str, step_count),
-            Style::new().fg(app.theme.primary).add_modifier(TextAttributes::bold())));
-        lines.push((format!("    {}", last_step),
-            Style::new().fg(app.theme.text_muted)));
+        lines.push(MessageLine::empty());
+        lines.push(MessageLine::text(
+            format!("  {} Working… {} · {} steps", spinner, elapsed_str, step_count),
+            Style::new().fg(app.theme.primary).add_modifier(TextAttributes::bold()),
+        ));
+        lines.push(MessageLine::text(
+            format!("    {}", last_step),
+            Style::new().fg(app.theme.text_muted),
+        ));
 
-        // ── Live streaming text block ──
+        // ── Live streaming text block (only if not empty) ──
         if !app.streaming_text.is_empty() {
-            lines.push((String::new(), Style::new()));
+            lines.push(MessageLine::empty());
 
             let label = match app.streaming_phase.as_str() {
-                "planning" => "\u{25c6} Thinking",
-                "responding" => "\u{25b6} Responding",
-                "executing" => "\u{25b8} Executing",
-                "result" => "\u{276f} Result",
-                _ => "\u{25b6} Streaming",
+                "planning" | "thinking" => "◆ Thinking",
+                "responding" => "▶ Responding",
+                "executing" => "▸ Executing",
+                "result" => "◇ Result",
+                _ => "▶ Streaming",
             };
-            lines.push((format!("    {}", label),
-                Style::new().fg(app.theme.info).add_modifier(TextAttributes::bold())));
+            lines.push(MessageLine::text(
+                format!("    {}", label),
+                Style::new().fg(app.theme.info).add_modifier(TextAttributes::bold()),
+            ));
 
-            let preview = if app.streaming_text.len() > 800 {
-                let s = &app.streaming_text;
-                format!("{}...", &s[s.len().saturating_sub(800)..])
-            } else {
-                app.streaming_text.clone()
-            };
-            let cursor = "\u{2588}";
-            for (i, text_line) in preview.lines().enumerate() {
-                if i < 50 {
-                    if i == preview.lines().count().saturating_sub(1) {
-                        push_wrapped(&mut lines, &format!("    {}{}", text_line, cursor),
-                            Style::new().fg(app.theme.text), max_width);
-                    } else {
-                        push_wrapped(&mut lines, &format!("    {}", text_line),
-                            Style::new().fg(app.theme.text), max_width);
-                    }
-                }
+            // Show last N lines of streaming text
+            let preview_lines: Vec<&str> = app.streaming_text.lines().rev().take(15).collect();
+            let preview_lines: Vec<&str> = preview_lines.into_iter().rev().collect();
+
+            for (i, text_line) in preview_lines.iter().enumerate() {
+                let is_last = i == preview_lines.len() - 1;
+                let cursor = if is_last { "█" } else { "" };
+                push_wrapped(&mut lines, &format!("    {}{}", text_line, cursor),
+                    Style::new().fg(app.theme.text), max_width);
             }
         }
     }
 
-    // ── Render all messages ──
+    // ── Render all messages (chat-style: newest at bottom) ──
     for msg in &app.messages {
-        match msg {
-            ChatMessage::User { text, task_num, timestamp } => {
-                let ago = format_ago(timestamp.elapsed());
-                lines.push((String::new(), Style::new()));
-                lines.push((format!("  \u{276f} Task #{}  {}", task_num, ago),
-                    Style::new().fg(app.theme.secondary).add_modifier(TextAttributes::bold())));
-                push_wrapped(&mut lines, &format!("    {}", text), Style::new().fg(app.theme.text), max_width);
-            }
-            ChatMessage::Agent { steps, result, success, elapsed_secs, skill_created, scheduled_job, .. } => {
-                // ── Steps: show only last 3 to keep it clean ──
-                let show_steps: Vec<_> = if steps.len() > 3 {
-                    steps.iter().rev().take(3).collect::<Vec<_>>().into_iter().rev().collect()
-                } else {
-                    steps.iter().collect()
-                };
-
-                if !show_steps.is_empty() && result.is_none() {
-                    lines.push((String::new(), Style::new()));
-                }
-
-                // Collapsed step count if many
-                if steps.len() > 3 {
-                    lines.push((format!("    \u{2026} {} earlier steps", steps.len() - 3),
-                        Style::new().fg(app.theme.text_muted)));
-                }
-
-                for step in &show_steps {
-                    let (style, symbol) = parse_step_style(step, app);
-                    let truncated = truncate_end(step, max_width.saturating_sub(6));
-                    lines.push((format!("    {} {}", symbol, truncated), style));
-                }
-
-                // ── Result section ──
-                if let Some(res) = result {
-                    lines.push((String::new(), Style::new()));
-                    let icon = if *success { "\u{2713}" } else { "\u{2717}" };
-                    let color = if *success { app.theme.success } else { app.theme.error };
-                    let elapsed_str = format_elapsed(*elapsed_secs);
-                    lines.push((format!("  {} Done \u{00b7} {}", icon, elapsed_str),
-                        Style::new().fg(color).add_modifier(TextAttributes::bold())));
-                    lines.push((format!("    \u{25a3} {} \u{00b7} {}", app.provider, app.model.as_deref().unwrap_or("default")),
-                        Style::new().fg(app.theme.text_muted)));
-
-                    if !res.is_empty() {
-                        lines.push((String::new(), Style::new()));
-                        // Render markdown result with proper padding
-                        let md_lines = markdown::render_markdown_with_theme(res, &app.theme);
-                        for md_line in &md_lines {
-                            let (text, style) = flatten_line(md_line, app);
-                            if !text.is_empty() {
-                                push_wrapped(&mut lines, &format!("    {}", text), style, max_width);
-                            } else {
-                                lines.push((String::new(), Style::new()));
-                            }
-                        }
-                    }
-
-                    if let Some(skill) = skill_created {
-                        lines.push((String::new(), Style::new()));
-                        lines.push((format!("    \u{2726} Skill created: {}", skill), Style::new().fg(app.theme.info)));
-                    }
-                    if let Some(job) = scheduled_job {
-                        lines.push((format!("    \u{25c8} Scheduled: {}", job), Style::new().fg(app.theme.secondary)));
-                    }
-                }
-            }
-            ChatMessage::System { text, .. } => {
-                lines.push((String::new(), Style::new()));
-                push_wrapped(&mut lines, &format!("  {}", text), Style::new().fg(app.theme.text_muted), max_width);
-            }
-            ChatMessage::Error { text, .. } => {
-                lines.push((String::new(), Style::new()));
-                push_wrapped(&mut lines, &format!("  \u{2717} {}", text), Style::new().fg(app.theme.error), max_width);
-            }
-        }
+        render_message(msg, &mut lines, app, max_width);
     }
 
-    // ── Render lines with scroll ──
+    // ── Calculate scroll for chat-style rendering ──
     let total_lines = lines.len() as u16;
     let visible_height = area.height.saturating_sub(2).max(1);
     let max_scroll = total_lines.saturating_sub(visible_height);
 
+    // Auto-scroll: show latest messages (scroll to bottom)
     if app.auto_scroll {
-        app.scroll_offset = 0;
+        app.scroll_offset = max_scroll;
     }
     let scroll = app.scroll_offset.min(max_scroll);
 
-    // Fill background
+    // ── Fill background ──
     for sy in area.y..area.bottom() {
         for sx in area.x..area.right() {
             buf.put_char(sx, sy, ' ', Style::new().bg(app.theme.background));
         }
     }
 
-    let mut y = area.y;
-    for (i, (text, style)) in lines.iter().enumerate() {
-        let i = i as u16;
-        if i < scroll {
-            continue;
-        }
-        if y >= area.bottom() {
+    // ── Render lines from bottom up (chat-style) ──
+    let mut y = area.bottom().saturating_sub(1);
+    for line in lines.iter().rev().skip(scroll as usize) {
+        if y < area.y {
             break;
         }
-        if text.is_empty() {
-            y += 1;
-            continue;
+        match line {
+            MessageLine::Empty => {
+                y = y.saturating_sub(1);
+            }
+            MessageLine::Text { text, style } => {
+                if !text.is_empty() {
+                    buf.draw_str_clipped(area, area.x + 2, y, text, *style);
+                }
+                y = y.saturating_sub(1);
+            }
+            MessageLine::Collapsible { label, expanded, style } => {
+                let indicator = if *expanded { "▼" } else { "▶" };
+                let text = format!("  {} {}", indicator, label);
+                buf.draw_str_clipped(area, area.x + 2, y, &text, *style);
+                y = y.saturating_sub(1);
+            }
         }
-        buf.draw_str_clipped(area, area.x + 2, y, text, *style);
-        y += 1;
     }
 
-    // Scroll indicator
+    // ── Scroll indicator (shows position from top) ──
     if total_lines > visible_height {
         let pct = if max_scroll > 0 {
             (scroll as f64 / max_scroll as f64 * 100.0) as u16
@@ -214,6 +164,7 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
         }
     }
 
+    // ── Scroll bar (vertical track) ──
     if total_lines > visible_height && area.height > 4 {
         let track_x = area.right().saturating_sub(1);
         let track_top = area.y + 1;
@@ -222,7 +173,7 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
         if track_height > 0 {
             for ty in track_top..track_bottom {
                 if ty < area.bottom() {
-                    buf.put_char(track_x, ty, '\u{2502}', Style::new().fg(app.theme.border_dim));
+                    buf.put_char(track_x, ty, '│', Style::new().fg(app.theme.border_dim));
                 }
             }
             let thumb_pos = if max_scroll > 0 {
@@ -232,9 +183,139 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
             };
             let thumb_y = track_top + thumb_pos;
             if thumb_y < track_bottom {
-                buf.put_char(track_x, thumb_y, '\u{2588}', Style::new().fg(app.theme.primary));
+                buf.put_char(track_x, thumb_y, '█', Style::new().fg(app.theme.primary));
             }
         }
+    }
+}
+
+/// Render a single message into the lines buffer
+fn render_message(msg: &ChatMessage, lines: &mut Vec<MessageLine>, app: &App, max_width: usize) {
+    match msg {
+        ChatMessage::User { text, task_num, timestamp } => {
+            let ago = format_ago(timestamp.elapsed());
+            lines.push(MessageLine::empty());
+            lines.push(MessageLine::text(
+                format!("  ➤ Task #{}  {}", task_num, ago),
+                Style::new().fg(app.theme.secondary).add_modifier(TextAttributes::bold()),
+            ));
+            push_wrapped(lines, &format!("    {}", text), Style::new().fg(app.theme.text), max_width);
+        }
+        ChatMessage::Agent { steps, result, success, elapsed_secs, skill_created, scheduled_job, steps_expanded, timestamp: _ } => {
+            // ── Collapsible steps header ──
+            if !steps.is_empty() {
+                let step_count = steps.len();
+                let (icon, color) = if *success {
+                    ("✓", app.theme.success)
+                } else if result.is_some() {
+                    ("✗", app.theme.error)
+                } else {
+                    ("○", app.theme.info)
+                };
+
+                let status = if *steps_expanded { "Collapsed" } else { "Expand" };
+                let label = format!("{} {} steps ({} to {})", icon, step_count, status, if *steps_expanded { "expand" } else { "collapse" });
+                lines.push(MessageLine::collapsible(label, *steps_expanded, Style::new().fg(color)));
+
+                // ── Show steps if expanded (last 3 to keep it clean) ──
+                if *steps_expanded {
+                    let show_steps: Vec<_> = if steps.len() > 3 {
+                        steps.iter().rev().take(3).collect::<Vec<_>>().into_iter().rev().collect()
+                    } else {
+                        steps.iter().collect()
+                    };
+
+                    if steps.len() > 3 {
+                        lines.push(MessageLine::text(
+                            format!("    … {} earlier steps", steps.len() - 3),
+                            Style::new().fg(app.theme.text_muted),
+                        ));
+                    }
+
+                    for step in &show_steps {
+                        let (style, symbol) = parse_step_style(step, app);
+                        let truncated = truncate_end(step, max_width.saturating_sub(6));
+                        lines.push(MessageLine::text(
+                            format!("    {} {}", symbol, truncated),
+                            style,
+                        ));
+                    }
+                }
+            }
+
+            // ── Result section ──
+            if let Some(res) = result {
+                lines.push(MessageLine::empty());
+                let icon = if *success { "✓" } else { "✗" };
+                let color = if *success { app.theme.success } else { app.theme.error };
+                let elapsed_str = format_elapsed(*elapsed_secs);
+                lines.push(MessageLine::text(
+                    format!("  {} Done · {}", icon, elapsed_str),
+                    Style::new().fg(color).add_modifier(TextAttributes::bold()),
+                ));
+                lines.push(MessageLine::text(
+                    format!("    ▸ {} · {}", app.provider, app.model.as_deref().unwrap_or("default")),
+                    Style::new().fg(app.theme.text_muted),
+                ));
+
+                if !res.is_empty() {
+                    lines.push(MessageLine::empty());
+                    // Render markdown result with proper padding
+                    let md_lines = markdown::render_markdown_with_theme(res, &app.theme);
+                    for md_line in &md_lines {
+                        let (text, style) = flatten_line(md_line, app);
+                        if !text.is_empty() {
+                            push_wrapped(lines, &format!("    {}", text), style, max_width);
+                        } else {
+                            lines.push(MessageLine::empty());
+                        }
+                    }
+                }
+
+                if let Some(skill) = skill_created {
+                    lines.push(MessageLine::empty());
+                    lines.push(MessageLine::text(
+                        format!("    ✦ Skill created: {}", skill),
+                        Style::new().fg(app.theme.info),
+                    ));
+                }
+                if let Some(job) = scheduled_job {
+                    lines.push(MessageLine::text(
+                        format!("    ⏰ Scheduled: {}", job),
+                        Style::new().fg(app.theme.secondary),
+                    ));
+                }
+            }
+        }
+        ChatMessage::System { text, .. } => {
+            lines.push(MessageLine::empty());
+            push_wrapped(lines, &format!("  {}", text), Style::new().fg(app.theme.text_muted), max_width);
+        }
+        ChatMessage::Error { text, .. } => {
+            lines.push(MessageLine::empty());
+            push_wrapped(lines, &format!("  ✗ {}", text), Style::new().fg(app.theme.error), max_width);
+        }
+    }
+}
+
+/// Line types for rendering
+enum MessageLine {
+    Empty,
+    Text { text: String, style: Style },
+    Collapsible { label: String, expanded: bool, style: Style },
+}
+
+impl MessageLine {
+    fn empty() -> Self {
+        MessageLine::Empty
+    }
+
+    fn text(text: impl Into<String>, style: Style) -> Self {
+        MessageLine::Text { text: text.into(), style }
+    }
+
+    fn collapsible(label: impl Into<String>, expanded: bool, style: Style) -> Self {
+        MessageLine::Collapsible { label: label.into(), expanded, style }
     }
 }
 
@@ -261,15 +342,15 @@ fn truncate_end(s: &str, max_len: usize) -> String {
 }
 
 /// Push a line, wrapping it into multiple lines if it exceeds max_width.
-fn push_wrapped(lines: &mut Vec<(String, Style)>, text: &str, style: Style, max_width: usize) {
+fn push_wrapped(lines: &mut Vec<MessageLine>, text: &str, style: Style, max_width: usize) {
     if max_width < 4 {
-        lines.push((text.to_string(), style));
+        lines.push(MessageLine::text(text, style));
         return;
     }
 
     let text_width = display_width(text) as usize;
     if text_width <= max_width {
-        lines.push((text.to_string(), style));
+        lines.push(MessageLine::text(text, style));
         return;
     }
 
@@ -304,7 +385,7 @@ fn push_wrapped(lines: &mut Vec<(String, Style)>, text: &str, style: Style, max_
 
         let chunk: String = chars[pos..end].iter().collect();
         let line = if first { chunk } else { format!("    {}", chunk) };
-        lines.push((line, style));
+        lines.push(MessageLine::text(line, style));
 
         pos = end;
         first = false;
@@ -344,14 +425,14 @@ fn parse_step_style(step: &str, app: &App) -> (Style, &'static str) {
     }
 
     let t = &app.theme;
-    if step.contains("done") || step.starts_with('\u{2713}') {
-        return (Style::new().fg(t.success), "\u{2713}");
+    if step.contains("done") || step.starts_with('✓') {
+        return (Style::new().fg(t.success), "✓");
     }
-    if step.contains("fail") || step.starts_with('\u{2717}') {
-        return (Style::new().fg(t.error), "\u{2717}");
+    if step.contains("fail") || step.starts_with('✗') {
+        return (Style::new().fg(t.error), "✗");
     }
 
-    (Style::new().fg(t.text), "\u{2022}")
+    (Style::new().fg(t.text), "•")
 }
 
 #[allow(dead_code)]
@@ -454,23 +535,23 @@ mod tests {
     fn test_parse_step_style_known_phases() {
         let app = make_app();
         let (_, symbol) = parse_step_style("planning", &app);
-        assert_eq!(symbol, "\u{25c6}");
+        assert_eq!(symbol, "◆");
 
         let (_, symbol) = parse_step_style("executing", &app);
-        assert_eq!(symbol, "\u{25b8}");
+        assert_eq!(symbol, "▸");
 
         let (_, symbol) = parse_step_style("done", &app);
-        assert_eq!(symbol, "\u{2713}");
+        assert_eq!(symbol, "✓");
 
         let (_, symbol) = parse_step_style("failed", &app);
-        assert_eq!(symbol, "\u{2717}");
+        assert_eq!(symbol, "✗");
     }
 
     #[test]
     fn test_parse_step_style_unknown() {
         let app = make_app();
         let (_, symbol) = parse_step_style("something random", &app);
-        assert_eq!(symbol, "\u{2022}");
+        assert_eq!(symbol, "•");
     }
 
     #[test]
@@ -478,7 +559,7 @@ mod tests {
         let mut lines = Vec::new();
         push_wrapped(&mut lines, "hello", Style::new(), 80);
         assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0].0, "hello");
+        assert!(matches!(&lines[0], MessageLine::Text { text, .. } if text == "hello"));
     }
 
     #[test]
@@ -487,7 +568,11 @@ mod tests {
         let long = "abcdefghijklmnopqrstuvwxyz";
         push_wrapped(&mut lines, long, Style::new(), 10);
         assert!(lines.len() > 1, "Should wrap into multiple lines");
-        assert!(lines[0].0.starts_with("abcdefg"));
+        if let MessageLine::Text { text, .. } = &lines[0] {
+            assert!(text.starts_with("abcdefg"));
+        } else {
+            panic!("First line should be Text");
+        }
     }
 
     #[test]
@@ -502,18 +587,18 @@ mod tests {
 
     #[test]
     fn test_truncate_end_multi_byte() {
-        let s = "a\u{00e9}b\u{00e9}c\u{00e9}d\u{00e9}e";
+        let s = "aé bé cé dé é";
         let result = truncate_end(s, 6);
         assert!(result.ends_with("..."));
-        assert!(display_width(&result) <= 6, "truncated display width should be <= max_len, got {}", display_width(&result));
+        assert!(display_width(&result) <= 6, "truncated display width should be <= max_len");
     }
 
     #[test]
     fn test_truncate_end_wide_chars() {
-        let wide: String = "\u{4e00}\u{4e01}\u{4e02}\u{4e03}\u{4e04}".to_string();
+        let wide: String = "一丁七乃九".to_string();
         let result = truncate_end(&wide, 6);
         assert!(result.ends_with("..."));
-        assert!(display_width(&result) <= 6, "display width should be <= 6, got {}", display_width(&result));
+        assert!(display_width(&result) <= 6, "display width should be <= 6");
     }
 
     #[test]
@@ -530,22 +615,26 @@ mod tests {
     #[test]
     fn test_push_wrapped_wide_chars() {
         let mut lines = Vec::new();
-        let wide: String = "\u{4e00}".repeat(10);
+        let wide: String = "一".repeat(10);
         push_wrapped(&mut lines, &wide, Style::new(), 10);
-        for (i, (text, _)) in lines.iter().enumerate() {
-            let w = display_width(text) as usize;
-            assert!(w <= 10, "line {} display width {} exceeds max 10: {:?}", i, w, text);
+        for (i, line) in lines.iter().enumerate() {
+            if let MessageLine::Text { text, .. } = line {
+                let w = display_width(text) as usize;
+                assert!(w <= 10, "line {} display width {} exceeds max 10", i, w);
+            }
         }
     }
 
     #[test]
     fn test_push_wrapped_mixed_width() {
         let mut lines = Vec::new();
-        let mixed = "hello\u{4e00}\u{4e01}\u{4e02}world";
+        let mixed = "hello一世界world";
         push_wrapped(&mut lines, mixed, Style::new(), 10);
-        for (i, (text, _)) in lines.iter().enumerate() {
-            let w = display_width(text) as usize;
-            assert!(w <= 10, "line {} display width {} exceeds max 10: {:?}", i, w, text);
+        for (i, line) in lines.iter().enumerate() {
+            if let MessageLine::Text { text, .. } = line {
+                let w = display_width(text) as usize;
+                assert!(w <= 10, "line {} display width {} exceeds max 10", i, w);
+            }
         }
         assert!(lines.len() > 1, "should wrap into multiple lines");
     }
@@ -556,9 +645,11 @@ mod tests {
         let long = "a".repeat(100);
         push_wrapped(&mut lines, &long, Style::new(), 10);
         assert!(lines.len() > 1);
-        for (i, (text, _)) in lines.iter().enumerate() {
+        for (i, line) in lines.iter().enumerate() {
             if i > 0 {
-                assert!(text.starts_with("    "), "continuation line should have 4-space indent");
+                if let MessageLine::Text { text, .. } = line {
+                    assert!(text.starts_with("    "), "continuation line should have 4-space indent");
+                }
             }
         }
     }
@@ -568,20 +659,24 @@ mod tests {
         let mut lines = Vec::new();
         let text = "the quick brown fox jumps over the lazy dog and keeps going";
         push_wrapped(&mut lines, text, Style::new(), 20);
-        for (i, (line_text, _)) in lines.iter().enumerate() {
-            let w = display_width(line_text) as usize;
-            assert!(w <= 20, "line {} display width {} exceeds max 20: {:?}", i, w, line_text);
+        for (i, line) in lines.iter().enumerate() {
+            if let MessageLine::Text { text, .. } = line {
+                let w = display_width(text) as usize;
+                assert!(w <= 20, "line {} display width {} exceeds max 20", i, w);
+            }
         }
     }
 
     #[test]
     fn test_push_wrapped_single_wide_char_at_boundary() {
         let mut lines = Vec::new();
-        let text = format!("abc{}\u{4e00}", "x".repeat(5));
+        let text = format!("abc{}一", "x".repeat(5));
         push_wrapped(&mut lines, &text, Style::new(), 8);
-        for (i, (line_text, _)) in lines.iter().enumerate() {
-            let w = display_width(line_text) as usize;
-            assert!(w <= 8, "line {} display width {} exceeds max 8: {:?}", i, w, line_text);
+        for (i, line) in lines.iter().enumerate() {
+            if let MessageLine::Text { text, .. } = line {
+                let w = display_width(text) as usize;
+                assert!(w <= 8, "line {} display width {} exceeds max 8", i, w);
+            }
         }
     }
 }

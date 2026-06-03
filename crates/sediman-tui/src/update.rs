@@ -1372,6 +1372,18 @@ pub async fn handle_message(app: &mut App, event: AppEvent, event_tx: &mpsc::Unb
                         app.editor.start_history_search();
                     }
                 }
+                // Space bar when input is empty: toggle latest collapsible section
+                KeyCode::Char(' ') => {
+                    let is_empty = app.editor.lines().iter().all(|l| l.trim().is_empty());
+                    if is_empty && !app.editor.is_searching() {
+                        if app.toggle_latest_steps() {
+                            // Successfully toggled
+                            app.auto_scroll = true;
+                        }
+                    } else {
+                        app.editor.input(key);
+                    }
+                }
                 _ => {
                     if app.editor.is_searching() {
                         match key.code {

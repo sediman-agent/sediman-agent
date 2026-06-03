@@ -227,6 +227,8 @@ pub enum ChatMessage {
         scheduled_job: Option<String>,
         #[allow(dead_code)]
         timestamp: Instant,
+        // Collapsible section state
+        steps_expanded: bool,
     },
     System {
         text: String,
@@ -428,6 +430,7 @@ impl App {
             skill_created: None,
             scheduled_job: None,
             timestamp: Instant::now(),
+            steps_expanded: false,  // Start collapsed for cleaner view
         });
         self.auto_scroll = true;
     }
@@ -475,6 +478,32 @@ impl App {
             self.streaming_phase = phase.to_string();
         }
         self.auto_scroll = true;
+    }
+
+    /// Toggle the collapsible steps section of the most recent Agent message
+    pub fn toggle_latest_steps(&mut self) -> bool {
+        for msg in self.messages.iter_mut().rev() {
+            if let ChatMessage::Agent { steps, steps_expanded, .. } = msg {
+                if !steps.is_empty() {
+                    *steps_expanded = !(*steps_expanded);
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// Toggle the collapsible steps section of a specific message index
+    pub fn toggle_steps_at(&mut self, index: usize) -> bool {
+        if let Some(msg) = self.messages.get_mut(index) {
+            if let ChatMessage::Agent { steps, steps_expanded, .. } = msg {
+                if !steps.is_empty() {
+                    *steps_expanded = !(*steps_expanded);
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     pub fn bridge_url(&self) -> &str {
