@@ -204,6 +204,12 @@ async fn handle_skill_browser_filter_mode(app: &mut App, key: crossterm::event::
             }
             true
         }
+        KeyCode::Tab => {
+            app.skill_browser_filter.push('\t');
+            app.skill_browser_selected = 0;
+            app.skill_browser_scroll = 0;
+            true
+        }
         KeyCode::Char(c) => {
             app.skill_browser_filter.push(c);
             app.skill_browser_selected = 0;

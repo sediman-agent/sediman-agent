@@ -152,6 +152,11 @@ pub async fn handle_session_browser(app: &mut App, key: crossterm::event::KeyEve
             }
             true
         }
+        KeyCode::Tab => {
+            app.session_filter.push('\t');
+            app.session_selected = 0;
+            true
+        }
         KeyCode::Char(c) => {
             app.session_filter.push(c);
             app.session_selected = 0;

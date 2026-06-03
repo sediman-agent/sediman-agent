@@ -100,6 +100,10 @@ pub async fn handle_schedule_browser(app: &mut App, key: crossterm::event::KeyEv
             }
             true
         }
+        KeyCode::Tab => {
+            app.schedule_input.push('\t');
+            true
+        }
         KeyCode::Char(c) => {
             app.schedule_input.push(c);
             true

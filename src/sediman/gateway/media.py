@@ -6,7 +6,6 @@ Adapted from Hermes Agent's platform media handling patterns.
 from __future__ import annotations
 
 import hashlib
-import magic  # python-magic
 import os
 import secrets
 import struct
@@ -24,6 +23,14 @@ logger = structlog.get_logger()
 # Cache directory for media files
 MEDIA_CACHE_DIR = DATA_DIR / "media_cache"
 MEDIA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Try to import python-magic for MIME detection, fallback to simple detection
+try:
+    import magic
+    HAS_MAGIC = True
+except ImportError:
+    HAS_MAGIC = False
+    logger.warning("python_magic_not_available", message="MIME detection will use basic extension-based detection")
 
 # Default max file size (50 MB)
 DEFAULT_MAX_SIZE_MB = 50
@@ -206,6 +213,94 @@ def _parse_webp_size(buf: bytes) -> Optional[dict[str, int]]:
 # ============ URL Download ============
 
 
+# Private/internal network prefixes for SSRF protection
+_PRIVATE_IP_PREFIXES = (
+    "10.",
+    "172.16.",
+    "172.17.",
+    "172.18.",
+    "172.19.",
+    "172.20.",
+    "172.21.",
+    "172.22.",
+    "172.23.",
+    "172.24.",
+    "172.25.",
+    "172.26.",
+    "172.27.",
+    "172.28.",
+    "172.29.",
+    "172.30.",
+    "172.31.",
+    "192.168.",
+    "127.",
+    "169.254.",  # AWS metadata
+    "fc00:",  # IPv6 private
+    "fe80:",  # IPv6 link-local
+    "::1",    # IPv6 localhost
+    "localhost",
+    "[::1]",
+)
+
+
+def is_safe_url(url: str) -> bool:
+    """Check if a URL is safe for downloading (SSRF protection).
+
+    Blocks URLs that target:
+    - Private/internal IP addresses
+    - localhost
+    - File:// protocol
+    - Invalid schemes
+
+    Args:
+        url: URL to check
+
+    Returns:
+        True if safe, False otherwise
+    """
+    if not url:
+        return False
+
+    url_lower = url.lower().strip()
+
+    # Block non-http protocols
+    if not url_lower.startswith(("http://", "https://")):
+        return False
+
+    # Block private/internal hosts (heuristic check)
+    for prefix in _PRIVATE_IP_PREFIXES:
+        if prefix in url_lower:
+            return False
+
+    # Block localhost in various forms
+    if "localhost" in url_lower or "127.0.0.1" in url_lower:
+        return False
+
+    # Block AWS metadata service
+    if "169.254.169.254" in url:
+        return False
+
+    return True
+
+
+async def _ssrf_redirect_guard(response: httpx.Response) -> None:
+    """Re-validate each redirect target to prevent redirect-based SSRF.
+
+    Without this, an attacker can host a public URL that 302-redirects to
+    http://169.254.169.254/ and bypass the pre-flight is_safe_url() check.
+
+    Args:
+        response: httpx response object
+
+    Raises:
+        ValueError: Redirect target is unsafe
+    """
+    if response.is_redirect and response.next_request:
+        redirect_url = str(response.next_request.url)
+        if not is_safe_url(redirect_url):
+            raise ValueError(f"Blocked redirect to private/internal address: {redirect_url[:80]}")
+
+
 async def download_url(
     url: str,
     max_size_mb: int = DEFAULT_MAX_SIZE_MB,
@@ -222,16 +317,20 @@ async def download_url(
         Tuple of (data_bytes, content_type)
 
     Raises:
-        ValueError: Content exceeds size limit
+        ValueError: Content exceeds size limit or URL is unsafe
         httpx.HTTPError: Network/HTTP error
     """
+    # SSRF protection check
+    if not is_safe_url(url):
+        raise ValueError(f"Blocked unsafe URL (SSRF protection): {url[:80]}")
+
     max_bytes = max_size_mb * 1024 * 1024
 
-    # SSRF protection: only allow HTTP/HTTPS
-    if not url.startswith(("http://", "https://")):
-        raise ValueError(f"Invalid URL scheme: {url}")
-
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+    async with httpx.AsyncClient(
+        timeout=timeout,
+        follow_redirects=True,
+        event_hooks={"response": [_ssrf_redirect_guard]},
+    ) as client:
         # First check size with HEAD
         try:
             head = await client.head(url)
@@ -438,11 +537,35 @@ async def cache_video_from_bytes(
 
 
 def _detect_mime_from_bytes(data: bytes) -> str:
-    """Detect MIME type from bytes using python-magic."""
-    try:
-        return magic.from_buffer(data, mime=True)
-    except Exception:
+    """Detect MIME type from bytes using python-magic if available.
+
+    Falls back to extension-based detection if magic is not available.
+    """
+    if HAS_MAGIC:
+        try:
+            return magic.from_buffer(data, mime=True)
+        except Exception:
+            pass
+
+    # Fallback to basic magic byte detection
+    if len(data) < 4:
         return "application/octet-stream"
+
+    # Check for common image signatures
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if data[:6] in {b"GIF87a", b"GIF89a"}:
+        return "image/gif"
+    if data[:4] == b"RIFF" and len(data) >= 12 and data[8:12] == b"WEBP":
+        return "image/webp"
+
+    # Check for PDF
+    if data[:4] == b"%PDF":
+        return "application/pdf"
+
+    return "application/octet-stream"
 
 
 def _guess_ext_from_mime(mime_type: str) -> str:

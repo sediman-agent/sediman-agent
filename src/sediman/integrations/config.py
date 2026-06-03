@@ -41,6 +41,11 @@ def _default_config() -> dict[str, Any]:
                 "users": [],
                 "servers": [],
             },
+            # Advanced config
+            "dm_policy": "open",  # "open" | "allowlist" | "disabled"
+            "group_policy": "open",  # "open" | "allowlist" | "disabled"
+            "allow_from": [],  # List of allowed user IDs (for allowlist mode)
+            "group_allow_from": [],  # List of allowed server IDs (for allowlist mode)
         },
         "telegram": {
             "enabled": False,
@@ -50,6 +55,11 @@ def _default_config() -> dict[str, Any]:
                 "enabled": False,
                 "users": [],
             },
+            # Advanced config
+            "dm_policy": "open",
+            "group_policy": "open",
+            "allow_from": [],
+            "group_allow_from": [],
         },
         "slack": {
             "enabled": False,
@@ -62,6 +72,13 @@ def _default_config() -> dict[str, Any]:
                 "users": [],
                 "teams": [],
             },
+            # Advanced config
+            "dm_policy": "open",
+            "group_policy": "open",
+            "allow_from": [],
+            "group_allow_from": [],
+            "reply_broadcast": False,  # Broadcast thread replies to main channel
+            "reply_in_thread": True,  # Reply in threads when possible
         },
         "whatsapp": {
             "enabled": False,
@@ -74,6 +91,10 @@ def _default_config() -> dict[str, Any]:
                 "enabled": False,
                 "users": [],
             },
+            # Advanced config
+            "dm_policy": "open",
+            "group_policy": "disabled",  # WhatsApp groups not supported by bot API
+            "allow_from": [],
         },
         "lark": {
             "enabled": False,
@@ -87,6 +108,12 @@ def _default_config() -> dict[str, Any]:
                 "enabled": False,
                 "users": [],
             },
+            # Advanced config
+            "dm_policy": "open",
+            "group_policy": "open",
+            "allow_from": [],
+            "group_allow_from": [],
+            "user_id_type": "open_id",  # "open_id" | "user_id" | "union_id"
         },
         "wechat": {
             "enabled": False,
@@ -98,6 +125,11 @@ def _default_config() -> dict[str, Any]:
                 "enabled": False,
                 "users": [],
             },
+            # Advanced config
+            "dm_policy": "open",
+            "group_policy": "open",
+            "allow_from": [],
+            "group_allow_from": [],
         },
     }
 

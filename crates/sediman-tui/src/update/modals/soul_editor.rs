@@ -43,6 +43,10 @@ pub async fn handle_soul_editor(app: &mut App, key: crossterm::event::KeyEvent) 
             app.soul_editor_input.pop();
             true
         }
+        KeyCode::Tab => {
+            app.soul_editor_input.push('\t');
+            true
+        }
         KeyCode::Char(c) => {
             app.soul_editor_input.push(c);
             true

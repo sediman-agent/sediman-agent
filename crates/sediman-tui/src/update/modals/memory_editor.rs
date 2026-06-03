@@ -51,6 +51,10 @@ pub async fn handle_memory_editor(app: &mut App, key: crossterm::event::KeyEvent
             app.memory_editor_input.pop();
             true
         }
+        KeyCode::Tab => {
+            app.memory_editor_input.push('\t');
+            true
+        }
         KeyCode::Char(c) => {
             app.memory_editor_input.push(c);
             true

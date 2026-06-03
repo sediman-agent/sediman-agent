@@ -94,6 +94,12 @@ pub async fn handle_model_picker(app: &mut App, key: crossterm::event::KeyEvent)
             app.model_dialog_scroll = 0;
             true
         }
+        KeyCode::Tab => {
+            app.model_dialog_filter.push('\t');
+            app.model_dialog_model_idx = 0;
+            app.model_dialog_scroll = 0;
+            true
+        }
         KeyCode::Char(c) => {
             app.model_dialog_filter.push(c);
             app.model_dialog_model_idx = 0;

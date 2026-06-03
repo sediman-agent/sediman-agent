@@ -101,6 +101,10 @@ pub async fn handle_api_key_prompt(app: &mut App, key: crossterm::event::KeyEven
             app.api_key_input.pop();
             true
         }
+        KeyCode::Tab => {
+            app.api_key_input.push('\t');
+            true
+        }
         KeyCode::Char(c) => {
             app.api_key_input.push(c);
             true
