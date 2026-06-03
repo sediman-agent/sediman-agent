@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
-from sediman.agent.loop import StepEvent
+from sediman.agent.types import StepEvent
 from sediman.browser.session import BrowserSession
 from sediman.config import MAX_TASK_LENGTH, MAX_NAME_LENGTH, MAX_CRON_FIELDS, SAFE_NAME_RE
 from sediman.llm.provider import create_provider, LLMProvider

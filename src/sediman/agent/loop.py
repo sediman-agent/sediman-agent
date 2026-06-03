@@ -3,13 +3,17 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
 import structlog
 
 from sediman.agent.browser_agent import BrowserSubagent, BrowserResult
+from sediman.agent.types import AgentResult, StepEvent
+from sediman.agent.execution import DirectExecutor, DelegateExecutor, SkillExecutor
+from sediman.agent.reflection import Reflector, RecoveryStrategy
+from sediman.agent.fast_path import TurboHandler, UrlHandler, ScheduleHandler
+from sediman.agent.post_task import PostTaskHandler
 from sediman.agent.compressor import ContextCompressor
 from sediman.agent.delegate import delegate_parallel
 from sediman.agent.manager import ManagerAgent, ManagerPlan
@@ -75,30 +79,6 @@ def _save_agent_state(data: dict[str, Any]) -> None:
         _AGENT_STATE_FILE.write_text(json.dumps(data))
     except OSError:
         pass
-
-
-@dataclass
-class StepEvent:
-    step: int
-    action: str
-    observation: str
-    phase: str = ""
-    detail: str = ""
-    url: str | None = None
-    tool_name: str | None = None
-
-
-@dataclass
-class AgentResult:
-    task: str
-    result: str
-    steps: list[StepEvent] = field(default_factory=list)
-    skill_created: str | None = None
-    actions_taken: list[dict[str, Any]] = field(default_factory=list)
-    scheduled_job_id: str | None = None
-    schedule_cron: str | None = None
-    iterations: int = 0
-    strategy_used: str = "direct"
 
 
 class AgentLoop:
@@ -169,6 +149,100 @@ class AgentLoop:
         self._audit = AuditLog.get()
         self._scratchpad = SharedScratchpad()
         self._progress: ProgressTracker | None = None
+
+        # Initialize refactored components
+        self._init_refactored_components()
+
+    def _init_refactored_components(self) -> None:
+        """Initialize refactored execution, reflection, and post-task components."""
+        # Fast path handlers
+        self._turbo_handler = TurboHandler(
+            llm_provider=self.llm,
+            browser_session=self.browser,
+            on_step=self.on_step,
+            max_steps=self.max_steps,
+            flash_mode=self.flash_mode,
+        )
+        self._url_handler = UrlHandler(
+            llm_provider=self.llm,
+            browser_session=self.browser,
+            on_step=self.on_step,
+            max_steps=self.max_steps,
+            flash_mode=self.flash_mode,
+        )
+        self._schedule_handler = ScheduleHandler(
+            llm_provider=self.llm,
+        )
+
+        # Reflection components
+        self._reflector = Reflector(
+            manager=self._manager,
+            llm=self.llm,
+            skip_reflection_on_success=self._skip_reflection_on_success,
+        )
+        self._recovery = RecoveryStrategy(
+            manager=self._manager,
+        )
+
+        # Post-task handler (initialized lazily)
+        self._post_task_handler: PostTaskHandler | None = None
+
+        # Execution components (initialized lazily)
+        self._direct_executor: DirectExecutor | None = None
+        self._delegate_executor: DelegateExecutor | None = None
+        self._skill_executor: SkillExecutor | None = None
+
+    def _get_post_task_handler(self) -> PostTaskHandler:
+        """Get or create post-task handler."""
+        if self._post_task_handler is None:
+            self._post_task_handler = PostTaskHandler(
+                llm_provider=self.llm,
+                memory=self._memory,
+                recorder=self._recorder,
+                skill_engine=self._get_engine(),
+                skill_learner=self._skill_learner,
+                skill_auditor=self._skill_auditor,
+                subagent_registry=self._subagent_registry,
+            )
+        return self._post_task_handler
+
+    def _get_direct_executor(self) -> DirectExecutor:
+        """Get or create direct executor."""
+        if self._direct_executor is None:
+            self._direct_executor = DirectExecutor(
+                browser_session=self.browser,
+                llm_provider=self.llm,
+                tool_registry=self._get_tool_registry(),
+                memory_context=self._cached_memory_context,
+                conversation=self._conversation,
+                on_streaming_text=self.on_streaming_text,
+                flash_mode=self.flash_mode,
+                max_steps=self.max_steps,
+                budget=self._budget,
+                browser_use_llm=self._cached_browser_use_llm,
+            )
+        return self._direct_executor
+
+    def _get_delegate_executor(self) -> DelegateExecutor:
+        """Get or create delegate executor."""
+        if self._delegate_executor is None:
+            self._delegate_executor = DelegateExecutor(
+                browser_session=self.browser,
+                llm_provider=self.llm,
+                subagent_factory=self._get_subagent_factory(),
+            )
+        return self._delegate_executor
+
+    def _get_skill_executor(self) -> SkillExecutor:
+        """Get or create skill executor."""
+        if self._skill_executor is None:
+            self._skill_executor = SkillExecutor(
+                browser_session=self.browser,
+                llm_provider=self.llm,
+                skill_engine=self._get_engine(),
+                direct_executor=self._get_direct_executor(),
+            )
+        return self._skill_executor
 
     def _get_tool_registry(self) -> ToolRegistry:
         if self._tool_registry is None:
@@ -292,63 +366,47 @@ class AgentLoop:
             self._conversation = await self._compressor.compress(self._conversation)
 
         # ── Turbo Path: zero-overhead for simple browser tasks ────
-        if self.turbo_mode and self._is_turbo_eligible(task):
-            return await self._run_turbo(task, session_id, state)
+        if self.turbo_mode and self._turbo_handler.is_eligible(task, self._conversation):
+            result = await self._turbo_handler.execute(
+                task=task,
+                state=state,
+                memory_context=self._cached_memory_context or "",
+                on_streaming_text=self.on_streaming_text,
+            )
+            # Handle post-task in background
+            plan = ManagerPlan(browser_task=task, strategy=Strategy.DIRECT)
+            asyncio.create_task(self._get_post_task_handler().run_background(state, plan, task))
+            return result
 
         # ── Fast Path: URL-only tasks skip LLM planning ────────
-        if _SIMPLE_URL_RE.match(task.strip()) and not self._conversation:
+        if self._url_handler.matches(task, self._conversation):
             self._emit(state, "Direct navigation (URL fast path)", detail=task[:100])
-            url = task.strip().split()[-1]
-            step = PlanStep(id=0, description=task, strategy=Strategy.DIRECT)
-            step.status = "in_progress"
-            recording_name = self._get_active_recording_name()
-            browser_agent = self._get_browser_agent(recording_name=recording_name, task=task)
-            browser_result: BrowserResult = await browser_agent.run(task=task)
-            if browser_agent._browser_use_llm is not None:
-                self._cached_browser_use_llm = browser_agent._browser_use_llm
-            step.result = browser_result.text
-            step.status = "completed"
-            state.actions_taken.extend(browser_result.actions)
-            state.result = browser_result.text
+            result = await self._url_handler.execute(
+                task=task,
+                state=state,
+                memory_context=self._cached_memory_context or "",
+                on_streaming_text=self.on_streaming_text,
+            )
+            # Update conversation and handle post-task in background
             self._conversation.append({"role": "user", "content": task})
-            self._conversation.append({"role": "assistant", "content": state.result})
+            self._conversation.append({"role": "assistant", "content": result.result})
             if len(self._conversation) > self.max_conversation:
                 self._conversation = self._conversation[-self.max_conversation:]
             plan = ManagerPlan(browser_task=task, strategy=Strategy.DIRECT)
-            asyncio.create_task(self._run_background_post_task(state, plan, task))
-            return AgentResult(
-                task=task, result=state.result,
-                steps=[StepEvent(step=0, action=f"navigate: {url}", observation=browser_result.text[:200])],
-                actions_taken=state.actions_taken, iterations=1, strategy_used="direct",
-            )
+            asyncio.create_task(self._get_post_task_handler().run_background(state, plan, task))
+            return result
 
         # ── Fast Path: regex planner already resolved scheduling ──
         regex_plan = self._regex_planner.plan(task)
-        if regex_plan.schedule and not self._conversation:
-            self._emit(state, "Scheduling task (regex)", detail=f"Cron: {regex_plan.schedule.cron}")
-            result_text = f"Scheduled: {regex_plan.schedule.cron} → {regex_plan.schedule.task}"
-            job_id = None
-            try:
-                from sediman.scheduler.cron import CronManager, validate_cron_expr
-                if validate_cron_expr(regex_plan.schedule.cron):
-                    cron = CronManager()
-                    job_id = cron.add_job(
-                        cron_expr=regex_plan.schedule.cron,
-                        task=regex_plan.schedule.task,
-                        model=getattr(self.llm, "model", None),
-                        base_url=getattr(self.llm, "base_url", None),
-                    )
-            except Exception as e:
-                logger.debug("regex_schedule_failed", error=str(e))
+        schedule_intent = self._schedule_handler.matches(task, self._conversation)
+        if schedule_intent and not self._conversation:
+            self._emit(state, "Scheduling task (regex)", detail=f"Cron: {schedule_intent.cron}")
+            result = await self._schedule_handler.execute(task=task, state=state, schedule=schedule_intent)
             self._conversation.append({"role": "user", "content": task})
-            self._conversation.append({"role": "assistant", "content": result_text})
+            self._conversation.append({"role": "assistant", "content": result.result})
             if len(self._conversation) > self.max_conversation:
                 self._conversation = self._conversation[-self.max_conversation:]
-            return AgentResult(
-                task=task, result=result_text,
-                scheduled_job_id=job_id, schedule_cron=regex_plan.schedule.cron,
-                strategy_used="schedule",
-            )
+            return result
 
         # ── Phase 1: Planning ─────────────────────────────────
         state.phase = AgentPhase.PLANNING
@@ -437,8 +495,10 @@ class AgentLoop:
         delegate_steps = [s for s in state.plan_steps if s.strategy == Strategy.DELEGATE]
 
         if len(delegate_steps) > 1:
-            await self._execute_parallel_delegates(state, delegate_steps)
-            for step in delegate_steps:
+            exec_results = await self._get_delegate_executor().execute_parallel(state, delegate_steps)
+            for step, result in zip(delegate_steps, exec_results):
+                step.result = result.content
+                state.actions_taken.extend(result.actions)
                 observation = self._build_observation(step, state)
                 state.observations.append(observation)
             state.current_step_index = len(delegate_steps)
@@ -470,16 +530,22 @@ class AgentLoop:
 
             if step.strategy == Strategy.DELEGATE:
                 exec_span = trace.new_span("execute.delegate", root_span, step=step.id)
-                await self._execute_delegate_step(state, step)
-                trace.finish_span(exec_span, status="ok" if step.result and not self._looks_like_error(step.result) else "error")
+                exec_result = await self._get_delegate_executor().execute(state, step)
+                step.result = exec_result.content
+                state.actions_taken.extend(exec_result.actions)
+                trace.finish_span(exec_span, status="ok" if exec_result.success and not self._looks_like_error(exec_result.content) else "error")
             elif step.strategy == Strategy.USE_SKILL:
                 exec_span = trace.new_span("execute.skill", root_span, step=step.id)
-                await self._execute_skill_step(state, step, plan)
-                trace.finish_span(exec_span, status="ok" if step.result and not self._looks_like_error(step.result) else "error")
+                exec_result = await self._get_skill_executor().execute(state, step, skill_name=plan.skill_to_use or "")
+                step.result = exec_result.content
+                state.actions_taken.extend(exec_result.actions)
+                trace.finish_span(exec_span, status="ok" if exec_result.success and not self._looks_like_error(exec_result.content) else "error")
             else:
                 exec_span = trace.new_span("execute.direct", root_span, step=step.id)
-                await self._execute_direct_step(state, step, plan)
-                trace.finish_span(exec_span, status="ok" if step.result and not self._looks_like_error(step.result) else "error")
+                exec_result = await self._get_direct_executor().execute(state, step)
+                step.result = exec_result.content
+                state.actions_taken.extend(exec_result.actions)
+                trace.finish_span(exec_span, status="ok" if exec_result.success and not self._looks_like_error(exec_result.content) else "error")
             self._budget.add_action()
 
             # ── Phase 3: Observe ──────────────────────────────
@@ -535,7 +601,7 @@ class AgentLoop:
             # ── Phase 4: Reflect (conditional) ──────────────
             # Skip reflection if the step succeeded and produced substantial output,
             # unless it's a complex multi-step task or previous errors exist.
-            reflection = await self._reflect_on_step(state, step, observation)
+            reflection = await self._reflector.reflect(state, step, observation)
             if reflection is not None:
                 state.reflections.append(reflection)
                 self._emit(
@@ -543,7 +609,7 @@ class AgentLoop:
                     f"Reflection: confidence={reflection.confidence:.1f}, complete={reflection.task_complete}",
                     detail=reflection.reasoning[:100] if reflection.reasoning else "",
                 )
-                await self._handle_reflection_result(state, step, reflection, observation)
+                await self._recovery.handle_reflection_result(state, step, reflection, observation)
             else:
                 # Fast-path: mark complete without LLM reflection
                 step.status = "completed"
@@ -554,7 +620,7 @@ class AgentLoop:
         state.phase = AgentPhase.DONE
 
         # ── Phase 6: Post-task orchestration ────────────────────
-        await self._post_task(state, plan, task)
+        await self._get_post_task_handler().handle(state, plan, task)
 
         logger.info(
             "agent_task_done",

@@ -1449,7 +1449,8 @@ async def _run_task(
 ) -> AgentResult | None:
     import time
 
-    from sediman.agent.loop import AgentLoop, AgentResult
+    from sediman.agent.loop import AgentLoop
+    from sediman.agent.types import AgentResult
     from sediman.display import TaskProgress, print_result_panel, print_badges
     from sediman.llm.provider import create_provider
     from sediman.logging import ensure_db
@@ -1476,7 +1477,7 @@ async def _run_task(
     result: AgentResult | None = None
 
     def on_step(event) -> None:
-        from sediman.agent.loop import StepEvent
+        from sediman.agent.types import StepEvent
 
         if isinstance(event, StepEvent):
             progress.update(

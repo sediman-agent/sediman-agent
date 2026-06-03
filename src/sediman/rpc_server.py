@@ -30,7 +30,8 @@ def _capture_exception(exc: Exception) -> None:
         sentry_sdk.capture_exception(exc)
     except Exception:
         logger.debug("sentry_capture_failed")
-from sediman.agent.loop import AgentLoop, AgentResult, StepEvent
+from sediman.agent.loop import AgentLoop
+from sediman.agent.types import AgentResult, StepEvent
 from sediman.browser.session import BrowserSession
 from sediman.config import MAX_TASK_LENGTH
 from sediman.llm.provider import create_provider, LLMProvider
@@ -1225,7 +1226,8 @@ async def serve() -> None:
     # Set up message handler for GatewayRunner
     async def gateway_message_handler(event):
         """Handle messages from integrations via GatewayRunner."""
-        from sediman.agent.loop import AgentLoop, AgentResult
+        from sediman.agent.loop import AgentLoop
+        from sediman.agent.types import AgentResult
         from sediman.gateway.events import MessageEvent
 
         # Get LLM and browser
