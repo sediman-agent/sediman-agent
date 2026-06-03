@@ -5,13 +5,25 @@ use crossterm::event::{KeyCode, KeyModifiers};
 
 /// Scroll up by a specified amount.
 fn scroll_up(app: &mut App, amount: u16) {
-    app.scroll_offset = app.scroll_offset.saturating_sub(amount);
+    // Calculate total visible lines from messages
+    let total_lines = app.messages.len() as u16 * 3; // Rough estimate: ~3 lines per message
+    let running_lines = if app.agent_running { 5 } else { 0 };
+    let total_content = total_lines + running_lines + 20; // +20 for result content
+
+    let new_offset = app.scroll_offset.saturating_sub(amount).min(total_content);
+    app.scroll_offset = new_offset;
     app.auto_scroll = false;
 }
 
 /// Scroll down by a specified amount.
 fn scroll_down(app: &mut App, amount: u16) {
-    app.scroll_offset = app.scroll_offset.saturating_add(amount);
+    // Calculate total visible lines from messages
+    let total_lines = app.messages.len() as u16 * 3; // Rough estimate
+    let running_lines = if app.agent_running { 5 } else { 0 };
+    let total_content = total_lines + running_lines + 20;
+
+    let new_offset = app.scroll_offset.saturating_add(amount).min(total_content);
+    app.scroll_offset = new_offset;
     app.auto_scroll = false;
 }
 
@@ -133,32 +145,40 @@ pub fn handle_editor_key(app: &mut App, key: crossterm::event::KeyEvent) -> bool
         return true;
     }
 
-    // Up: history up or completion up
+    // Up: history up or completion up or scroll up
     if key.code == KeyCode::Up {
-        if key.modifiers.contains(KeyModifiers::SHIFT) {
+        let input = app.editor.lines().join(" ").trim().to_string();
+        // Priority: completion active → command completion → history → scroll
+        if input.starts_with('/') && !app.completer.filtered().is_empty() {
+            app.completer.up();
+        } else if key.modifiers.contains(KeyModifiers::CONTROL) {
+            // Ctrl+Up: command history up
+            app.editor.history_up();
+        } else if input.is_empty() || key.modifiers.contains(KeyModifiers::SHIFT) {
+            // Empty input or Shift+Up: scroll messages up
             scroll_up(app, 3);
         } else {
-            let input = app.editor.lines().join(" ").trim().to_string();
-            if input.starts_with('/') && !app.completer.filtered().is_empty() {
-                app.completer.up();
-            } else {
-                app.editor.history_up();
-            }
+            // Has command input: history up
+            app.editor.history_up();
         }
         return true;
     }
 
-    // Down: history down or completion down
+    // Down: history down or completion down or scroll down
     if key.code == KeyCode::Down {
-        if key.modifiers.contains(KeyModifiers::SHIFT) {
+        let input = app.editor.lines().join(" ").trim().to_string();
+        // Priority: completion active → command completion → history → scroll
+        if input.starts_with('/') && !app.completer.filtered().is_empty() {
+            app.completer.down();
+        } else if key.modifiers.contains(KeyModifiers::CONTROL) {
+            // Ctrl+Down: command history down
+            app.editor.history_down();
+        } else if input.is_empty() || key.modifiers.contains(KeyModifiers::SHIFT) {
+            // Empty input or Shift+Down: scroll messages down
             scroll_down(app, 3);
         } else {
-            let input = app.editor.lines().join(" ").trim().to_string();
-            if input.starts_with('/') && !app.completer.filtered().is_empty() {
-                app.completer.down();
-            } else {
-                app.editor.history_down();
-            }
+            // Has command input: history down
+            app.editor.history_down();
         }
         return true;
     }

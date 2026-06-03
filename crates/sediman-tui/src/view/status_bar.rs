@@ -11,12 +11,7 @@ pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
         buf.put_char(sx, y, ' ', Style::new().bg(t.background_panel).fg(t.text));
     }
 
-    let help_text = " ctrl+/ help ";
-    buf.draw_str(area.x, y, help_text, Style::new()
-        .bg(t.text_muted).fg(t.background_darker)
-        .add_modifier(TextAttributes::bold()));
-
-    let mut x = area.x + display_width(help_text);
+    let mut x = area.x;
 
     if app.agent_running {
         let elapsed = format_elapsed(app.agent_start.elapsed().as_secs());
@@ -44,5 +39,14 @@ pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
     let model_x = area.right().saturating_sub(display_width(&model_text));
     if model_x > x {
         buf.draw_str(model_x, y, &model_text, Style::new().bg(t.background_darker).fg(t.text_muted));
+    }
+
+    // Help indicator at right side
+    let help_text = " ctrl+/ help ";
+    let help_x = area.right().saturating_sub(display_width(&help_text));
+    if help_x > x {
+        buf.draw_str(help_x, y, help_text, Style::new()
+            .bg(t.text_muted).fg(t.background_darker)
+            .add_modifier(TextAttributes::bold()));
     }
 }

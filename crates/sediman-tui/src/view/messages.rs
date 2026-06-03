@@ -105,15 +105,21 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
     for msg in &app.messages {
         render_message(msg, &mut lines, app, max_width);
     }
-
     // ── Calculate scroll for chat-style rendering ──
     let total_lines = lines.len() as u16;
-    let visible_height = area.height.saturating_sub(2).max(1);
+    let visible_height = area.height;
     let max_scroll = total_lines.saturating_sub(visible_height);
 
     // Auto-scroll: show latest messages (scroll to bottom)
+    // But ONLY if we're already near the bottom, otherwise respect user's scroll position
     if app.auto_scroll {
-        app.scroll_offset = max_scroll;
+        // Only reset scroll if we're close to the bottom (within 10% of content)
+        let scroll_threshold = max_scroll.saturating_sub(10).saturating_sub(max_scroll / 10);
+        if app.scroll_offset >= scroll_threshold || app.scroll_offset >= max_scroll.saturating_sub(5) {
+            app.scroll_offset = max_scroll;
+        }
+        // Once auto-scroll completes, disable it so manual scrolling works
+        app.auto_scroll = false;
     }
     let scroll = app.scroll_offset.min(max_scroll);
 
@@ -192,11 +198,10 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
 /// Render a single message into the lines buffer
 fn render_message(msg: &ChatMessage, lines: &mut Vec<MessageLine>, app: &App, max_width: usize) {
     match msg {
-        ChatMessage::User { text, task_num, timestamp } => {
-            let ago = format_ago(timestamp.elapsed());
+        ChatMessage::User { text, task_num, timestamp: _ } => {
             lines.push(MessageLine::empty());
             lines.push(MessageLine::text(
-                format!("  ➤ Task #{}  {}", task_num, ago),
+                format!("  ➤ Task #{}", task_num),
                 Style::new().fg(app.theme.secondary).add_modifier(TextAttributes::bold()),
             ));
             push_wrapped(lines, &format!("    {}", text), Style::new().fg(app.theme.text), max_width);
