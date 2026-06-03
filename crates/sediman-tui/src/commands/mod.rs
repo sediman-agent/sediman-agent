@@ -37,8 +37,6 @@ pub fn register_commands(registry: &mut CommandRegistry) {
     // Memory
     registry.register(&memory::CMD_MEMORY);
     registry.register(&memory::CMD_REMEMBER);
-    registry.register(&memory::CMD_MEMORY_SYSTEM);
-    registry.register(&memory::CMD_MEMORY_STATUS);
     // Schedule
     registry.register(&schedule::CMD_SCHEDULE);
     // Sessions
@@ -71,7 +69,7 @@ mod tests {
         let mut registry = CommandRegistry::new();
         register_commands(&mut registry);
         let all = registry.all();
-        assert_eq!(all.len(), 31);
+        assert_eq!(all.len(), 29);
     }
 
     #[test]

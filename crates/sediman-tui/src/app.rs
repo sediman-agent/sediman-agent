@@ -36,6 +36,9 @@ pub enum AppModal {
     ConnectPicker,
     ApiKeyPrompt,
     MemoryEditor,
+    MemoryMenu {
+        selected: usize,
+    },
     MemorySystemPicker {
         systems: Vec<String>,
         selected: usize,
@@ -618,6 +621,13 @@ impl App {
     pub fn open_memory_system_picker(&mut self) {
         self.active_modal = Some(AppModal::MemorySystemPicker {
             systems: vec!["file".to_string(), "hy".to_string()],
+            selected: 0,
+        });
+    }
+
+    /// Open the memory menu with multiple options.
+    pub fn open_memory_menu(&mut self) {
+        self.active_modal = Some(AppModal::MemoryMenu {
             selected: 0,
         });
     }

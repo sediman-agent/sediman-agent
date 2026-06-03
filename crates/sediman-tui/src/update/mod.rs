@@ -145,6 +145,7 @@ async fn handle_modal_key(app: &mut App, key: crossterm::event::KeyEvent) -> boo
         Some(AppModal::ConnectPicker) => handle_connect_picker(app, key).await,
         Some(AppModal::ApiKeyPrompt) => handle_api_key_prompt(app, key).await,
         Some(AppModal::MemoryEditor) => handle_memory_editor(app, key).await,
+        Some(AppModal::MemoryMenu { .. }) => handle_memory_menu(app, key).await,
         Some(AppModal::MemorySystemPicker { .. }) => handle_memory_system_picker(app, key).await,
         Some(AppModal::SoulEditor) => handle_soul_editor(app, key).await,
         Some(AppModal::SkillBrowser) => handle_skill_browser(app, key).await,

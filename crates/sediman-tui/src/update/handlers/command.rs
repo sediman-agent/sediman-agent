@@ -70,15 +70,7 @@ pub async fn handle_slash(app: &mut App, input: &str) {
 
         // Memory
         "memory" => {
-            // Handle subcommands
-            let args = rest.trim();
-            if args == "system" {
-                crate::commands::memory::handle_memory_system(app, "").await;
-            } else if args == "status" {
-                crate::commands::memory::handle_memory_status(app, "").await;
-            } else {
-                crate::commands::memory::handle_memory(app, rest).await;
-            }
+            crate::commands::memory::handle_memory(app, rest).await;
         }
         "remember" => {
             crate::commands::memory::handle_remember(app, rest).await;
