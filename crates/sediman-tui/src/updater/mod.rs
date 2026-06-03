@@ -6,14 +6,14 @@ mod installer;
 pub use github::check_for_update;
 pub use installer::install_update;
 
-use anyhow::Result;
-
 /// Release information from GitHub.
 #[derive(Debug, Clone)]
 pub struct Release {
     pub tag_name: String,
+    #[allow(dead_code)]
     pub name: String,
     pub body: String,
+    #[allow(dead_code)]
     pub published_at: String,
 }
 

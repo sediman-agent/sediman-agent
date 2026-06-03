@@ -13,12 +13,14 @@ use unicode_width::UnicodeWidthChar;
 use crate::app::{App, ChatMessage};
 
 /// Phase information for step styling
+#[allow(dead_code)]
 struct PhaseInfo {
     name: &'static str,
     color_fn: fn(&App) -> Color,
     symbol: &'static str,
 }
 
+#[allow(dead_code)]
 const PHASES: &[PhaseInfo] = &[
     PhaseInfo { name: "planning", color_fn: |a| a.theme.warning, symbol: "◆" },
     PhaseInfo { name: "thinking", color_fn: |a| a.theme.warning, symbol: "◆" },
@@ -216,6 +218,9 @@ fn render_message(msg: &ChatMessage, lines: &mut Vec<MessageLine>, app: &App, ma
             push_wrapped(lines, &format!("    {}", text), Style::new().fg(app.theme.text), max_width);
         }
         ChatMessage::Agent { steps, thinking_text, result, success, elapsed_secs, skill_created, scheduled_job, steps_expanded, thinking_expanded, timestamp: _ } => {
+            // Add separator line before agent messages
+            lines.push(MessageLine::empty());
+
             // ── Collapsible thinking section (before steps) ──
             if !thinking_text.is_empty() {
                 let action = if *thinking_expanded { "Hide" } else { "Show" };
@@ -441,6 +446,7 @@ pub fn format_elapsed(secs: u64) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn parse_step_style(step: &str, app: &App) -> (Style, &'static str) {
     for info in PHASES {
         if step.contains(info.name) {
@@ -510,6 +516,7 @@ fn render_structured_step(step: &str, lines: &mut Vec<MessageLine>, app: &App, m
 }
 
 /// Parsed tool/action information
+#[allow(dead_code)]
 struct ParsedAction {
     tool_name: String,
     tool_icon: &'static str,
@@ -615,11 +622,7 @@ fn extract_file_path(action: &str) -> Option<String> {
 /// Extract command from bash action
 fn extract_command(action: &str) -> Option<String> {
     // Extract command after "bash", "run", etc.
-    if let Some(idx) = action.find(' ') {
-        Some(action[idx + 1..].to_string())
-    } else {
-        None
-    }
+    action.find(' ').map(|idx| action[idx + 1..].to_string())
 }
 
 /// Extract URL from action

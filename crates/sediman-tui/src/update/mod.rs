@@ -184,6 +184,7 @@ async fn handle_shell(app: &mut App, cmd: &str) {
 }
 
 /// Handle key input for the update available modal.
+#[allow(clippy::zombie_processes)]
 async fn handle_update_available_modal(app: &mut App, key: crossterm::event::KeyEvent) -> bool {
     use crossterm::event::KeyCode;
 
@@ -231,7 +232,7 @@ async fn handle_update_available_modal(app: &mut App, key: crossterm::event::Key
                                     app_ref.show_toast("Update installed! Restarting...".to_string());
                                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                                     // Restart the application
-                                    std::process::Command::new(
+                                    let _ = std::process::Command::new(
                                         std::env::current_exe().unwrap()
                                     ).spawn().expect("Failed to restart");
                                 }
@@ -267,9 +268,7 @@ async fn handle_update_available_modal(app: &mut App, key: crossterm::event::Key
                 // Move selection between options
                 let new_selected = if key.code == KeyCode::Left || key.code == KeyCode::Tab {
                     if selected == 0 { 2 } else { selected - 1 }
-                } else {
-                    if selected == 2 { 0 } else { selected + 1 }
-                };
+                } else if selected == 2 { 0 } else { selected + 1 };
                 if let Some(AppModal::UpdateAvailable { version, .. }) = &app.active_modal {
                     app.active_modal = Some(AppModal::UpdateAvailable {
                         version: version.clone(),
