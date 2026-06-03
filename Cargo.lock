@@ -2576,7 +2576,7 @@ dependencies = [
 
 [[package]]
 name = "sediman-tui"
-version = "0.3.7"
+version = "0.3.9"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2606,7 +2606,7 @@ dependencies = [
 
 [[package]]
 name = "sediman-tui-bridge"
-version = "0.3.7"
+version = "0.3.9"
 dependencies = [
  "serde",
  "serde_json",
@@ -2617,7 +2617,7 @@ dependencies = [
 
 [[package]]
 name = "sediman-tui-core"
-version = "0.3.7"
+version = "0.3.9"
 dependencies = [
  "arboard",
  "bytemuck",

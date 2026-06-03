@@ -215,7 +215,32 @@ fn render_message(msg: &ChatMessage, lines: &mut Vec<MessageLine>, app: &App, ma
             ));
             push_wrapped(lines, &format!("    {}", text), Style::new().fg(app.theme.text), max_width);
         }
-        ChatMessage::Agent { steps, result, success, elapsed_secs, skill_created, scheduled_job, steps_expanded, timestamp: _ } => {
+        ChatMessage::Agent { steps, thinking_text, result, success, elapsed_secs, skill_created, scheduled_job, steps_expanded, thinking_expanded, timestamp: _ } => {
+            // ── Collapsible thinking section (before steps) ──
+            if !thinking_text.is_empty() {
+                let action = if *thinking_expanded { "Hide" } else { "Show" };
+                let label = format!("◆ Thinking (click Space to {})", action.to_lowercase());
+                lines.push(MessageLine::collapsible(label, *thinking_expanded, Style::new().fg(app.theme.warning)));
+
+                if *thinking_expanded {
+                    // Show thinking content with muted color
+                    let thinking_lines: Vec<&str> = thinking_text.lines().collect();
+                    for tline in thinking_lines.iter().take(20) {
+                        if !tline.is_empty() {
+                            push_wrapped(lines, &format!("    {}", tline), Style::new().fg(app.theme.text_muted), max_width);
+                        } else {
+                            lines.push(MessageLine::empty());
+                        }
+                    }
+                    if thinking_lines.len() > 20 {
+                        lines.push(MessageLine::text(
+                            format!("    … {} more lines", thinking_lines.len() - 20),
+                            Style::new().fg(app.theme.text_muted),
+                        ));
+                    }
+                }
+            }
+
             // ── Collapsible steps header ──
             if !steps.is_empty() {
                 let step_count = steps.len();

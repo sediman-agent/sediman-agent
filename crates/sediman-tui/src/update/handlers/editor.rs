@@ -91,7 +91,8 @@ pub fn handle_editor_key(app: &mut App, key: crossterm::event::KeyEvent) -> bool
     if key.code == KeyCode::Char(' ') {
         let is_empty = app.editor.lines().iter().all(|l| l.trim().is_empty());
         if is_empty && !app.editor.is_searching() {
-            if app.toggle_latest_steps() {
+            // Try to toggle thinking first, then steps
+            if app.toggle_latest_thinking() || app.toggle_latest_steps() {
                 app.auto_scroll = true;
             }
             return true;

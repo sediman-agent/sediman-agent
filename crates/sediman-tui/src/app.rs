@@ -245,6 +245,7 @@ pub enum ChatMessage {
     },
     Agent {
         steps: Vec<String>,
+        thinking_text: String,  // Content from thinking/planning phase
         result: Option<String>,
         success: bool,
         elapsed_secs: u64,
@@ -254,6 +255,7 @@ pub enum ChatMessage {
         timestamp: Instant,
         // Collapsible section state
         steps_expanded: bool,
+        thinking_expanded: bool,  // Separate collapsible for thinking
     },
     System {
         text: String,
@@ -453,6 +455,7 @@ impl App {
         self.streaming_phase.clear();
         self.messages.push(ChatMessage::Agent {
             steps: Vec::new(),  // Always start with empty steps
+            thinking_text: String::new(),
             result: None,
             success: false,
             elapsed_secs: 0,
@@ -460,6 +463,7 @@ impl App {
             scheduled_job: None,
             timestamp: Instant::now(),
             steps_expanded: false,  // Start collapsed for cleaner view
+            thinking_expanded: false,  // Start collapsed
         });
         self.auto_scroll = true;
     }
@@ -506,7 +510,29 @@ impl App {
         if !phase.is_empty() {
             self.streaming_phase = phase.to_string();
         }
+
+        // Also append to thinking_text if phase is thinking/planning
+        let is_thinking = phase == "thinking" || phase == "planning";
+        if is_thinking {
+            if let Some(ChatMessage::Agent { thinking_text, .. }) = self.messages.last_mut() {
+                thinking_text.push_str(token);
+            }
+        }
+
         self.auto_scroll = true;
+    }
+
+    /// Toggle the collapsible thinking section of the most recent Agent message
+    pub fn toggle_latest_thinking(&mut self) -> bool {
+        for msg in self.messages.iter_mut().rev() {
+            if let ChatMessage::Agent { thinking_text, thinking_expanded, .. } = msg {
+                if !thinking_text.is_empty() {
+                    *thinking_expanded = !(*thinking_expanded);
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     /// Toggle the collapsible steps section of the most recent Agent message
