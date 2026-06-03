@@ -200,9 +200,58 @@ download_tui_binary() {
     if ! curl -fsSL "$download_url" -o "$tmp_dir/$archive_name" 2>/dev/null; then
         trap - RETURN
         cleanup_tmp
-        warn "Pre-built TUI binary not available for ${platform}. Skipping."
-        warn "You can build from source: cargo build -p sediman-tui"
-        return 0
+        warn "Pre-built TUI binary not available for ${platform}. Building from source..."
+
+        # Clone repo and build from source
+        local source_dir
+        source_dir="$(mktemp -d)"
+
+        cleanup_source() { rm -rf "${source_dir:-}" 2>/dev/null || true; }
+        trap cleanup_source RETURN
+
+        info "Cloning ${GITHUB_REPO} (branch: ${GIT_BRANCH})..."
+        git clone --depth 1 --branch "$GIT_BRANCH" "https://github.com/${GITHUB_REPO}.git" "$source_dir" 2>/dev/null || {
+            error "Failed to clone repository"
+            return 1
+        }
+
+        info "Building TUI from source (this may take a few minutes)..."
+        cd "$source_dir"
+
+        # Check if cargo is available
+        if ! command_exists cargo; then
+            info "Installing Rust (via rustup)..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            export PATH="$HOME/.cargo/bin:$PATH"
+        fi
+
+        # Build TUI in release mode
+        if cargo build --release --package sediman-tui 2>&1 | tail -5; then
+            # Find the built binary
+            local built_bin=""
+            for candidate in target/release/terminator target/release/sediman-tui; do
+                if [ -f "$candidate" ]; then
+                    built_bin="$candidate"
+                    break
+                fi
+            done
+
+            if [ -n "$built_bin" ]; then
+                mkdir -p "$TERMINATOR_BIN_DIR"
+                cp "$built_bin" "$tui_bin"
+                chmod +x "$tui_bin"
+                info "TUI built and installed to $tui_bin"
+                cleanup_source
+                return 0
+            else
+                error "Build succeeded but binary not found"
+            fi
+        else
+            error "Build failed"
+        fi
+
+        cleanup_source
+        return 1
     fi
 
     tar xzf "$tmp_dir/$archive_name" -C "$tmp_dir" 2>/dev/null || true
