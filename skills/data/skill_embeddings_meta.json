@@ -1,7 +1,4 @@
 {
-  "model": "BAAI/bge-small-en-v1.5",
-  "provider": "fastembed",
-  "dimension": 384,
   "name_to_idx": {
     "algorithmic-art": 0,
     "brand-guidelines": 1,
@@ -473,7 +470,20 @@
     "beacon": 467,
     "agent-defibrillator": 468,
     "abby-watch": 469,
-    "agent-signet-id": 470
+    "agent-signet-id": 470,
+    "brandkit": 471,
+    "industrial-brutalist-ui": 472,
+    "gpt-taste": 473,
+    "image-to-code": 474,
+    "imagegen-frontend-mobile": 475,
+    "imagegen-frontend-web": 476,
+    "minimalist-ui": 477,
+    "full-output-enforcement": 478,
+    "redesign-existing-projects": 479,
+    "high-end-visual-design": 480,
+    "stitch-design-taste": 481,
+    "design-taste-frontend-v1": 482,
+    "design-taste-frontend": 483
   },
   "hashes": {
     "algorithmic-art": "fa69a64baade63ec",
@@ -946,6 +956,19 @@
     "beacon": "97fca77199a5f473",
     "agent-defibrillator": "d5ca1d9827c5ef7f",
     "abby-watch": "042adcca11c1645d",
-    "agent-signet-id": "ec87acf9256b6406"
+    "agent-signet-id": "ec87acf9256b6406",
+    "brandkit": "421d011a73cf08b3",
+    "industrial-brutalist-ui": "c6f44d6a98d3a940",
+    "gpt-taste": "1eae365a9903e03f",
+    "image-to-code": "2197ad1c837af5a1",
+    "imagegen-frontend-mobile": "9ed31b8927e2e3eb",
+    "imagegen-frontend-web": "2591e1c0b7c449c6",
+    "minimalist-ui": "8227762b3937c144",
+    "full-output-enforcement": "bf85d97c3faa01fd",
+    "redesign-existing-projects": "39abf297c1505f9d",
+    "high-end-visual-design": "179fb5fb103062ad",
+    "stitch-design-taste": "e0423fad2925c637",
+    "design-taste-frontend-v1": "48a5b2aa68801e2d",
+    "design-taste-frontend": "a7b244ec5c1db037"
   }
 }

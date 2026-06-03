@@ -1596,7 +1596,7 @@ pub fn render_update_available_modal(buf: &mut CellBuffer, area: Rect, app: &App
             for (_i, line) in notes_lines.iter().enumerate().skip(notes_scroll).take(end_line - notes_scroll) {
                 if y >= frame.modal.bottom() - 2 { break; }
 
-                let display = truncate_str(line, inner_w.saturating_sub(2) as usize);
+                let display = truncate_str(line, inner_w.saturating_sub(2));
                 buf.draw_str(inner_x + 1, y, display, Style::new().fg(t.text).bg(t.background));
                 y += 1;
             }

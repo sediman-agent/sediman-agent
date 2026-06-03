@@ -1,6 +1,6 @@
 //! GitHub API client for checking releases.
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
 use std::time::Duration;
@@ -8,6 +8,7 @@ use std::time::Duration;
 use super::Release;
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct GitHubRelease {
     tag_name: String,
     name: String,
@@ -17,6 +18,7 @@ struct GitHubRelease {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct GitHubAsset {
     name: String,
     browser_download_url: String,

@@ -386,6 +386,7 @@ async fn async_main(args: Args) {
     let headless = if args.headless { true } else { saved_config.headless };
 
     // Use saved provider/model if not specified via CLI args
+    let cli_provider = args.provider.clone();
     let provider = if args.provider == "openai" && !saved_config.provider.is_empty() {
         saved_config.provider.clone()
     } else {
@@ -393,6 +394,23 @@ async fn async_main(args: Args) {
     };
     let model = args.model.or_else(|| saved_config.model.clone());
     let base_url = args.base_url.or_else(|| saved_config.base_url.clone());
+
+    // Switch model again if we're using saved config
+    // This ensures the backend loads the correct API key for the saved provider
+    if provider != cli_provider || model.is_some() {
+        match bridge.switch_model(
+            &provider,
+            model.as_deref(),
+            base_url.as_deref(),
+        ).await {
+            Ok(()) => {
+                eprintln!("Model loaded from config: {} / {:?}", provider, model);
+            }
+            Err(e) => {
+                eprintln!("Warning: Could not load saved model ({})", e);
+            }
+        }
+    }
 
     // Spawn background update check if enabled (must be before any fields are moved)
     spawn_update_check_if_due(&saved_config);

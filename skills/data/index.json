@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "generated_at": "2026-05-30T11:55:19Z",
+  "generated_at": "2026-06-03T15:13:28Z",
   "stats": {
-    "total": 471,
+    "total": 484,
     "sources": {
       "anthropics/skills": 17,
       "browser-use/browser-use": 4,
@@ -15,7 +15,8 @@
       "kostja94/marketing-skills": 171,
       "veniceai/skills": 19,
       "vercel-labs/skills": 1,
-      "clawskills.sh": 200
+      "clawskills.sh": 200,
+      "Leonxlnx/taste-skill": 13
     }
   },
   "skills": [
@@ -8960,6 +8961,244 @@
         "score",
         "api",
         "key"
+      ]
+    },
+    {
+      "name": "brandkit",
+      "description": "Premium brand-kit image generation skill for creating high-end brand-guidelines boards, logo systems, identity decks, and visual-world presentations. Trained for minimalist, cinematic, editorial, dark-tech, luxury, cultural, security, gaming, developer-tool, and consumer-app brand systems. Optimized for intentional logo concepting, refined composition, sparse typography, strong symbolic meaning, premium mockups, art-directed imagery, and flexible grid layouts.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/brandkit",
+      "keywords": [
+        "brandkit",
+        "brand",
+        "logo",
+        "identity",
+        "design",
+        "mockup",
+        "premium",
+        "visual",
+        "typography"
+      ]
+    },
+    {
+      "name": "industrial-brutalist-ui",
+      "description": "Raw mechanical interfaces fusing Swiss typographic print with military terminal aesthetics. Rigid grids, extreme type scale contrast, utilitarian color, analog degradation effects. For data-heavy dashboards, portfolios, or editorial sites that need to feel like declassified blueprints.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/brutalist-skill",
+      "keywords": [
+        "brutalist",
+        "industrial",
+        "ui",
+        "swiss",
+        "typographic",
+        "military",
+        "terminal",
+        "dashboard",
+        "grid"
+      ]
+    },
+    {
+      "name": "gpt-taste",
+      "description": "Elite UX/UI & Advanced GSAP Motion Engineer. Enforces Python-driven true randomization for layout variance, strict AIDA page structure, wide editorial typography (bans 6-line wraps), gapless bento grids, strict GSAP ScrollTriggers (pinning, stacking, scrubbing), inline micro-images, and massive section spacing.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/gpt-tasteskill",
+      "keywords": [
+        "gpt",
+        "taste",
+        "gsap",
+        "motion",
+        "typography",
+        "bento",
+        "scroll",
+        "animation",
+        "layout"
+      ]
+    },
+    {
+      "name": "image-to-code",
+      "description": "Elite website image-to-code skill for Codex. For visually important web tasks, it must first generate the design image(s) itself, deeply analyze them, then implement the website to match them as closely as possible. In Codex, it must prefer large, readable, section-specific images instead of tiny compressed boards, generate fresh standalone images for sections or detail views instead of cropping old ones, avoid lazy under-generation, avoid cards-inside-cards-inside-cards UI, and keep the hero clean, spacious, readable, and visible on a small laptop.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/image-to-code-skill",
+      "keywords": [
+        "image",
+        "code",
+        "website",
+        "design",
+        "codex",
+        "analysis",
+        "implementation",
+        "frontend"
+      ]
+    },
+    {
+      "name": "imagegen-frontend-mobile",
+      "description": "Elite mobile app image-generation skill for creating premium, app-native screen concepts and flows. Designed for iOS, Android, and cross-platform mobile products. Prioritizes clean hierarchy, comfortably readable text, strong multi-screen consistency, controlled color palettes, non-generic creative direction, textured surfaces, image-led composition, tasteful custom iconography, and clean phone mockup framing.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/imagegen-frontend-mobile",
+      "keywords": [
+        "mobile",
+        "ios",
+        "android",
+        "app",
+        "screen",
+        "mockup",
+        "design",
+        "image",
+        "generation"
+      ]
+    },
+    {
+      "name": "imagegen-frontend-web",
+      "description": "Elite frontend image-direction skill for generating premium, conversion-aware website design references. CRITICAL OUTPUT RULE — generate ONE separate horizontal image FOR EVERY section. A landing page with 8 sections produces 8 images. Never compress multiple sections into one image. Enforces composition variety (not always left-text / right-image), background-image freedom, varied CTAs, varied hero scales (giant / mid / mini minimalist), narrative concept spine, second-read moments, and a single consistent palette across all images.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/imagegen-frontend-web",
+      "keywords": [
+        "frontend",
+        "web",
+        "image",
+        "design",
+        "landing",
+        "page",
+        "composition",
+        "conversion"
+      ]
+    },
+    {
+      "name": "minimalist-ui",
+      "description": "Clean editorial-style interfaces. Warm monochrome palette, typographic contrast, flat bento grids, muted pastels. No gradients, no heavy shadows.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/minimalist-skill",
+      "keywords": [
+        "minimalist",
+        "ui",
+        "clean",
+        "editorial",
+        "typography",
+        "bento",
+        "monochrome",
+        "pastels"
+      ]
+    },
+    {
+      "name": "full-output-enforcement",
+      "description": "Overrides default LLM truncation behavior. Enforces complete code generation, bans placeholder patterns, and handles token-limit splits cleanly. Apply to any task requiring exhaustive, unabridged output.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "general",
+      "scope": "external",
+      "path": "taste-skill/skills/output-skill",
+      "keywords": [
+        "output",
+        "truncation",
+        "code",
+        "generation",
+        "placeholder",
+        "token",
+        "limit",
+        "complete"
+      ]
+    },
+    {
+      "name": "redesign-existing-projects",
+      "description": "Upgrades existing websites and apps to premium quality. Audits current design, identifies generic AI patterns, and applies high-end design standards without breaking functionality. Works with any CSS framework or vanilla CSS.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/redesign-skill",
+      "keywords": [
+        "redesign",
+        "upgrade",
+        "audit",
+        "design",
+        "css",
+        "framework",
+        "premium",
+        "existing"
+      ]
+    },
+    {
+      "name": "high-end-visual-design",
+      "description": "Teaches the AI to design like a high-end agency. Defines the exact fonts, spacing, shadows, card structures, and animations that make a website feel expensive. Blocks all the common defaults that make AI designs look cheap or generic.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/soft-skill",
+      "keywords": [
+        "visual",
+        "design",
+        "high-end",
+        "agency",
+        "fonts",
+        "spacing",
+        "shadows",
+        "cards",
+        "animations"
+      ]
+    },
+    {
+      "name": "stitch-design-taste",
+      "description": "Semantic Design System Skill for Google Stitch. Generates agent-friendly DESIGN.md files that enforce premium, anti-generic UI standards — strict typography, calibrated color, asymmetric layouts, perpetual micro-motion, and hardware-accelerated performance.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/stitch-skill",
+      "keywords": [
+        "stitch",
+        "design",
+        "system",
+        "typography",
+        "color",
+        "layout",
+        "motion",
+        "performance"
+      ]
+    },
+    {
+      "name": "design-taste-frontend-v1",
+      "description": "The original v1 taste-skill, preserved for projects depending on its exact behavior. The current default is `design-taste-frontend` (v2 experimental), which is a substantial rewrite. Use this v1 install name only if you need exact backward compatibility.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/taste-skill-v1",
+      "keywords": [
+        "taste",
+        "frontend",
+        "design",
+        "v1",
+        "backward",
+        "compatibility",
+        "legacy"
+      ]
+    },
+    {
+      "name": "design-taste-frontend",
+      "description": "Anti-slop frontend skill for landing pages, portfolios, and redesigns. The agent reads the brief, infers the right design direction, and ships interfaces that do not look templated. Real design systems when applicable, audit-first on redesigns, strict pre-flight check.",
+      "source": "Leonxlnx/taste-skill",
+      "category": "design",
+      "scope": "external",
+      "path": "taste-skill/skills/taste-skill",
+      "keywords": [
+        "taste",
+        "frontend",
+        "design",
+        "anti-slop",
+        "landing",
+        "portfolio",
+        "redesign",
+        "brief"
       ]
     }
   ]

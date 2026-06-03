@@ -13,12 +13,14 @@ use unicode_width::UnicodeWidthChar;
 use crate::app::{App, ChatMessage};
 
 /// Phase information for step styling
+#[allow(dead_code)]
 struct PhaseInfo {
     name: &'static str,
     color_fn: fn(&App) -> Color,
     symbol: &'static str,
 }
 
+#[allow(dead_code)]
 const PHASES: &[PhaseInfo] = &[
     PhaseInfo { name: "planning", color_fn: |a| a.theme.warning, symbol: "◆" },
     PhaseInfo { name: "thinking", color_fn: |a| a.theme.warning, symbol: "◆" },
@@ -216,6 +218,9 @@ fn render_message(msg: &ChatMessage, lines: &mut Vec<MessageLine>, app: &App, ma
             push_wrapped(lines, &format!("    {}", text), Style::new().fg(app.theme.text), max_width);
         }
         ChatMessage::Agent { steps, thinking_text, result, success, elapsed_secs, skill_created, scheduled_job, steps_expanded, thinking_expanded, timestamp: _ } => {
+            // Add separator line before agent messages
+            lines.push(MessageLine::empty());
+
             // ── Collapsible thinking section (before steps) ──
             if !thinking_text.is_empty() {
                 let action = if *thinking_expanded { "Hide" } else { "Show" };
@@ -272,12 +277,7 @@ fn render_message(msg: &ChatMessage, lines: &mut Vec<MessageLine>, app: &App, ma
                     }
 
                     for step in &show_steps {
-                        let (style, symbol) = parse_step_style(step, app);
-                        let truncated = truncate_end(step, max_width.saturating_sub(6));
-                        lines.push(MessageLine::text(
-                            format!("    {} {}", symbol, truncated),
-                            style,
-                        ));
+                        render_structured_step(step, lines, app, max_width);
                     }
                 }
             }
@@ -446,6 +446,7 @@ pub fn format_elapsed(secs: u64) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn parse_step_style(step: &str, app: &App) -> (Style, &'static str) {
     for info in PHASES {
         if step.contains(info.name) {
@@ -470,6 +471,165 @@ pub fn detect_phase(step: &str) -> Option<&str> {
     for info in PHASES {
         if step.contains(info.name) {
             return Some(info.name);
+        }
+    }
+    None
+}
+
+/// Render a step in structured format showing tool, action, and result
+fn render_structured_step(step: &str, lines: &mut Vec<MessageLine>, app: &App, max_width: usize) {
+    // Parse the step format: "phase action\n  detail"
+    let parts: Vec<&str> = step.lines().collect();
+    if parts.is_empty() {
+        return;
+    }
+
+    // Parse main line: "phase action"
+    let main_line = parts[0];
+    let (_phase, action_detail) = main_line.split_once(' ').unwrap_or(("executing", main_line));
+
+    // Parse action to extract tool and arguments
+    let parsed = parse_tool_action(action_detail);
+
+    // Display tool with icon and action
+    let action_text = format!("{} {}", parsed.tool_icon, parsed.display_action);
+    let tool_line = format!("    {}", action_text);
+    let tool_style = Style::new().fg(app.theme.primary).add_modifier(TextAttributes::bold());
+    lines.push(MessageLine::text(tool_line, tool_style));
+
+    // Display detail/observation if present
+    if parts.len() > 1 {
+        let detail_joined = parts[1..].join("\n    ");
+        let detail = detail_joined.trim();
+        if !detail.is_empty() {
+            // Show observation/result
+            let obs_style = if detail.contains("✓") || detail.contains("success") {
+                Style::new().fg(app.theme.success)
+            } else if detail.contains("✗") || detail.contains("fail") || detail.contains("error") {
+                Style::new().fg(app.theme.error)
+            } else {
+                Style::new().fg(app.theme.text_muted)
+            };
+            push_wrapped(lines, &format!("    {}", detail), obs_style, max_width);
+        }
+    }
+}
+
+/// Parsed tool/action information
+#[allow(dead_code)]
+struct ParsedAction {
+    tool_name: String,
+    tool_icon: &'static str,
+    display_action: String,
+}
+
+/// Parse action string to extract tool and arguments
+fn parse_tool_action(action: &str) -> ParsedAction {
+    // Common tool patterns
+    let action_lower = action.to_lowercase();
+
+    // File operations
+    if action_lower.contains("write_file") || action_lower.contains("create") {
+        if let Some(file) = extract_file_path(action) {
+            return ParsedAction {
+                tool_name: "write_file".into(),
+                tool_icon: "[WRITE]",
+                display_action: format!("WRITE_FILE: {}", file),
+            };
+        }
+    }
+    if action_lower.contains("read_file") {
+        if let Some(file) = extract_file_path(action) {
+            return ParsedAction {
+                tool_name: "read_file".into(),
+                tool_icon: "[READ]",
+                display_action: format!("READ_FILE: {}", file),
+            };
+        }
+    }
+    if action_lower.contains("edit") || action_lower.contains("modify") {
+        if let Some(file) = extract_file_path(action) {
+            return ParsedAction {
+                tool_name: "edit_file".into(),
+                tool_icon: "[EDIT]",
+                display_action: format!("EDIT_FILE: {}", file),
+            };
+        }
+    }
+
+    // Shell/Bash operations
+    if action_lower.contains("bash") || action_lower.contains("shell") || action_lower.contains("run") {
+        let cmd = extract_command(action).unwrap_or_else(|| action.to_string());
+        return ParsedAction {
+            tool_name: "bash".into(),
+            tool_icon: "[BASH]",
+            display_action: format!("BASH: {}", cmd),
+        };
+    }
+
+    // Browser operations
+    if action_lower.contains("click") {
+        return ParsedAction {
+            tool_name: "click".into(),
+            tool_icon: "[CLICK]",
+            display_action: format!("CLICK: {}", action),
+        };
+    }
+    if action_lower.contains("goto") || action_lower.contains("navigate") {
+        let url = extract_url(action).unwrap_or_else(|| action.to_string());
+        return ParsedAction {
+            tool_name: "goto".into(),
+            tool_icon: "[GOTO]",
+            display_action: format!("GOTO: {}", url),
+        };
+    }
+    if action_lower.contains("search") {
+        return ParsedAction {
+            tool_name: "search".into(),
+            tool_icon: "[SEARCH]",
+            display_action: format!("SEARCH: {}", action),
+        };
+    }
+
+    // Default: just show the action
+    ParsedAction {
+        tool_name: "action".into(),
+        tool_icon: "[ACTION]",
+        display_action: action.to_string(),
+    }
+}
+
+/// Extract file path from action string
+fn extract_file_path(action: &str) -> Option<String> {
+    // Try to extract file path from patterns like:
+    // "write_file src/main.py"
+    // "create file:src/main.py"
+    // "edit src/main.py"
+    let _action_lower = action.to_lowercase();
+
+    // Find file-like patterns
+    for part in action.split_whitespace() {
+        if part.contains('.') || part.contains('/') || part.contains('\\') {
+            // Skip common non-file parts
+            if !part.contains("http") && !part.contains("://") {
+                return Some(part.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Extract command from bash action
+fn extract_command(action: &str) -> Option<String> {
+    // Extract command after "bash", "run", etc.
+    action.find(' ').map(|idx| action[idx + 1..].to_string())
+}
+
+/// Extract URL from action
+fn extract_url(action: &str) -> Option<String> {
+    for word in action.split_whitespace() {
+        if word.starts_with("http://") || word.starts_with("https://") {
+            return Some(word.to_string());
         }
     }
     None
@@ -500,7 +660,7 @@ mod tests {
 
     #[test]
     fn test_format_elapsed_zero() {
-        assert_eq!(format_elapsed(0), "0s");
+        assert_eq!(format_elapsed(0), "< 1s");
     }
 
     #[test]

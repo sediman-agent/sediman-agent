@@ -35,7 +35,7 @@ pub async fn handle_models(app: &mut App, args: &str) {
         }
 
         // Save to config
-        crate::commands::theming::save_config_now(&app);
+        crate::commands::theming::save_config_now(app);
 
         app.add_system_message(format!("Switched to {}", app.display_model_id()));
         return;
