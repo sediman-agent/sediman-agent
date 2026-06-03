@@ -9,8 +9,8 @@ from typing import Any
 import structlog
 
 from sediman.config import DATA_DIR as CFG_DATA_DIR
-from sediman.memory.store import MEMORY_LIMIT
-from sediman.memory.store import MemoryStore
+from sediman.memory.storage.store import MEMORY_LIMIT
+from sediman.memory.storage.store import MemoryStore
 
 logger = structlog.get_logger()
 
@@ -63,7 +63,7 @@ def save_structured_memory(
     result = _store.add("memory", content)
     if result.success:
         try:
-            from sediman.memory.entry import ensure_meta_for_entry
+            from sediman.memory.core.entry import ensure_meta_for_entry
             type_map = {
                 MemoryType.EPISODIC: "episodic",
                 MemoryType.SEMANTIC: "fact",
@@ -83,7 +83,7 @@ def save_episodic(task: str, result: str, success: bool) -> None:
     entry = f"Task '{task[:60]}': {'Success' if success else 'Failed'} — {result[:100]}"
     _store.add("memory", entry)
     try:
-        from sediman.memory.entry import ensure_meta_for_entry
+        from sediman.memory.core.entry import ensure_meta_for_entry
         ensure_meta_for_entry(entry, "memory", type="episodic", source="agent")
     except Exception:
         logger.debug("episodic_meta_failed")
@@ -93,7 +93,7 @@ def save_procedural(skill_name: str, steps: list[str]) -> None:
     entry = f"Procedure '{skill_name}': {'; '.join(s[:60] for s in steps[:5])}"
     _store.add("memory", entry)
     try:
-        from sediman.memory.entry import ensure_meta_for_entry
+        from sediman.memory.core.entry import ensure_meta_for_entry
         ensure_meta_for_entry(entry, "memory", type="procedure", source="agent")
     except Exception:
         logger.debug("procedural_meta_failed")

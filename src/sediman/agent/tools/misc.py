@@ -85,7 +85,7 @@ async def _handle_session_search(
     **kwargs: Any,
 ) -> ToolResult:
     try:
-        from sediman.memory.sessions import search_sessions, get_recent_sessions, get_session_by_id
+        from sediman.memory.storage.sessions import search_sessions, get_recent_sessions, get_session_by_id
 
         if session_id:
             session = await get_session_by_id(session_id)
@@ -153,7 +153,8 @@ async def _handle_memory(
         return ToolResult(success=False, output="Memory not available.")
 
     try:
-        result_text = await mgr.handle_tool_call(target, {
+        # BaseMemoryStrategy uses (tool_name, arguments) signature
+        result_text = await mgr.handle_tool_call("memory", {
             "action": action,
             "target": target,
             "content": content,

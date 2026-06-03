@@ -16,7 +16,7 @@ from typing import Any
 import structlog
 
 from sediman.config import DATA_DIR
-from sediman.memory.prompt import MemoryType
+from sediman.memory.utils.prompt import MemoryType
 
 logger = structlog.get_logger()
 

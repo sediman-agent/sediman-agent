@@ -17,7 +17,7 @@ from pathlib import Path
 import structlog
 
 from sediman.config import DATA_DIR, MEMORY_DIR as CFG_MEMORY_DIR
-from sediman.memory.security import scan_content
+from sediman.memory.utils.security import scan_content
 
 logger = structlog.get_logger()
 
@@ -168,7 +168,7 @@ class MemoryStore:
         all_entries: dict[str, list[str]],
         query: str,
     ) -> list[tuple[str, str, float]]:
-        from sediman.memory.entry import get_meta_map_for_target, MemoryEntryMeta
+        from sediman.memory.core.entry import get_meta_map_for_target, MemoryEntryMeta
 
         query_lower = query.lower()
         query_words = set(query_lower.split())
@@ -254,7 +254,7 @@ class MemoryStore:
 
     def _try_consolidate(self, target: str, new_content: str) -> StoreResult | None:
         try:
-            from sediman.memory.consolidator import MemoryConsolidator
+            from sediman.memory.core.consolidator import MemoryConsolidator
             consolidator = MemoryConsolidator()
             return consolidator.consolidate_and_add(self, target, new_content)
         except Exception as e:
@@ -307,8 +307,8 @@ class MemoryStore:
         self._invalidate_cache(target)
 
         try:
-            from sediman.memory.entry import ensure_meta_for_entry, classify_entry_type
-            from sediman.memory.changelog import append_change, MemoryChange
+            from sediman.memory.core.entry import ensure_meta_for_entry, classify_entry_type
+            from sediman.memory.utils.changelog import append_change, MemoryChange
             entry_type = classify_entry_type(content)
             meta = ensure_meta_for_entry(content, target, type=entry_type, source="agent")
             append_change(MemoryChange(
@@ -378,17 +378,17 @@ class MemoryStore:
         self._invalidate_cache(target)
 
         try:
-            from sediman.memory.entry import (
+            from sediman.memory.core.entry import (
                 ensure_meta_for_entry, delete_entry_meta, MemoryEntryMeta,
                 _remove_from_target_index,
             )
-            from sediman.memory.changelog import append_change, MemoryChange
+            from sediman.memory.utils.changelog import append_change, MemoryChange
             old_id = MemoryEntryMeta.make_id(old_entry)
             delete_entry_meta(old_id)
             _remove_from_target_index(target, old_id)
             entry_type_meta = "fact"
             try:
-                from sediman.memory.entry import classify_entry_type
+                from sediman.memory.core.entry import classify_entry_type
                 entry_type_meta = classify_entry_type(new_entry)
             except Exception:
                 logger.debug("classify_entry_type_failed")
@@ -437,10 +437,10 @@ class MemoryStore:
         self._invalidate_cache(target)
 
         try:
-            from sediman.memory.entry import (
+            from sediman.memory.core.entry import (
                 delete_entry_meta, MemoryEntryMeta, _remove_from_target_index,
             )
-            from sediman.memory.changelog import append_change, MemoryChange
+            from sediman.memory.utils.changelog import append_change, MemoryChange
             entry_id = MemoryEntryMeta.make_id(entry)
             delete_entry_meta(entry_id)
             _remove_from_target_index(target, entry_id)
@@ -467,7 +467,7 @@ class MemoryStore:
 
     def record_access(self, content: str) -> None:
         try:
-            from sediman.memory.entry import record_access_by_content
+            from sediman.memory.core.entry import record_access_by_content
             record_access_by_content(content)
         except Exception as e:
             logger.debug("memory_record_access_failed", error=str(e))

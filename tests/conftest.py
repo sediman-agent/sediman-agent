@@ -13,27 +13,37 @@ def tmp_sediman_dir(tmp_path: Path):
     mem_dir = tmp_path / "memories"
     mem_dir.mkdir(parents=True, exist_ok=True)
 
-    with patch("sediman.store.db.DEFAULT_DATA_DIR", tmp_path), \
-         patch("sediman.memory.prompt.MEMORY_FILE", tmp_path / "MEMORY.md"), \
-         patch("sediman.memory.prompt.USER_FILE", tmp_path / "USER.md"), \
-         patch("sediman.memory.prompt.MEMORY_DB", tmp_path / "memory.json"), \
-         patch("sediman.memory.prompt.DATA_DIR", tmp_path), \
-         patch("sediman.memory.prompt.CONTEXT_FILE", tmp_path / "CONTEXT.md"), \
-         patch("sediman.memory.store.MEMORY_DIR", mem_dir), \
-         patch("sediman.memory.store.MEMORY_FILE", mem_dir / "MEMORY.md"), \
-         patch("sediman.memory.store.USER_FILE", mem_dir / "USER.md"), \
-         patch("sediman.memory.store.OLD_MEMORY_FILE", tmp_path / "MEMORY.md"), \
-         patch("sediman.memory.store.OLD_USER_FILE", tmp_path / "USER.md"), \
-         patch("sediman.memory.store.OLD_MEMORY_DB", tmp_path / "memory.json"), \
-         patch("sediman.agent.prompts.builder.SOUL_FILE", tmp_path / "SOUL.md"), \
-         patch("sediman.agent.prompts.builder.CONTEXT_FILE", tmp_path / "CONTEXT.md"), \
-         patch("sediman.agent.soul.SOUL_FILE", tmp_path / "SOUL.md"), \
-                   patch("sediman.skills.engine.GLOBAL_SKILLS_DIR", tmp_path / "skills"), \
-         patch("sediman.scheduler.cron.JOBS_DIR", tmp_path / "cron"), \
-         patch("sediman.scheduler.cron.RESULTS_FILE", tmp_path / "cron" / "results.jsonl"), \
-         patch("sediman.browser.session.SESSION_DIR", tmp_path / "sessions"), \
-         patch("sediman.browser.session.DATA_DIR", tmp_path):
+    patches = [
+        patch("sediman.store.db.DEFAULT_DATA_DIR", tmp_path),
+        patch("sediman.memory.utils.prompt.MEMORY_FILE", tmp_path / "MEMORY.md"),
+        patch("sediman.memory.utils.prompt.USER_FILE", tmp_path / "USER.md"),
+        patch("sediman.memory.utils.prompt.MEMORY_DB", tmp_path / "memory.json"),
+        patch("sediman.memory.utils.prompt.DATA_DIR", tmp_path),
+        patch("sediman.memory.utils.prompt.CONTEXT_FILE", tmp_path / "CONTEXT.md"),
+        patch("sediman.memory.storage.store.MEMORY_DIR", mem_dir),
+        patch("sediman.memory.storage.store.MEMORY_FILE", mem_dir / "MEMORY.md"),
+        patch("sediman.memory.storage.store.USER_FILE", mem_dir / "USER.md"),
+        patch("sediman.memory.storage.store.OLD_MEMORY_FILE", tmp_path / "MEMORY.md"),
+        patch("sediman.memory.storage.store.OLD_USER_FILE", tmp_path / "USER.md"),
+        patch("sediman.memory.storage.store.OLD_MEMORY_DB", tmp_path / "memory.json"),
+        patch("sediman.memory.vector.vector_store._VECTOR_DB_PATH", tmp_path / "vectors.db"),
+        patch("sediman.memory.vector.vector_store._LEGACY_INDEX_PATH", tmp_path / "vector_index.json"),
+        patch("sediman.agent.prompts.builder.SOUL_FILE", tmp_path / "SOUL.md"),
+        patch("sediman.agent.prompts.builder.CONTEXT_FILE", tmp_path / "CONTEXT.md"),
+        patch("sediman.agent.soul.SOUL_FILE", tmp_path / "SOUL.md"),
+        patch("sediman.skills.engine.GLOBAL_SKILLS_DIR", tmp_path / "skills"),
+        patch("sediman.scheduler.cron.JOBS_DIR", tmp_path / "cron"),
+        patch("sediman.scheduler.cron.RESULTS_FILE", tmp_path / "cron" / "results.jsonl"),
+        patch("sediman.browser.session.SESSION_DIR", tmp_path / "sessions"),
+        patch("sediman.browser.session.DATA_DIR", tmp_path),
+    ]
+
+    with patches[0]:
+        for p in patches[1:]:
+            p.start()
         yield tmp_path
+        for p in reversed(patches):
+            p.stop()
 
 
 @pytest.fixture(autouse=True)

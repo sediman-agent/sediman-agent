@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import structlog
 
 from sediman.llm.provider import ToolDefinition
-from sediman.memory.store import MemoryStore
+from sediman.memory.storage.store import MemoryStore
 
 logger = structlog.get_logger()
 

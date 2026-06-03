@@ -4,7 +4,7 @@ from typing import Any
 
 import structlog
 
-from sediman.memory.trajectories import TrajectoryDB
+from sediman.memory.storage.trajectories import TrajectoryDB
 from sediman.skills.engine import SkillEngine
 
 logger = structlog.get_logger()

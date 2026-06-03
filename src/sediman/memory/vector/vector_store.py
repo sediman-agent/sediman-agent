@@ -114,7 +114,7 @@ class VectorStore:
 
     def _ensure_provider(self) -> Any:
         if self._provider is None:
-            from sediman.memory.embeddings import create_embedding_provider
+            from sediman.memory.vector.embeddings import create_embedding_provider
             self._provider = create_embedding_provider()
             self._provider_name = self._provider.name
         return self._provider

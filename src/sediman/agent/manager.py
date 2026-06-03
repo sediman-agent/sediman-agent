@@ -10,7 +10,7 @@ import structlog
 from sediman.agent.planner import TaskPlanner, ScheduleIntent
 from sediman.agent.state import PlanStep, Strategy
 from sediman.llm.provider import LLMProvider
-from sediman.memory.manager import MemoryManager
+from sediman.memory.strategy import BaseMemoryStrategy
 
 logger = structlog.get_logger()
 
@@ -31,10 +31,10 @@ class ManagerPlan:
 
 
 class ManagerAgent:
-    def __init__(self, llm: LLMProvider, memory_manager: MemoryManager | None = None):
+    def __init__(self, llm: LLMProvider, memory: BaseMemoryStrategy | None = None):
         self.llm = llm
         self._regex_planner = TaskPlanner()
-        self._memory = memory_manager
+        self._memory = memory
 
     async def plan(
         self,

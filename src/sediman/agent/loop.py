@@ -45,7 +45,7 @@ from sediman.agent.progress import (
 )
 from sediman.browser.session import BrowserSession
 from sediman.llm.provider import LLMProvider
-from sediman.memory.manager import MemoryManager
+from sediman.memory.strategy import BaseMemoryStrategy
 from sediman.agentbrowser.session import AgentBrowserSession
 from sediman.config import AGENT_STATE_FILE
 
@@ -113,7 +113,7 @@ class AgentLoop:
         max_conversation: int = 40,
         context_window: int = 10,
         max_iterations: int = 50,
-        memory_manager: MemoryManager | None = None,
+        memory: BaseMemoryStrategy | None = None,
         skip_reflection_on_success: bool = True,
         turbo_mode: bool = False,
     ):
@@ -130,12 +130,15 @@ class AgentLoop:
         self.context_window = context_window
         self._conversation: list[dict[str, str]] = []
         self._compressor = ContextCompressor(llm_provider)
-        self._manager = ManagerAgent(llm_provider, memory_manager=memory_manager)
+        self._manager = ManagerAgent(llm_provider, memory=memory)
         self._regex_planner = TaskPlanner()
         self._recorder = SkillRecorder()
         self._tool_registry: ToolRegistry | None = None
         self._max_iterations = max_iterations
-        self._memory = memory_manager or MemoryManager(llm_provider)
+        from sediman.memory.strategies.file_memory import FileMemoryStrategy
+        self._memory = memory or FileMemoryStrategy()
+        if isinstance(self._memory, FileMemoryStrategy):
+            self._memory.set_llm(llm_provider)
         self._memory_initialized = False
         self._pending_review = False
         self._skill_engine: Any | None = None

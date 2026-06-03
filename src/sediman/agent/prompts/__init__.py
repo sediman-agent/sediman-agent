@@ -19,5 +19,7 @@ def build_system_prompt(
 
 
 def load_memory() -> str:
-    from sediman.memory.manager import MemoryManager
-    return MemoryManager().load_all_memory()
+    from sediman.memory.strategies.file_memory import FileMemoryStrategy
+    strategy = FileMemoryStrategy()
+    # Note: load_all_memory is a convenience method, access via snapshot
+    return strategy.get_snapshot() or ""

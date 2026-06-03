@@ -25,7 +25,7 @@ class MemoryConsolidator:
         target: str,
         new_content: str,
     ) -> Any:
-        from sediman.memory.store import StoreResult
+        from sediman.memory.storage.store import StoreResult
 
         usage = store.get_usage(target)
         entries = usage.entries
@@ -71,7 +71,7 @@ class MemoryConsolidator:
         new_content: str,
         llm: Any = None,
     ) -> Any:
-        from sediman.memory.store import ENTRY_SEPARATOR
+        from sediman.memory.storage.store import ENTRY_SEPARATOR
 
         llm = llm or self._llm
         if not llm:
@@ -195,7 +195,7 @@ class MemoryConsolidator:
         target: str,
         space_needed: int,
     ) -> list[str] | None:
-        from sediman.memory.importance import score_importance
+        from sediman.memory.utils.importance import score_importance
 
         scored: list[tuple[int, str, float]] = []
         for i, entry in enumerate(entries):

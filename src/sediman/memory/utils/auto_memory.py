@@ -5,8 +5,8 @@ from typing import Any
 
 import structlog
 
-from sediman.memory.tiers import WorkingMemory, SessionMemory, MemoryTier, Channel
-from sediman.memory.importance import score_importance, classify_channel
+from sediman.memory.utils.tiers import WorkingMemory, SessionMemory, MemoryTier, Channel
+from sediman.memory.utils.importance import score_importance, classify_channel
 
 logger = structlog.get_logger()
 

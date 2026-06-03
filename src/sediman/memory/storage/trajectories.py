@@ -10,7 +10,7 @@ from typing import Any
 import structlog
 
 from sediman.config import TRAJECTORIES_DIR
-from sediman.memory.vector import VectorStore
+from sediman.memory.vector.vector_store import VectorStore
 from sediman.store.db import get_connection, get_db_path
 
 logger = structlog.get_logger()
