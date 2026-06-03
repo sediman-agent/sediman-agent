@@ -142,11 +142,22 @@ install_sediman() {
     fi
 
     local install_source="git+https://github.com/${GITHUB_REPO}.git"
-    if [ "$GIT_BRANCH" != "main" ]; then
+
+    # Get latest release tag for version-specific installation
+    local latest_tag
+    latest_tag="$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | grep '"tag_name"' | head -1 | sed -E 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/' || true)"
+
+    if [ -n "$latest_tag" ] && [ "$GIT_BRANCH" = "main" ]; then
+        # Install from latest release tag instead of main branch
+        install_source="git+https://github.com/${GITHUB_REPO}.git@${latest_tag}"
+        info "Installing sediman ${latest_tag} from GitHub..."
+    elif [ "$GIT_BRANCH" != "main" ]; then
         install_source="${install_source}@${GIT_BRANCH}"
+        info "Installing sediman from branch ${GIT_BRANCH}..."
+    else
+        info "Installing sediman from main branch..."
     fi
 
-    info "Installing sediman from GitHub ($install_source)..."
     uv tool install "$install_source" --force 2>/dev/null || {
         error "Failed to install sediman via GitHub."
         error "Try manually: uv tool install $install_source"
