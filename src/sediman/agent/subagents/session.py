@@ -79,6 +79,11 @@ class SubagentSession:
                     {"tool": name, "args": {}}
                     for name in result.tool_calls
                 ]
+                # Populate data for file-editing tools so artifacts are extracted
+                for filepath in result.files_edited:
+                    state.actions_taken.append(
+                        {"tool": "write_file", "args": {"path": filepath}, "data": {"path": filepath}}
+                    )
                 state.phase = AgentPhase.DONE
                 return self._assemble_result(state)
 

@@ -115,7 +115,7 @@ async def _handle_skill_manage(
                     output="Nothing to patch — provide description and/or steps.",
                 )
 
-            all_text = f"{name} {description or ''} {' '.join(steps or [])}"
+            all_text = f"{name} {description or ''} {' '.join(steps or [])} {verification or ''}"
             try:
                 from sediman.memory.security import scan_content
 
