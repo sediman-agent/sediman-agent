@@ -494,13 +494,12 @@ impl App {
     }
 
     /// Toggle the collapsible steps section of a specific message index
+    #[allow(dead_code)]
     pub fn toggle_steps_at(&mut self, index: usize) -> bool {
-        if let Some(msg) = self.messages.get_mut(index) {
-            if let ChatMessage::Agent { steps, steps_expanded, .. } = msg {
-                if !steps.is_empty() {
-                    *steps_expanded = !(*steps_expanded);
-                    return true;
-                }
+        if let Some(ChatMessage::Agent { steps, steps_expanded, .. }) = self.messages.get_mut(index) {
+            if !steps.is_empty() {
+                *steps_expanded = !(*steps_expanded);
+                return true;
             }
         }
         false
