@@ -115,6 +115,6 @@
 
   /* Smooth transitions for interactive elements */
   .interactive {
-    @apply transition-base transition-colors duration-200;
+    @apply transition-colors duration-200;
   }
 }
