@@ -260,7 +260,7 @@ fn check_python() -> Vec<DoctorCheck> {
     result
 }
 
-fn parse_python_version(s: &str) -> Option<(u32, u32)> {
+pub fn parse_python_version(s: &str) -> Option<(u32, u32)> {
     let version_str = s.strip_prefix("Python ")?;
     let mut parts = version_str.splitn(3, '.');
     let major: u32 = parts.next()?.parse().ok()?;
@@ -325,16 +325,15 @@ async fn check_system(bridge: &sediman_tui_bridge::ApiClient) -> Vec<DoctorCheck
         }),
     }
 
-    match check_docker_daemon() {
-        Some(running) => result.push(DoctorCheck {
+    if let Some(running) = check_docker_daemon() {
+        result.push(DoctorCheck {
             category: "System".into(),
             name: "Docker daemon".into(),
             status: if running { DoctorStatus::Pass } else { DoctorStatus::Fail },
             message: if running { "running".into() } else { "not running — start Docker".into() },
             optional: false,
             install_cmd: if running { None } else { Some(docker_start_cmd()) },
-        }),
-        None => {}
+        });
     }
 
     result

@@ -15,7 +15,7 @@ use unicode_width::UnicodeWidthChar;
 use crate::app::{App, ChatMessage, AgentTab, MessageState};
 
 thread_local! {
-    static LINE_CACHE: RefCell<(u64, u16, u16, Vec<MessageLine>)> = RefCell::new((0, 0, 0, Vec::new()));
+    static LINE_CACHE: RefCell<(u64, u16, u16, Vec<MessageLine>)> = const { RefCell::new((0, 0, 0, Vec::new())) };
 }
 
 pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
@@ -141,6 +141,7 @@ fn render_streaming_sections(lines: &mut Vec<MessageLine>, app: &mut App, max_wi
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_inline_section(
     lines: &mut Vec<MessageLine>,
     app: &App,
@@ -416,7 +417,7 @@ fn handle_scroll(app: &mut App, max_scroll: u16) {
     }
 
     if app.auto_scroll {
-        if max_scroll < 3 || (app.scroll_offset < 3 && max_scroll >= 3) {
+        if max_scroll < 3 || app.scroll_offset < 3 {
             app.scroll_offset = 0;
         }
         app.auto_scroll = false;
@@ -673,7 +674,7 @@ pub fn detect_phase(step: &str) -> Option<&str> {
 
 fn render_structured_step(step: &str, lines: &mut Vec<MessageLine>, app: &App, max_width: usize) {
     let parts: Vec<&str> = step.lines().collect();
-    let main_line = if let Some(line) = parts.get(0) {
+    let main_line = if let Some(line) = parts.first() {
         *line
     } else {
         return;
@@ -781,10 +782,10 @@ fn parse_tool_action(action: &str) -> ParsedAction {
 
 fn extract_file_path(action: &str) -> Option<String> {
     for part in action.split_whitespace() {
-        if part.contains('.') || part.contains('/') || part.contains('\\') {
-            if !part.contains("http") && !part.contains("://") {
-                return Some(part.to_string());
-            }
+        if (part.contains('.') || part.contains('/') || part.contains('\\'))
+            && !part.contains("http") && !part.contains("://")
+        {
+            return Some(part.to_string());
         }
     }
     None

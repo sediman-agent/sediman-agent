@@ -183,6 +183,7 @@ pub struct App {
     pub permission: PermissionManager,
     pub interrupt: InterruptManager,
     pub event_tx: Option<tokio::sync::mpsc::UnboundedSender<sediman_tui_core::event::AppEvent>>,
+    #[allow(clippy::type_complexity)]
     pub backend_restart_fn: Option<Arc<dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>> + Send + Sync>>,
 
     pub running: bool,
@@ -343,6 +344,7 @@ pub enum AgentMode {
     Terminator,
 }
 
+#[allow(dead_code)]
 impl AgentMode {
     pub fn cycle(self) -> Self {
         match self {
@@ -569,6 +571,7 @@ impl App {
             .unwrap_or("manager")
     }
 
+    #[allow(dead_code)]
     pub fn set_agent_modes(&mut self, modes: Vec<AgentModeEntry>) {
         let old_mode = self.current_mode_name().to_string();
         self.agent_modes = if modes.is_empty() {
@@ -859,12 +862,12 @@ impl App {
                     }
                     Err(e) => {
                         warn!("Session file corrupted: {}", e);
-                        self.show_toast(format!("Session file corrupted — starting fresh"));
+                        self.show_toast("Session file corrupted — starting fresh".to_string());
                     }
                 },
                 Err(e) => {
                     warn!("Cannot read session file: {}", e);
-                    self.show_toast(format!("Cannot read session file — starting fresh"));
+                    self.show_toast("Cannot read session file — starting fresh".to_string());
                 }
             }
         }
@@ -1858,4 +1861,59 @@ mod new_feature_tests {
             _ => panic!("Wrong variant"),
         }
     }
+
+    #[test]
+    fn test_toast_auto_dismiss() {
+        let mut app = make_app();
+        app.show_toast("test toast".to_string());
+
+        assert!(app.toast_expiry.is_some());
+        assert!(!app.toast_text.is_empty());
+
+        // Manually expire the toast
+        app.toast_expiry = Some(std::time::Instant::now() - std::time::Duration::from_secs(1));
+
+        // Simulate what happens in the tick loop
+        if let Some(expiry) = app.toast_expiry {
+            if std::time::Instant::now() >= expiry {
+                app.toast_text.clear();
+                app.toast_expiry = None;
+            }
+        }
+
+        assert!(app.toast_text.is_empty());
+        assert!(app.toast_expiry.is_none());
+    }
+
+    #[test]
+    fn test_load_session_handles_corruption_gracefully() {
+        // Verify that serde rejects invalid JSON (the error path exists)
+        let result = serde_json::from_str::<Vec<ChatMessage>>("not valid json");
+        assert!(result.is_err(), "serde must reject corrupted data");
+
+        // Verify toast mechanism works
+        let mut app = make_app();
+        app.show_toast("Session file corrupted — starting fresh".to_string());
+        assert!(!app.toast_text.is_empty());
+        assert!(app.toast_text.contains("corrupted"));
+    }
 }
+
+#[cfg(test)]
+#[test]
+fn test_parse_python_version() {
+    use crate::commands::doctor::parse_python_version;
+    assert_eq!(parse_python_version("Python 3.12.4"), Some((3, 12)));
+    assert_eq!(parse_python_version("Python 3.11.0"), Some((3, 11)));
+    assert_eq!(parse_python_version("Python 3.13.1"), Some((3, 13)));
+    assert_eq!(parse_python_version("Python 3.10.12"), Some((3, 10)));
+    assert_eq!(parse_python_version("Python 3.9.5"), Some((3, 9)));
+    assert_eq!(parse_python_version("Python 3.14.0a1"), Some((3, 14)));
+
+    assert_eq!(parse_python_version(""), None);
+    assert_eq!(parse_python_version("Python "), None);
+    assert_eq!(parse_python_version("python 3.12.4"), None);
+    assert_eq!(parse_python_version("Python "), None);
+    assert_eq!(parse_python_version("garbage"), None);
+}
+

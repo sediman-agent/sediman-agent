@@ -491,7 +491,7 @@ impl MarkdownRenderer {
             let pad_len = inner_width.saturating_sub(total_text_width);
             if pad_len > 0 {
                 styled_spans.push(crate::renderer::Span::styled(
-                    &" ".repeat(pad_len), Style::new().fg(t.md_code_block),
+                    " ".repeat(pad_len), Style::new().fg(t.md_code_block),
                 ));
             }
 

@@ -171,10 +171,9 @@ pub fn handle_editor_key(app: &mut App, key: crossterm::event::KeyEvent) -> bool
         } else {
             // Try file path completion for the last word
             if let Some(last_word) = prefix.split_whitespace().last() {
-                if last_word.starts_with('@') || last_word.starts_with("./") || last_word.starts_with("~/") || last_word.starts_with('/') {
-                    if complete_file_path(app, last_word) {
-                        return true;
-                    }
+                if (last_word.starts_with('@') || last_word.starts_with("./") || last_word.starts_with("~/") || last_word.starts_with('/'))
+                    && complete_file_path(app, last_word) {
+                    return true;
                 }
             }
             app.cycle_agent_mode();

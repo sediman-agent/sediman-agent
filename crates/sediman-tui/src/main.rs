@@ -410,10 +410,8 @@ async fn async_main(args: Args) {
         app_state.active_modal = Some(app::AppModal::OnboardingWizard { step: 0 });
     }
 
-    if args.resume {
-        if app_state.load_session() {
-            info!("Resumed previous session ({} messages)", app_state.messages.len());
-        }
+    if args.resume && app_state.load_session() {
+        info!("Resumed previous session ({} messages)", app_state.messages.len());
     }
 
     // Set up backend restart function
