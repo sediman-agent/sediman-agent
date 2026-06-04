@@ -172,12 +172,11 @@ fn check_tools() -> Vec<DoctorCheck> {
         ("git", false, git_install_cmd()),
         ("uv", false, "curl -LsSf https://astral.sh/uv/install.sh | sh".into()),
         ("rg", false, rg_install_cmd()),
+        ("docker", false, docker_install_cmd()),
         ("opencode", true, "curl -fsSL https://opencode.ai/install | sh".into()),
         ("fd", true, fd_install_cmd()),
         ("bun", true, "curl -fsSL https://bun.sh/install | bash".into()),
         ("node", true, node_install_cmd()),
-        ("sediman-sandbox", true, "make install-sandbox".into()),
-        ("docker", true, docker_install_cmd()),
     ];
 
     for (name, optional, install) in tools {
@@ -213,12 +212,9 @@ fn check_python() -> Vec<DoctorCheck> {
 
     match get_python_version() {
         Some(ver) => {
-            let ok = ver.starts_with("Python 3.1")
-                || ver.starts_with("Python 3.2")
-                || ver.starts_with("Python 3.3")
-                || ver == "Python 3.11"
-                || ver.starts_with("Python 3.12")
-                || ver.starts_with("Python 3.13");
+            let ok = parse_python_version(&ver)
+                .map(|(major, minor)| major == 3 && minor >= 11)
+                .unwrap_or(false);
             result.push(DoctorCheck {
                 category: "Python".into(),
                 name: "Python 3.11+".into(),
@@ -262,6 +258,14 @@ fn check_python() -> Vec<DoctorCheck> {
     }
 
     result
+}
+
+fn parse_python_version(s: &str) -> Option<(u32, u32)> {
+    let version_str = s.strip_prefix("Python ")?;
+    let mut parts = version_str.splitn(3, '.');
+    let major: u32 = parts.next()?.parse().ok()?;
+    let minor: u32 = parts.next()?.parse().ok()?;
+    Some((major, minor))
 }
 
 async fn check_system(bridge: &sediman_tui_bridge::ApiClient) -> Vec<DoctorCheck> {
@@ -319,6 +323,18 @@ async fn check_system(bridge: &sediman_tui_bridge::ApiClient) -> Vec<DoctorCheck
             optional: true,
             install_cmd: None,
         }),
+    }
+
+    match check_docker_daemon() {
+        Some(running) => result.push(DoctorCheck {
+            category: "System".into(),
+            name: "Docker daemon".into(),
+            status: if running { DoctorStatus::Pass } else { DoctorStatus::Fail },
+            message: if running { "running".into() } else { "not running — start Docker".into() },
+            optional: false,
+            install_cmd: if running { None } else { Some(docker_start_cmd()) },
+        }),
+        None => {}
     }
 
     result
@@ -472,5 +488,21 @@ fn python_install_cmd() -> String {
         "brew install python@3.12".into()
     } else {
         "sudo apt install -y python3.12 python3.12-venv".into()
+    }
+}
+
+fn check_docker_daemon() -> Option<bool> {
+    let output = std::process::Command::new("docker")
+        .arg("info")
+        .output()
+        .ok()?;
+    Some(output.status.success())
+}
+
+fn docker_start_cmd() -> String {
+    if cfg!(target_os = "macos") {
+        "open -a Docker".into()
+    } else {
+        "sudo systemctl start docker".into()
     }
 }

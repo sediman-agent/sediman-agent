@@ -103,7 +103,7 @@ These exist in the Python TUI but not yet in the Rust TUI:
 - [ ] `/update` — Update installed skills
 - [ ] `/outdated` — Check for skill updates
 - [ ] `/skill-info` — Show skill provenance and source info
-- [ ] `/checkpoint*` — Filesystem checkpoint CRUD via sediman-sandbox
+- [ ] `/checkpoint*` — Filesystem checkpoint CRUD via OpenSandbox (Docker)
 - [ ] `/rewind` — Revert current directory to checkpoint
 - [ ] `/branch` / `/branches` — Named checkpoint branches
 
@@ -190,7 +190,7 @@ These subsystems exist internally but are not exposed as callable tools. The age
 
 The terminal tool currently runs commands locally. Add sandboxed execution environments:
 
-- [ ] **Docker backend** — Isolated containers with persistent workspace
+- [x] **Docker backend** — Isolated containers via OpenSandbox (Python SDK)
 - [ ] **SSH backend** — Remote execution (keeps agent away from its own code)
 - [ ] **Modal backend** — Serverless cloud execution
 - [ ] **Daytona backend** — Persistent remote dev environments

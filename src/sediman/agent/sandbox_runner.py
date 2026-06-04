@@ -1,18 +1,30 @@
-"""Sandbox runner — wraps sediman-sandbox CLI for isolated command execution.
+"""Sandbox runner — executes commands inside OpenSandbox containers.
 
-Replaces direct subprocess calls with sandboxed execution via the Go wrapper.
-Every terminal command MUST go through SandboxRunner — no raw subprocess.
+Provides Docker-based isolation via the OpenSandbox SDK. Every terminal
+command MUST go through SandboxRunner. Falls back to raw subprocess when
+Docker / OpenSandbox server is unavailable.
 """
 from __future__ import annotations
 
 import asyncio
 import os
+import uuid
 from dataclasses import dataclass
-from pathlib import Path
+from datetime import timedelta
+from typing import Any
 
 import structlog
 
-from sediman.config import DATA_DIR
+from sediman.config import (
+    DATA_DIR,
+    OPENSANDBOX_API_KEY,
+    OPENSANDBOX_CPU,
+    OPENSANDBOX_DOMAIN,
+    OPENSANDBOX_ENABLED,
+    OPENSANDBOX_IMAGE,
+    OPENSANDBOX_MEMORY,
+    OPENSANDBOX_TIMEOUT_SECS,
+)
 
 logger = structlog.get_logger()
 
@@ -26,98 +38,121 @@ class SandboxResult:
     sandboxed: bool = True
 
 
-class SandboxRunner:
-    """Runs shell commands inside sediman-sandbox for filesystem isolation.
+def _build_connection_config() -> Any:
+    from opensandbox.config import ConnectionConfig
 
-    If the sandbox binary is not available, falls back to raw subprocess
-    with a warning logged. This is a security risk — operators should
-    install sediman-sandbox.
+    protocol = "http"
+    domain = OPENSANDBOX_DOMAIN
+    if domain.startswith("https://"):
+        protocol = "https"
+        domain = domain.removeprefix("https://")
+    elif domain.startswith("http://"):
+        domain = domain.removeprefix("http://")
+
+    return ConnectionConfig(
+        domain=domain,
+        api_key=OPENSANDBOX_API_KEY or None,
+        protocol=protocol,
+        request_timeout=timedelta(seconds=120),
+    )
+
+
+class SandboxRunner:
+    """Runs shell commands inside an OpenSandbox container.
+
+    Creates a single long-lived sandbox on first use and reuses it for
+    subsequent commands. The sandbox is killed on ``close()`` or when
+    the process exits.
+
+    If OpenSandbox is unavailable (no Docker, server not running), falls
+    back to raw subprocess execution with ``sandboxed=False``.
     """
 
-    def __init__(self, cli: str | None = None) -> None:
-        self.cli = cli or self._find_cli()
-        self.available = Path(self.cli).exists()
-        if not self.available:
-            logger.warning(
-                "sandbox_binary_not_found",
-                searched=str(self.cli),
-                message="sediman-sandbox not found. Terminal commands will run without isolation!",
-            )
+    def __init__(self) -> None:
+        self._sandbox: Any | None = None
+        self._sandbox_id: str | None = None
+        self._available: bool | None = None
+        self._config = _build_connection_config() if OPENSANDBOX_ENABLED else None
+        self._lock = asyncio.Lock()
 
-    def _find_cli(self) -> str:
-        for name in ("sediman-sandbox",):
-            if p := shutil_which(name):
-                return p
-        for p in (
-            Path.home() / ".local" / "bin" / "sediman-sandbox",
-            DATA_DIR / "sandbox" / "sediman-sandbox",
-            Path("/usr/local/bin/sediman-sandbox"),
-        ):
-            if p.exists():
-                return str(p)
-        return "sediman-sandbox"
+    async def _ensure_sandbox(self) -> Any:
+        if self._sandbox is not None:
+            return self._sandbox
+
+        if not OPENSANDBOX_ENABLED or self._config is None:
+            self._available = False
+            return None
+
+        if self._available is False:
+            return None
+
+        try:
+            from opensandbox.sandbox import Sandbox
+
+            resource = {"cpu": OPENSANDBOX_CPU, "memory": OPENSANDBOX_MEMORY}
+            sb = await Sandbox.create(
+                OPENSANDBOX_IMAGE,
+                connection_config=self._config,
+                timeout=timedelta(seconds=OPENSANDBOX_TIMEOUT_SECS),
+                resource=resource,
+                env={"DEBIAN_FRONTEND": "noninteractive"},
+            )
+            self._sandbox = sb
+            self._sandbox_id = sb.id
+            self._available = True
+            logger.info(
+                "opensandbox_created",
+                sandbox_id=sb.id,
+                image=OPENSANDBOX_IMAGE,
+            )
+            return sb
+        except Exception as e:
+            self._available = False
+            logger.warning(
+                "opensandbox_unavailable",
+                error=str(e),
+                message="Falling back to raw subprocess. Install Docker and start opensandbox-server.",
+            )
+            return None
 
     async def run(
         self,
         command: str,
         cwd: str | None = None,
         timeout: int = 30,
-        allow_dirs: list[str] | None = None,
         allow_net: bool = False,
-        max_memory_mb: int = 0,
-        max_cpu_pct: int = 0,
+        **_kwargs: Any,
     ) -> SandboxResult:
-        """Run a command inside the sandbox.
+        sb = await self._ensure_sandbox()
 
-        Args:
-            command: Shell command to execute.
-            cwd: Working directory.
-            timeout: Max execution time in seconds.
-            allow_dirs: Directories the command can read/write.
-            allow_net: Whether to allow network access.
-            max_memory_mb: Memory limit in MB (0 = no limit).
-            max_cpu_pct: CPU limit as percentage (0 = no limit).
-
-        Returns:
-            SandboxResult with success, output, exit_code, and metadata.
-        """
-        if not self.available:
+        if sb is None:
             return await self._run_fallback(command, cwd, timeout)
 
-        args = [
-            self.cli,
-            "run",
-            f"--timeout={timeout}s",
-        ]
-        if allow_net:
-            args.append("--allow-net")
-        if max_memory_mb > 0:
-            args.append(f"--max-memory={max_memory_mb}mb")
-        if max_cpu_pct > 0:
-            args.append(f"--max-cpu={max_cpu_pct}%")
-        for d in allow_dirs or []:
-            args.append(f"--allow-dir={d}")
+        full_cmd = command
         if cwd:
-            args.append(f"--work-dir={cwd}")
-
-        args.extend(["--", "bash", "-c", command])
+            full_cmd = f"cd {cwd} 2>/dev/null; {command}"
 
         try:
-            proc = await asyncio.create_subprocess_exec(
-                *args,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            execution = await asyncio.wait_for(
+                sb.commands.run(full_cmd),
+                timeout=timeout + 10,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout + 5)
-            output = ""
-            if stdout:
-                output += stdout.decode(errors="replace")
-            if stderr:
-                output += stderr.decode(errors="replace")
+
+            parts: list[str] = []
+            for log in execution.logs.stdout:
+                parts.append(log.text)
+            for log in execution.logs.stderr:
+                parts.append(log.text)
+            output = "\n".join(parts) if parts else ""
+
+            exit_code = execution.exit_code if hasattr(execution, "exit_code") else 0
+            if exit_code is None:
+                exit_code = 0
+
             return SandboxResult(
-                success=proc.returncode == 0,
+                success=exit_code == 0,
                 output=output,
-                exit_code=proc.returncode or 0,
+                exit_code=exit_code,
                 sandboxed=True,
             )
         except asyncio.TimeoutError:
@@ -129,7 +164,9 @@ class SandboxRunner:
                 sandboxed=True,
             )
         except Exception as e:
-            logger.warning("sandbox_run_failed", command=command[:80], error=str(e))
+            logger.warning("opensandbox_run_failed", command=command[:80], error=str(e))
+            self._sandbox = None
+            self._available = None
             return SandboxResult(
                 success=False,
                 output=f"Sandbox error: {e}",
@@ -143,11 +180,10 @@ class SandboxRunner:
         cwd: str | None = None,
         timeout: int = 30,
     ) -> SandboxResult:
-        """Fallback: run without sandbox when binary is unavailable."""
         logger.warning(
             "sandbox_fallback_raw_subprocess",
             command=command[:80],
-            message="Running without sandbox isolation! Install sediman-sandbox.",
+            message="Running without sandbox isolation!",
         )
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -190,24 +226,25 @@ class SandboxRunner:
                 sandboxed=False,
             )
 
+    async def get_sandbox(self) -> Any | None:
+        return await self._ensure_sandbox()
 
-def get_sandbox_dirs(cwd: str | None) -> list[str]:
-    """Determine which directories to allow based on cwd."""
-    dirs: list[str] = []
-    if cwd and cwd != ".":
-        dirs.append(os.path.abspath(cwd))
-    proj = os.getcwd()
-    if proj not in dirs:
-        dirs.append(proj)
-    if "/tmp" not in dirs:
-        dirs.append("/tmp")
-    return dirs
+    async def close(self) -> None:
+        if self._sandbox is not None:
+            try:
+                await self._sandbox.kill()
+                await self._sandbox.close()
+                logger.info("opensandbox_killed", sandbox_id=self._sandbox_id)
+            except Exception as e:
+                logger.debug("opensandbox_close_error", error=str(e))
+            finally:
+                self._sandbox = None
+                self._sandbox_id = None
 
+    @property
+    def available(self) -> bool:
+        return self._available is True
 
-def shutil_which(cmd: str) -> str | None:
-    try:
-        import shutil
-        return shutil.which(cmd)
-    except Exception:
-        logger.debug("silent_error_return", _line=209)
-        return None
+    @property
+    def sandbox_id(self) -> str | None:
+        return self._sandbox_id

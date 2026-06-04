@@ -157,10 +157,10 @@ A self-improving browser automation AI agent. Teach it once — it repeats forev
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  ┌──────────────────────┐   │
 │   LLM LAYER     │  │  BROWSER LAYER  │  │  SANDBOX    │  │  MEMORY SYSTEM       │   │
 │                 │  │                 │  │             │  │                      │   │
-│  LLMProvider    │  │ BrowserSession  │  │Go sandbox   │  │ ┌──────────────────┐ │   │
-│  ├─ OpenAI      │  │ ├─ Playwright   │  │(isolated    │  │ │ FileMemory       │ │◀──┘
-│  ├─ Anthropic   │  │ ├─ Openbrowser  │  │ command     │  │ │ (System 1: fast, │ │
-│  ├─ DeepSeek    │  │ ├─ AgentBrowser │  │ execution)  │  │ │  bounded files)  │ │
+│  LLMProvider    │  │ BrowserSession  │  │OpenSandbox  │  │ ┌──────────────────┐ │   │
+│  ├─ OpenAI      │  │ ├─ Playwright   │  │(Docker +    │  │ │ FileMemory       │ │◀──┘
+│  ├─ Anthropic   │  │ ├─ Openbrowser  │  │ Python SDK, │  │ │ (System 1: fast, │ │
+│  ├─ DeepSeek    │  │ ├─ AgentBrowser │  │ RPC bridge) │  │ │  bounded files)  │ │
 │  ├─ Ollama      │  │ └─ CloakBrowser │  │             │  │ └──────────────────┘ │
 │  ├─ Groq        │  │   (anti-detect) │  │             │  │ ┌──────────────────┐ │
 │  └─ ...20+ more │  │                 │  │             │  │ │ HyMemory         │ │
@@ -282,9 +282,9 @@ Learned workflows stored as YAML. Full lifecycle:
 
 Multi-platform message router. The `GatewayRunner` receives messages from all chat integrations (Discord, Telegram, Slack, WhatsApp, Lark, WeChat) and routes them through the agent loop, returning responses to the originating platform.
 
-### Sandbox (`sandbox/`)
+### Sandbox
 
-Go binary (`sediman-sandbox`) providing isolated command execution with platform-specific engines (Linux user namespaces, macOS file isolation) and checkpoint/rollback support.
+Docker-based isolated command execution via [OpenSandbox](https://github.com/alibaba/opensandbox) (Python SDK, pip package `opensandbox`). Docker is a required dependency. Checkpoint/rollback operations route through the RPC bridge. Configuration via `SEDIMAN_OPENSANDBOX_*` environment variables.
 
 ### Scheduler (`scheduler/`)
 

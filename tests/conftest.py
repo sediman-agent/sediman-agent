@@ -56,6 +56,11 @@ def _clear_caches():
         pass
 
 
+@pytest.fixture(autouse=True)
+def _disable_opensandbox(monkeypatch):
+    monkeypatch.setenv("SEDIMAN_OPENSANDBOX", "false")
+
+
 @pytest.fixture
 def tmp_db(tmp_sediman_dir: Path):
     """Initialize a fresh test database."""

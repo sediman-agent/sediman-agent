@@ -64,6 +64,7 @@ dependencies = [
     "pywa>=3.9.0",
     "lark-oapi>=1.6.8",
     "python-magic>=0.4.27",
+    "opensandbox>=0.1.9",
 ]
 
 [project.scripts]

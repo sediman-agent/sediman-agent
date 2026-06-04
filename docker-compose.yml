@@ -7,4 +7,5 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
       - ~/.terminator:/root/.terminator
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped

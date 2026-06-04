@@ -1712,6 +1712,21 @@ wheels = [
 ]
 
 [[package]]
+name = "opensandbox"
+version = "0.1.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/5a/2a/ab3cc141e041f71a373c97fcda8749dba9328f1b9bf80401378c0611556f/opensandbox-0.1.9.tar.gz", hash = "sha256:670fbf292c498f8467963d21e91ade9ea8b8f63f4ef18d18fff9581e0952ec03", size = 160034, upload-time = "2026-05-12T12:27:20.692Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/9b/553f8d7a30eddb12785711b2a1c682386878e2bb95450acd806f9fa62930/opensandbox-0.1.9-py3-none-any.whl", hash = "sha256:17faed35b60a982fee5a643fed8e4e12f041e5432d5ea0665d2828d1f2082759", size = 360945, upload-time = "2026-05-12T12:27:19.465Z" },
+]
+
+[[package]]
 name = "openskynet"
 version = "0.3.11"
 source = { editable = "." }
@@ -1728,6 +1743,7 @@ dependencies = [
     { name = "lxml" },
     { name = "markdownify" },
     { name = "openai" },
+    { name = "opensandbox" },
     { name = "pillow" },
     { name = "playwright" },
     { name = "prompt-toolkit" },
@@ -1760,6 +1776,7 @@ requires-dist = [
     { name = "lxml", specifier = ">=5.0.0" },
     { name = "markdownify", specifier = ">=0.12.0" },
     { name = "openai", specifier = ">=1.30.0" },
+    { name = "opensandbox", specifier = ">=0.1.9" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "playwright", specifier = ">=1.40.0" },
     { name = "prompt-toolkit", specifier = ">=3.0.0" },

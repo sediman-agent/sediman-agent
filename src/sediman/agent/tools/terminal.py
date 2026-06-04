@@ -4,7 +4,7 @@ from typing import Any
 
 import structlog
 
-from sediman.agent.sandbox_runner import SandboxRunner, get_sandbox_dirs
+from sediman.agent.sandbox_runner import SandboxRunner
 from sediman.agent.tool_dispatch import ToolResult
 
 logger = structlog.get_logger()
@@ -50,13 +50,11 @@ async def _handle_terminal(
             )
 
     runner = _get_runner()
-    allow_dirs = get_sandbox_dirs(cwd)
 
     result = await runner.run(
         command=command,
         cwd=cwd,
         timeout=timeout,
-        allow_dirs=allow_dirs,
         allow_net=allow_net,
     )
 

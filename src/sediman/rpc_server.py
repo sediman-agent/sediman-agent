@@ -36,6 +36,7 @@ from sediman.browser.session import BrowserSession
 from sediman.config import STEALTH_ENABLED, STEALTH_PROXY
 from sediman.config import MAX_TASK_LENGTH
 from sediman.llm.provider import create_provider, LLMProvider
+from sediman.agent.tools import create_agent_tool_registry
 
 logger = structlog.get_logger()
 
@@ -193,6 +194,21 @@ async def handle_system_doctor(params: dict[str, Any], notify: NotifyFn | None =
     checks["cloakbrowser"] = bool(os.environ.get("CLOAKBROWSER_BINARY"))
     checks["browser_running"] = _browser is not None and _browser.is_started
     checks["llm_configured"] = _llm is not None or bool(_llm_config)
+    checks["docker"] = shutil.which("docker") is not None
+    if checks["docker"]:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "docker", "info",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await asyncio.wait_for(proc.communicate(), timeout=5)
+            checks["docker_running"] = proc.returncode == 0
+        except Exception:
+            checks["docker_running"] = False
+    else:
+        checks["docker_running"] = False
+    checks["opensandbox_configured"] = bool(os.environ.get("SEDIMAN_OPENSANDBOX", "true").lower() in ("true", "1", "yes"))
     return {"checks": checks}
 
 
@@ -500,6 +516,12 @@ async def handle_auth_set(params: dict[str, Any], notify: NotifyFn | None = None
         return {"ok": False, "error": "provider and key are required"}
     set_key(provider, key)
     return {"ok": True}
+
+
+async def handle_auth_status(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
+    from sediman.auth import list_keys
+    keys = list_keys()
+    return {"ok": True, "count": len(keys), "providers": list(keys.keys())}
 
 
 async def handle_terminal_set(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
@@ -1157,6 +1179,154 @@ async def handle_browser_configure(params: dict[str, Any], notify: NotifyFn | No
     return {"configured": True, "headless": headless}
 
 
+async def handle_agents_list(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
+    from sediman.agent.subagents.registry import SubagentRegistry
+
+    registry = SubagentRegistry()
+    agents = []
+    for t in registry.list():
+        if t.is_top_level:
+            agents.append({
+                "mode": t.name,
+                "label": t.label or t.name[:3].title(),
+                "description": t.description,
+                "runner": t.runner,
+                "capabilities": t.capabilities,
+            })
+    return {"agents": agents}
+
+
+async def handle_agent_dispatch(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
+    from sediman.agent.base import AgentContext
+    from sediman.agent.runner import AgentRunner
+    from sediman.agent.subagents.registry import SubagentRegistry
+
+    task = (params.get("task") or "").strip()
+    mode = (params.get("mode") or "manager").strip()
+    if not task:
+        raise ValueError("task is required")
+    if len(task) > MAX_TASK_LENGTH:
+        raise ValueError(f"Task exceeds max length of {MAX_TASK_LENGTH}")
+
+    agent = await _get_agent_loop()
+
+    original_on_step = agent.on_step
+    original_on_streaming = getattr(agent, "on_streaming_text", None)
+
+    if notify:
+        def stepping(event: StepEvent) -> None:
+            try:
+                notify("chat.progress", {
+                    "phase": event.phase or "executing",
+                    "action": event.action or "",
+                    "url": event.observation or "",
+                    "step": event.step,
+                })
+            except Exception:
+                logger.debug("silent_error", _line=241)
+            if original_on_step:
+                original_on_step(event)
+
+        def on_streaming_token(token: str, phase: str = "responding") -> None:
+            try:
+                notify("chat.streaming", {"token": token, "phase": phase})
+            except Exception:
+                logger.debug("silent_error", _line=249)
+
+        agent.on_step = stepping
+        agent.on_streaming_text = on_streaming_token
+
+    InterruptSignal.get().clear()
+
+    registry = SubagentRegistry()
+    ctx = AgentContext(
+        llm=_get_llm(),
+        browser=_browser,
+        tool_registry=create_agent_tool_registry() if agent._tool_registry is None else agent._tool_registry,
+        on_step=agent.on_step,
+        on_streaming_text=agent.on_streaming_text,
+        interrupt=InterruptSignal.get(),
+        memory=getattr(agent, "_memory", None),
+        conversation=getattr(agent, "_conversation", []),
+    )
+    runner = AgentRunner(registry=registry, context=ctx)
+
+    start_time = time.monotonic()
+
+    try:
+        result: AgentResult = await runner.run(task, mode)
+    except AgentInterruptedError:
+        return {
+            "task": task,
+            "result": "Task cancelled by user.",
+            "success": False,
+            "steps": [],
+            "skill_created": None,
+            "elapsed_secs": 0,
+            "strategy_used": "cancelled",
+        }
+    finally:
+        agent.on_step = original_on_step
+        agent.on_streaming_text = original_on_streaming
+
+    elapsed_secs = int(time.monotonic() - start_time)
+
+    return {
+        "task": task,
+        "result": result.result or "",
+        "success": result.success,
+        "steps": [{"action": s.action, "observation": s.observation, "phase": s.phase} for s in (result.steps or [])],
+        "skill_created": result.skill_created,
+        "actions_taken": result.actions_taken or [],
+        "scheduled_job_id": result.scheduled_job_id,
+        "schedule_cron": result.schedule_cron,
+        "iterations": result.iterations or 0,
+        "strategy_used": result.strategy_used or "direct",
+        "elapsed_secs": elapsed_secs,
+    }
+
+
+# ── Checkpoint handlers ─────────────────────────────────────────────
+
+async def handle_checkpoint_create(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
+    from sediman.agent.checkpoint import CheckpointManager
+    target_dir = params.get("target_dir", ".")
+    name = params.get("name")
+    cp = CheckpointManager(enabled=True)
+    info = await cp.maybe_checkpoint(
+        tool_name="terminal",
+        arguments={"path": target_dir},
+        cwd=target_dir,
+    )
+    if info:
+        return {"id": info.id, "name": info.name or name or "", "target_dir": info.target_dir, "created_at": info.created_at}
+    return {"id": None, "error": "Failed to create checkpoint"}
+
+
+async def handle_checkpoint_revert(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
+    from sediman.agent.checkpoint import CheckpointManager
+    checkpoint_id = params.get("checkpoint_id", "")
+    target_dir = params.get("target_dir", ".")
+    if not checkpoint_id:
+        return {"success": False, "error": "checkpoint_id is required"}
+    cp = CheckpointManager(enabled=True)
+    success = await cp.revert(checkpoint_id, target_dir)
+    return {"success": success}
+
+
+async def handle_checkpoint_list(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:
+    from sediman.agent.checkpoint import CheckpointManager
+    target_dir = params.get("target_dir")
+    cp = CheckpointManager(enabled=True)
+    checkpoints = await cp.list_checkpoints(target_dir)
+    return {
+        "checkpoints": [
+            {"id": c.id, "name": c.name, "target_dir": c.target_dir, "created_at": c.created_at}
+            for c in checkpoints
+        ]
+    }
+
+
 # ── Dispatching ────────────────────────────────────────────────────
 
 NotifyFn = Callable[[str, dict[str, Any]], None]
@@ -1170,6 +1340,8 @@ HANDLERS: dict[str, Callable] = {
     "agent.cancel": handle_agent_cancel,
     "agent.terminator": handle_agent_terminator,
     "browser.configure": handle_browser_configure,
+    "agents.list": handle_agents_list,
+    "agent.dispatch": handle_agent_dispatch,
     "skills.run": handle_skills_run,
     "skills.list": handle_skills_list,
     "skills.get": handle_skills_get,
@@ -1208,6 +1380,7 @@ HANDLERS: dict[str, Callable] = {
     "model.list_providers": handle_model_list_providers,
     "model.list": handle_model_list,
     "auth.set": handle_auth_set,
+    "auth.status": handle_auth_status,
     "terminal.set": handle_terminal_set,
     "terminal.status": handle_terminal_status,
     "record.start": handle_record_start,
@@ -1217,6 +1390,9 @@ HANDLERS: dict[str, Callable] = {
     "integration.configure": handle_integration_configure,
     "integration.send": handle_integration_send,
     "integration.status": handle_integration_status,
+    "checkpoint.create": handle_checkpoint_create,
+    "checkpoint.revert": handle_checkpoint_revert,
+    "checkpoint.list": handle_checkpoint_list,
 }
 
 
