@@ -181,7 +181,7 @@ async fn build_from_source(version: &str) -> Result<()> {
             "--branch",
             &format!("v{}", version),
             "https://github.com/sediman-agent/OpenSkynet.git",
-            &source_dir.to_string_lossy().to_string(),
+            source_dir.to_string_lossy().as_ref(),
         ])
         .output()
         .context("Failed to clone repository")?;
