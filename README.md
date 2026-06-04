@@ -1,6 +1,7 @@
-
 <div align="center">
-# OpenSkynet
+
+**OpenSkyNet**
+
 
 **Your AI Terminator**
 
