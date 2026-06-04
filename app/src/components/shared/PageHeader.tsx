@@ -49,25 +49,18 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'h-16 border-b border-border flex items-center justify-between px-6 bg-background',
+        'h-10 border-b border-border flex items-center justify-between px-3 bg-background',
         className
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {Icon && (
-          <div
-            className={cn(
-              'w-9 h-9 rounded-lg flex items-center justify-center',
-              iconVariants[iconVariant]
-            )}
-          >
-            <Icon className="w-5 h-5" />
-          </div>
+          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
         )}
         <div>
-          <h1 className="text-base font-semibold text-foreground">{title}</h1>
+          <h1 className="text-xs font-medium text-foreground">{title}</h1>
           {subtitle && (
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
+            <p className="text-[10px] text-muted-foreground">{subtitle}</p>
           )}
         </div>
       </div>

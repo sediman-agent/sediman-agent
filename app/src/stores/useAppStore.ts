@@ -8,7 +8,8 @@ interface AppState extends AppSettings {
   agentStatus: AgentStatus;
   notifications: Notification[];
   sidebarOpen: boolean;
-  currentPage: 'tasks' | 'agent' | 'skills' | 'logs' | 'settings';
+  currentPage: 'agent' | 'models' | 'provider' | 'memory' | 'sessions' | 'skills' | 'logs' | 'settings';
+  colorTheme: 'default' | 'blue' | 'purple' | 'green' | 'rose' | 'cyan';
 
   // Actions
   setConnected: (connected: boolean) => void;
@@ -18,11 +19,13 @@ interface AppState extends AppSettings {
   setSettings: (settings: Partial<AppSettings>) => void;
   setSidebarOpen: (open: boolean) => void;
   setCurrentPage: (page: AppState['currentPage']) => void;
+  toggleTheme: () => void;
+  setColorTheme: (theme: AppState['colorTheme']) => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
       rpcUrl: 'ws://localhost:8765',
       autoConnect: true,
@@ -36,6 +39,7 @@ export const useAppStore = create<AppState>()(
       notifications: [],
       sidebarOpen: true,
       currentPage: 'agent',
+      colorTheme: 'default',
 
       // Actions
       setConnected: (connected) =>
@@ -69,6 +73,37 @@ export const useAppStore = create<AppState>()(
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
       setCurrentPage: (page) => set({ currentPage: page }),
+
+      toggleTheme: () => {
+        const currentTheme = get().theme;
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        set({ theme: newTheme });
+
+        // Apply theme to document
+        if (newTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      },
+
+      setColorTheme: (theme) => {
+        set({ colorTheme: theme });
+
+        // Remove all theme classes
+        document.documentElement.classList.remove(
+          'theme-blue',
+          'theme-purple',
+          'theme-green',
+          'theme-rose',
+          'theme-cyan'
+        );
+
+        // Add new theme class if not default
+        if (theme !== 'default') {
+          document.documentElement.classList.add(`theme-${theme}`);
+        }
+      },
     }),
     {
       name: 'openskynet-app-store',
@@ -76,6 +111,7 @@ export const useAppStore = create<AppState>()(
         rpcUrl: state.rpcUrl,
         autoConnect: state.autoConnect,
         theme: state.theme,
+        colorTheme: state.colorTheme,
         model: state.model,
         provider: state.provider,
         headless: state.headless,

@@ -7,18 +7,21 @@ export function SidebarStatus() {
   const isConnected = useAppStore((state) => state.isConnected);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Connection status */}
       <div className="flex items-center gap-2">
         <Circle
           className={cn(
             'h-2 w-2',
             isConnected
-              ? 'fill-green-500 text-green-500 shadow-[0_0_4px_rgba(34,197,94,0.2)]'
-              : 'fill-red-500 text-red-500'
+              ? 'fill-primary text-primary'
+              : 'fill-destructive text-destructive'
           )}
         />
-        <span className={cn('text-xs font-medium', isConnected ? 'text-green-600' : 'text-red-600')}>
+        <span className={cn(
+          'text-xs font-medium',
+          isConnected ? 'text-foreground' : 'text-destructive'
+        )}>
           {isConnected ? 'Connected' : 'Disconnected'}
         </span>
       </div>
@@ -27,7 +30,7 @@ export function SidebarStatus() {
       <div className="flex items-center gap-2">
         {agentStatus.state === 'running' ? (
           <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-black" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-foreground" />
             <span className="text-xs font-medium">Running</span>
           </>
         ) : (
@@ -36,13 +39,13 @@ export function SidebarStatus() {
               className={cn(
                 'h-2 w-2',
                 agentStatus.state === 'idle'
-                  ? 'fill-green-500 text-green-500 shadow-[0_0_4px_rgba(34,197,94,0.2)]'
-                  : 'fill-red-500 text-red-500'
+                  ? 'fill-success text-success'
+                  : 'fill-destructive text-destructive'
               )}
             />
             <span className={cn(
               'text-xs font-medium capitalize',
-              agentStatus.state === 'idle' ? 'text-green-600' : 'text-red-600'
+              agentStatus.state === 'idle' ? 'text-foreground' : 'text-destructive'
             )}>
               {agentStatus.state}
             </span>

@@ -7,30 +7,27 @@ import { cn } from '@/lib/utils';
 const buttonVariants = cva(
   [
     'inline-flex items-center justify-center gap-2',
-    'whitespace-nowrap rounded-lg text-sm font-medium',
-    'transition-colors duration-200',
+    'whitespace-nowrap rounded text-xs font-medium',
+    'transition-all duration-150',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
     'disabled:pointer-events-none disabled:opacity-50',
-    'active:scale-[0.98]',
+    'active:scale-95',
   ],
   {
     variants: {
       variant: {
-        default: ['bg-primary text-primary-foreground', 'hover:bg-primary/90'],
-        destructive: [
-          'bg-destructive text-destructive-foreground',
-          'hover:bg-destructive/90',
-        ],
-        outline: ['border border-input bg-background', 'hover:bg-accent'],
-        secondary: ['bg-secondary text-secondary-foreground', 'hover:bg-secondary/80'],
-        ghost: ['hover:bg-accent'],
+        default: ['bg-primary text-primary-foreground', 'hover:bg-primary/90 hover:shadow-sm'],
+        destructive: ['bg-destructive text-destructive-foreground', 'hover:bg-destructive/90 hover:shadow-sm'],
+        outline: ['border border-input bg-background', 'hover:bg-accent hover:text-accent-foreground hover:shadow-sm'],
+        secondary: ['bg-secondary text-secondary-foreground', 'hover:bg-secondary/80 hover:shadow-sm'],
+        ghost: ['hover:bg-accent hover:text-accent-foreground'],
         link: ['text-primary underline-offset-4', 'hover:underline'],
       },
       size: {
         sm: 'h-8 px-3 text-xs',
-        md: 'h-9 px-4',
-        lg: 'h-10 px-6',
-        icon: 'h-9 w-9',
+        md: 'h-9 px-4 text-xs',
+        lg: 'h-10 px-5 text-xs',
+        icon: 'h-8 w-8',
       },
     },
     defaultVariants: {
@@ -60,4 +57,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = 'Button';
 
-export { Button, buttonVariants };
+export { Button, buttonVariants, type ButtonProps };

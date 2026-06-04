@@ -28,7 +28,7 @@ describe('Button Component', () => {
       </Button>
     );
     const button = screen.getByRole('button');
-    expect(button).toHaveClass('w-9');
+    expect(button).toHaveClass('w-8');
     expect(screen.getByTestId('icon')).toBeInTheDocument();
   });
 

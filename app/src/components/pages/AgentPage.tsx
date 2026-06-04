@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { Send, Plus, Bot } from 'lucide-react';
+import { Send, Plus, Moon, Sun } from 'lucide-react';
+import { useAppStore } from '@/stores/useAppStore';
 import { useChatStore } from '@/stores/useChatStore';
 import { getChatService } from '@/services/chatService';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -7,6 +8,7 @@ import { Button } from '@/components/shared/Button';
 import { Textarea } from '@/components/shared/Textarea';
 import { ScrollArea } from '@/components/shared/ScrollArea';
 import { MessageBubble } from '@/components/agent/MessageBubble';
+import { cn } from '@/lib/utils';
 
 export function AgentPage() {
   const conversations = useChatStore((state) => state.conversations);
@@ -17,6 +19,8 @@ export function AgentPage() {
   const addMessage = useChatStore((state) => state.addMessage);
   const setMessageStatus = useChatStore((state) => state.setMessageStatus);
   const appendToMessage = useChatStore((state) => state.appendToMessage);
+  const theme = useAppStore((state) => state.theme);
+  const toggleTheme = useAppStore((state) => state.toggleTheme);
 
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -104,73 +108,72 @@ export function AgentPage() {
     selectConversation(conversation.id);
   };
 
+  const hasMessages = activeConversation?.messages && activeConversation.messages.length > 0;
+
   return (
     <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <PageHeader
-        icon={Bot}
-        title="Agent"
-        subtitle="AI-powered conversation"
-        iconVariant="primary"
-        actions={
-          <Button variant="outline" size="sm" onClick={handleNewChat}>
-            <Plus className="w-4 h-4 mr-2" />
-            New Chat
+      <div className="h-10 border-b border-border flex items-center justify-between px-3">
+        <h1 className="text-xs font-medium">Chat</h1>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={toggleTheme} className="h-6 w-6 shrink-0 p-0">
+            {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
           </Button>
-        }
-      />
+          <Button variant="ghost" size="sm" onClick={handleNewChat} className="h-6 px-2 text-xs">
+            <Plus className="w-3 h-3" />
+            <span className="ml-1">New</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Messages */}
       <ScrollArea className="flex-1">
-        <div ref={scrollRef} className="max-w-3xl mx-auto py-6 px-6 space-y-6">
-          {activeConversation?.messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
+        <div ref={scrollRef} className={cn(
+          "mx-auto transition-all duration-200",
+          hasMessages ? "max-w-3xl py-2 px-3 space-y-2" : "max-w-2xl py-12 px-3"
+        )}>
+          {hasMessages ? (
+            activeConversation?.messages.map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center space-y-3 py-12">
+              <h2 className="text-sm font-medium">New conversation</h2>
+              <p className="text-xs text-muted-foreground max-w-sm">
+                Type a message below to get started.
+              </p>
+            </div>
+          )}
           {isStreaming && (
-            <div className="flex items-center gap-3 text-muted-foreground text-sm">
-              <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 bg-foreground/60 rounded-full animate-pulse" />
-                <span className="w-1.5 h-1.5 bg-foreground/60 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                <span className="w-1.5 h-1.5 bg-foreground/60 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
-              </div>
-              <span>OpenSkynet is thinking...</span>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs">
+              <span>Thinking…</span>
             </div>
           )}
         </div>
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t border-border bg-background p-6">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-3">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Message OpenSkynet... (Press Enter to send, Shift+Enter for new line)"
-              disabled={isStreaming}
-              autoResize
-              className="min-h-[56px]"
-            />
-            <Button
-              onClick={handleSend}
-              disabled={!input.trim() || isStreaming}
-              size="lg"
-            >
-              {isStreaming ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-transparent rounded-full animate-spin" />
-                  <span>Sending</span>
-                </div>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span className="hidden sm:inline">Send</span>
-                </>
-              )}
-            </Button>
-          </div>
+      <div className="border-t border-border p-2">
+        <div className="max-w-3xl mx-auto flex gap-2">
+          <Textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message..."
+            disabled={isStreaming}
+            autoResize
+            className="min-h-[32px] max-h-[160px] resize-none"
+            style={{ fieldSizing: 'content' }}
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!input.trim() || isStreaming}
+            size="md"
+            className="h-8 px-3 shrink-0"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </Button>
         </div>
       </div>
     </div>

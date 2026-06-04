@@ -43,31 +43,31 @@ export function SidebarAgent() {
     <div className="space-y-2">
       {/* Header with New Chat button */}
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Conversations
         </span>
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7"
+          className="h-6 w-6 shrink-0"
           onClick={handleNewChat}
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-3 w-3" />
         </Button>
       </div>
 
       {/* Conversation list */}
-      <ScrollArea className="h-48">
+      <ScrollArea className="h-44">
         <nav className="space-y-0.5">
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
               className={cn(
-                'group flex items-center gap-2 px-2 py-1.5 rounded-md text-sm',
+                'group flex items-center gap-2 px-2 py-1.5 rounded text-sm',
                 'transition-all duration-150',
                 activeConversationId === conversation.id
-                  ? 'bg-secondary text-foreground'
-                  : 'hover:bg-secondary hover:text-foreground text-muted-foreground'
+                  ? 'bg-accent text-accent-foreground'
+                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
               )}
             >
               <button

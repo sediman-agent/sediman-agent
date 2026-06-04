@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Settings as SettingsIcon, Server, Cpu, Globe, Info } from 'lucide-react';
+import { Settings as SettingsIcon, Server, Cpu, Globe, Info, Palette } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/shared/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shared/Card';
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { ScrollArea } from '@/components/shared/ScrollArea';
+import { ThemePicker } from '@/components/shared/ThemePicker';
 import { useAppStore } from '@/stores/useAppStore';
 
 export function SettingsPage() {
@@ -17,6 +18,10 @@ export function SettingsPage() {
   const headless = useAppStore((state) => state.headless);
   const stealth = useAppStore((state) => state.stealth);
   const setSettings = useAppStore((state) => state.setSettings);
+  const theme = useAppStore((state) => state.theme);
+  const colorTheme = useAppStore((state) => state.colorTheme);
+  const setColorTheme = useAppStore((state) => state.setColorTheme);
+  const toggleTheme = useAppStore((state) => state.toggleTheme);
 
   const [localSettings, setLocalSettings] = useState({
     rpcUrl,
@@ -64,95 +69,102 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-muted/40">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header */}
-      <PageHeader
-        icon={SettingsIcon}
-        title="Settings"
-        subtitle="Configure OpenSkynet"
-        actions={
-          <>
-            <Button variant="outline" onClick={handleReset}>
-              Reset
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!hasChanges}
-            >
-              Save Changes
-            </Button>
-          </>
-        }
-      />
+      <div className="h-10 border-b border-border flex items-center justify-between px-3 bg-background">
+        <h1 className="text-xs font-medium">Settings</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            className="h-7 px-2 text-xs"
+          >
+            Reset
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges}
+            size="sm"
+            className="h-7 px-3 text-xs"
+          >
+            Save
+          </Button>
+        </div>
+      </div>
 
       {/* Content */}
       <ScrollArea className="flex-1">
-        <div className="max-w-2xl mx-auto py-6 px-6 space-y-6">
-          {/* RPC Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Server className="w-5 h-5 text-primary" />
+        <div className="max-w-xl mx-auto py-4 px-3 space-y-4">
+          {/* Appearance */}
+          <div className="space-y-3">
+            <h2 className="text-xs font-medium text-foreground px-1">Appearance</h2>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+                <div className="flex-1">
+                  <label className="text-xs font-medium">Color Theme</label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Choose your accent color</p>
                 </div>
-                <div>
-                  <CardTitle>RPC Connection</CardTitle>
-                  <CardDescription>
-                    Configure connection to the OpenSkynet RPC server
-                  </CardDescription>
-                </div>
+                <ThemePicker
+                  currentTheme={colorTheme}
+                  onThemeChange={setColorTheme}
+                />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="rpc-url">
-                  RPC URL
-                </label>
+
+              <div className="flex items-center justify-between py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+                <div>
+                  <label className="text-xs font-medium">Dark Mode</label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Use dark color scheme</p>
+                </div>
+                <ToggleSwitch
+                  checked={theme === 'dark'}
+                  onCheckedChange={(checked) => {
+                    if (checked !== (theme === 'dark')) {
+                      toggleTheme();
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* RPC Settings */}
+          <div className="space-y-3">
+            <h2 className="text-xs font-medium text-foreground px-1">Connection</h2>
+            <div className="space-y-2">
+              <div className="py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+                <label className="text-xs font-medium block mb-1">RPC URL</label>
                 <Input
-                  id="rpc-url"
                   value={localSettings.rpcUrl}
                   onChange={(e) => handleChange('rpcUrl', e.target.value)}
                   placeholder="ws://localhost:8765"
+                  className="text-xs"
                 />
-                <p className="text-xs text-muted-foreground">
-                  WebSocket URL for the RPC backend server
-                </p>
               </div>
 
-              <ToggleSwitch
-                checked={localSettings.autoConnect}
-                onCheckedChange={(checked) => handleChange('autoConnect', checked)}
-                label="Auto-connect on startup"
-                description="Automatically connect to RPC server when app starts"
-              />
-            </CardContent>
-          </Card>
+              <div className="flex items-center justify-between py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+                <div>
+                  <label className="text-xs font-medium">Auto-connect</label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Connect on startup</p>
+                </div>
+                <ToggleSwitch
+                  checked={localSettings.autoConnect}
+                  onCheckedChange={(checked) => handleChange('autoConnect', checked)}
+                />
+              </div>
+            </div>
+          </div>
 
           {/* LLM Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Cpu className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>LLM Configuration</CardTitle>
-                  <CardDescription>
-                    Configure the language model provider and settings
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="provider">
-                  Provider
-                </label>
+          <div className="space-y-3">
+            <h2 className="text-xs font-medium text-foreground px-1">Language Model</h2>
+            <div className="space-y-2">
+              <div className="py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+                <label className="text-xs font-medium block mb-1">Provider</label>
                 <select
-                  id="provider"
                   value={localSettings.provider}
                   onChange={(e) => handleChange('provider', e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-8 w-full rounded border border-input bg-background px-2 py-1 text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="openai">OpenAI</option>
                   <option value="ollama">Ollama</option>
@@ -160,84 +172,65 @@ export function SettingsPage() {
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="model">
-                  Model (optional)
-                </label>
+              <div className="py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+                <label className="text-xs font-medium block mb-1">Model</label>
                 <Input
-                  id="model"
                   value={localSettings.model}
                   onChange={(e) => handleChange('model', e.target.value)}
                   placeholder="gpt-4 or leave empty for default"
+                  className="text-xs"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Specific model to use (e.g., gpt-4, claude-3-opus)
-                </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Browser Settings */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Globe className="w-5 h-5 text-primary" />
-                </div>
+          <div className="space-y-3">
+            <h2 className="text-xs font-medium text-foreground px-1">Browser</h2>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between py-2 px-2 rounded hover:bg-muted/30 transition-colors">
                 <div>
-                  <CardTitle>Browser Configuration</CardTitle>
-                  <CardDescription>
-                    Configure browser automation settings
-                  </CardDescription>
+                  <label className="text-xs font-medium">Headless Mode</label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Run without visible window</p>
                 </div>
+                <ToggleSwitch
+                  checked={localSettings.headless}
+                  onCheckedChange={(checked) => handleChange('headless', checked)}
+                />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ToggleSwitch
-                checked={localSettings.headless}
-                onCheckedChange={(checked) => handleChange('headless', checked)}
-                label="Headless mode"
-                description="Run browser without visible window"
-              />
 
-              <ToggleSwitch
-                checked={localSettings.stealth}
-                onCheckedChange={(checked) => handleChange('stealth', checked)}
-                label="Stealth mode"
-                description="Use anti-detection patches for bot avoidance"
-              />
-            </CardContent>
-          </Card>
+              <div className="flex items-center justify-between py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+                <div>
+                  <label className="text-xs font-medium">Stealth Mode</label>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Anti-detection patches</p>
+                </div>
+                <ToggleSwitch
+                  checked={localSettings.stealth}
+                  onCheckedChange={(checked) => handleChange('stealth', checked)}
+                />
+              </div>
+            </div>
+          </div>
 
           {/* About */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <Info className="w-5 h-5 text-foreground" />
-                </div>
-                <CardTitle>About OpenSkynet</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex justify-between py-2 border-b border-border">
+          <div className="space-y-3">
+            <h2 className="text-xs font-medium text-foreground px-1">About</h2>
+            <div className="py-2 px-2 rounded hover:bg-muted/30 transition-colors">
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <span className="text-muted-foreground">Version:</span>
-                <span className="font-medium text-foreground">{appVersion}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border">
+                <span className="font-medium text-right">{appVersion}</span>
+
                 <span className="text-muted-foreground">Build:</span>
-                <span className="font-medium text-foreground">Tauri + React</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-border">
+                <span className="font-medium text-right">Tauri + React</span>
+
                 <span className="text-muted-foreground">Platform:</span>
-                <span className="font-medium text-foreground">{platform}</span>
-              </div>
-              <div className="flex justify-between py-2">
+                <span className="font-medium text-right">{platform}</span>
+
                 <span className="text-muted-foreground">Architecture:</span>
-                <span className="font-medium text-foreground">Universal</span>
+                <span className="font-medium text-right">Universal</span>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </ScrollArea>
     </div>

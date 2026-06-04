@@ -34,3 +34,5 @@ export type { StatusBadgeProps } from './StatusBadge';
 
 export { Skeleton, SkeletonText, SkeletonAvatar, SkeletonCard } from './Skeleton';
 export type { SkeletonProps } from './Skeleton';
+
+export { ThemePicker } from './ThemePicker';
