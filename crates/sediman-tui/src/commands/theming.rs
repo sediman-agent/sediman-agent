@@ -1,5 +1,6 @@
 use sediman_tui_core::command::{Command, CommandCategory};
 use sediman_tui_core::styling;
+use tracing::warn;
 
 use crate::app::{App, AppModal};
 
@@ -41,6 +42,6 @@ pub fn save_config_now(app: &App) {
         base_url: app.base_url.clone(),
     };
     if let Err(e) = config.save() {
-        eprintln!("Warning: {}", e);
+        warn!("{}", e);
     }
 }

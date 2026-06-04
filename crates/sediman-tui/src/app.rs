@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
+use tracing::warn;
 
 use sediman_tui_bridge::ApiClient;
 
@@ -1075,7 +1076,7 @@ pub async fn run(
         base_url: app.base_url.clone(),
     };
     if let Err(e) = config.save() {
-        eprintln!("Warning: {}", e);
+        warn!("{}", e);
     }
 
     Ok(())

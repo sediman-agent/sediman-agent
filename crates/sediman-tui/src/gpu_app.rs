@@ -1,4 +1,5 @@
 use crate::app::App;
+use tracing::error;
 
 #[cfg(feature = "gpu")]
 use std::sync::Arc;
@@ -97,7 +98,7 @@ pub async fn run_gpu(app: App) -> Result<(), Box<dyn std::error::Error>> {
 
     let font_data = load_system_font().unwrap_or_default();
     if font_data.is_empty() {
-        eprintln!("No monospace font found. Install one and try again.");
+        error!("No monospace font found. Install one and try again.");
         return Err("No font found".into());
     }
 
@@ -232,6 +233,6 @@ impl ApplicationHandler for GpuAppHandler {
 #[cfg(not(feature = "gpu"))]
 #[allow(dead_code)]
 pub async fn run_gpu(_app: App) -> Result<(), Box<dyn std::error::Error>> {
-    eprintln!("GPU feature not enabled. Build with --features gpu");
+    error!("GPU feature not enabled. Build with --features gpu");
     Ok(())
 }

@@ -7,6 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TuiConfig {
@@ -102,7 +103,7 @@ impl TuiConfig {
         match fs::read_to_string(&path) {
             Ok(content) => {
                 toml::from_str(&content).unwrap_or_else(|e| {
-                    eprintln!("Warning: failed to parse {}: {} — using defaults", path.display(), e);
+                    warn!("failed to parse {}: {} — using defaults", path.display(), e);
                     Self::default()
                 })
             }
