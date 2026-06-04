@@ -59,7 +59,7 @@ pub fn render_messages(buf: &mut CellBuffer, area: Rect, app: &mut App) {
         let spinner = app.spinner_char();
         let elapsed = app.agent_start.elapsed().as_secs();
         let elapsed_str = format_elapsed(elapsed);
-        let step_count = app.step_log.len();
+        let step_count = app.step_log.len().saturating_sub(1);
         let last_step = app.step_log.last()
             .map(|s| truncate_end(s, max_width.saturating_sub(18)))
             .unwrap_or_else(|| "Starting...".into());

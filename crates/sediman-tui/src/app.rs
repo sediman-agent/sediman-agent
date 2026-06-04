@@ -487,8 +487,17 @@ impl App {
         self.step_log.push(format!("Task: {}", task));
         self.streaming_text.clear();
         self.streaming_phase.clear();
+
+        // Collapse all previous Agent messages so old step data
+        // doesn't appear in the scroll view for the new task.
+        for msg in self.messages.iter_mut() {
+            if let ChatMessage::Agent { tab_expanded, .. } = msg {
+                *tab_expanded = false;
+            }
+        }
+
         self.messages.push(ChatMessage::Agent {
-            steps: Vec::new(),  // Always start with empty steps
+            steps: Vec::new(),
             thinking_text: String::new(),
             result: None,
             success: false,
@@ -496,8 +505,8 @@ impl App {
             skill_created: None,
             scheduled_job: None,
             timestamp: Instant::now(),
-            selected_tab: AgentTab::Steps,  // Default to Steps tab
-            tab_expanded: true,  // Start expanded
+            selected_tab: AgentTab::Steps,
+            tab_expanded: false,
         });
         self.auto_scroll = true;
     }
@@ -508,11 +517,16 @@ impl App {
             let excess = self.step_log.len() - STEP_LOG_CAP;
             self.step_log.drain(0..excess);
         }
-        if let Some(ChatMessage::Agent { steps, .. }) = self.messages.last_mut() {
+        if let Some(ChatMessage::Agent { steps, selected_tab, tab_expanded, .. }) = self.messages.last_mut() {
+            let is_first_step = steps.is_empty();
             steps.push(step);
             if steps.len() > AGENT_STEPS_CAP {
                 let excess = steps.len() - AGENT_STEPS_CAP;
                 steps.drain(0..excess);
+            }
+            if is_first_step {
+                *selected_tab = AgentTab::Steps;
+                *tab_expanded = true;
             }
         }
         self.auto_scroll = true;
