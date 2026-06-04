@@ -274,7 +274,7 @@ impl TaskStream {
                                                 if let Some(progress_data) = params.get("data").and_then(|d| d.as_str()) {
                                                     // Try to parse as JSON first for structured data
                                                     if let Ok(progress_val) = serde_json::from_str::<serde_json::Value>(progress_data) {
-                                                        let progress_type = progress_val.get("type")
+                                                        let _progress_type = progress_val.get("type")
                                                             .and_then(|t| t.as_str())
                                                             .unwrap_or("unknown");
 
@@ -305,6 +305,23 @@ impl TaskStream {
                                                         };
                                                         let _ = tx_clone.send(ws_msg);
                                                     }
+                                                } else {
+                                                    // No data field - treat as simple step notification
+                                                    let ws_msg = WsMessage {
+                                                        msg_type: "step".into(),
+                                                        data: None,
+                                                        event: Some(StepEvent {
+                                                            phase: params.get("phase").and_then(|p| p.as_str()).unwrap_or("").into(),
+                                                            action: params.get("action").and_then(|a| a.as_str()).unwrap_or("").into(),
+                                                            detail: params.get("detail").and_then(|d| d.as_str()).map(String::from),
+                                                            url: None,
+                                                            screenshot: None,
+                                                        }),
+                                                        result: None,
+                                                        error: None,
+                                                        streaming_token: None,
+                                                    };
+                                                    let _ = tx_clone.send(ws_msg);
                                                 }
                                             } else {
                                                 let ws_msg = WsMessage {

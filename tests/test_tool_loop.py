@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sediman.agent.guardrails import Budget, GLOBAL_APPROVAL
-from sediman.agent.interrupt import InterruptedError, InterruptSignal
+from sediman.agent.interrupt import AgentInterruptedError, InterruptSignal
 from sediman.agent.tool_dispatch import (
     ToolLoop,
     ToolRegistry,
@@ -410,7 +410,7 @@ class TestToolLoop:
         ])
         reg = self._make_registry_with_tool()
         loop = ToolLoop(llm, reg)
-        with pytest.raises(InterruptedError, match="user cancel"):
+        with pytest.raises(AgentInterruptedError, match="user cancel"):
             await loop.run([{"role": "user", "content": "hi"}])
         InterruptSignal.get().clear()
 
@@ -504,6 +504,6 @@ class TestToolLoop:
         reg = self._make_registry_with_tool()
         loop = ToolLoop(llm, reg)
 
-        with pytest.raises(InterruptedError, match="post-tool interrupt"):
+        with pytest.raises(AgentInterruptedError, match="post-tool interrupt"):
             await loop.run([{"role": "user", "content": "go"}])
         InterruptSignal.get().clear()

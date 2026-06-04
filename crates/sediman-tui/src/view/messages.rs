@@ -111,11 +111,13 @@ fn render_streaming_sections(lines: &mut Vec<MessageLine>, app: &mut App, max_wi
 
     if has_thinking || has_steps {
         if has_thinking {
+            // Always expand thinking section during thinking phase
+            let should_expand = app.thinking_expanded || is_thinking_phase;
             render_inline_section(
                 lines, app, max_width,
                 "\u{25c6}", "Thinking", thinking_text,
                 app.theme.warning, app.theme.text_muted,
-                app.thinking_expanded, is_thinking_phase, 10,
+                should_expand, is_thinking_phase, 50,
             );
             if has_steps {
                 lines.push(MessageLine::empty());
@@ -123,7 +125,9 @@ fn render_streaming_sections(lines: &mut Vec<MessageLine>, app: &mut App, max_wi
         }
 
         if has_steps {
-            render_inline_steps(lines, app, steps, max_width);
+            // Auto-expand steps during executing phase
+            let should_expand_steps = app.steps_expanded || app.streaming_phase == "executing";
+            render_inline_steps_expanded(lines, app, steps, max_width, should_expand_steps);
             if has_response {
                 lines.push(MessageLine::empty());
             }
@@ -201,14 +205,18 @@ fn render_inline_section(
 }
 
 fn render_inline_steps(lines: &mut Vec<MessageLine>, app: &App, steps: &[String], max_width: usize) {
+    render_inline_steps_expanded(lines, app, steps, max_width, app.steps_expanded);
+}
+
+fn render_inline_steps_expanded(lines: &mut Vec<MessageLine>, app: &App, steps: &[String], max_width: usize, expanded: bool) {
     let step_count = steps.len();
-    let expand_icon = if app.steps_expanded { "\u{25bc}" } else { "\u{25b6}" };
+    let expand_icon = if expanded { "\u{25bc}" } else { "\u{25b6}" };
     lines.push(MessageLine::text(
         format!("  \u{25b8} Steps ({}) {}", step_count, expand_icon),
         Style::new().fg(app.theme.info).add_modifier(TextAttributes::bold()),
     ));
 
-    if !app.steps_expanded {
+    if !expanded {
         if step_count > 0 {
             let last = steps.last().map(|s| truncate_end(s, max_width.saturating_sub(4))).unwrap_or_default();
             lines.push(MessageLine::text(
@@ -219,7 +227,7 @@ fn render_inline_steps(lines: &mut Vec<MessageLine>, app: &App, steps: &[String]
         return;
     }
 
-    let max_show = 5usize;
+    let max_show = 10usize; // Show more steps during streaming
     let total = steps.len();
     let show: Vec<&String> = if total > max_show {
         steps.iter().rev().take(max_show).collect::<Vec<_>>().into_iter().rev().collect()
