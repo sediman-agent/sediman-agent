@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { Settings as SettingsIcon, Server, Cpu, Globe, Info, Palette } from 'lucide-react';
-import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/shared/Input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shared/Card';
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
 import { ScrollArea } from '@/components/shared/ScrollArea';
 import { ThemePicker } from '@/components/shared/ThemePicker';
@@ -37,13 +33,18 @@ export function SettingsPage() {
   const [platform, setPlatform] = useState<string>('');
 
   useEffect(() => {
-    // Load app info from Tauri
-    invoke<string>('get_app_version')
-      .then(setAppVersion)
-      .catch(() => setAppVersion('0.3.2'));
+    // Load app info from Electron
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.getVersion()
+        .then(setAppVersion)
+        .catch(() => setAppVersion('0.3.2'));
 
-    // Detect platform
-    setPlatform(navigator.platform);
+      // Get platform from Electron
+      setPlatform(window.electronAPI.platform || navigator.platform);
+    } else {
+      setAppVersion('0.3.2');
+      setPlatform(navigator.platform);
+    }
   }, []);
 
   const handleSave = () => {
@@ -221,7 +222,7 @@ export function SettingsPage() {
                 <span className="font-medium text-right">{appVersion}</span>
 
                 <span className="text-muted-foreground">Build:</span>
-                <span className="font-medium text-right">Tauri + React</span>
+                <span className="font-medium text-right">Electron + React</span>
 
                 <span className="text-muted-foreground">Platform:</span>
                 <span className="font-medium text-right">{platform}</span>

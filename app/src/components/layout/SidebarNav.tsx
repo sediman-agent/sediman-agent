@@ -17,7 +17,7 @@ export function SidebarNav() {
   const setCurrentPage = useAppStore((state) => state.setCurrentPage);
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-0" style={{ fontFamily: 'inherit' }}>
       {navItems.map((item) => {
         const isActive = currentPage === item.id;
 
@@ -26,13 +26,17 @@ export function SidebarNav() {
             key={item.id}
             onClick={() => setCurrentPage(item.id as any)}
             className={cn(
-              'w-full flex items-center px-2 py-1 rounded',
-              'text-xs font-normal',
+              'w-full flex items-center px-3 py-2 text-xs',
               'transition-colors duration-150',
+              'border-l-2',
               isActive
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
             )}
+            style={{
+              fontFamily: 'inherit',
+              cursor: 'pointer'
+            }}
           >
             <span className="relative">{item.label}</span>
           </button>

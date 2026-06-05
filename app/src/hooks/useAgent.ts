@@ -6,15 +6,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { getRPCClient } from '@/services/rpcClient';
 import {
   createServiceContainer,
-  type AgentService,
   type StreamCallbacks,
   type AgentStatus,
-} from '@/core/services';
+} from '@/services';
 import {
   isAppError,
   getUserMessage,
-  type AppError,
-} from '@/core/errors';
+} from '@/errors';
 
 export interface UseAgentState {
   status: AgentStatus | null;
@@ -106,7 +104,7 @@ export function useAgent(): [UseAgentState, UseAgentActions] {
 
     try {
       await services.agent.stream(task, {
-        onChunk: (delta, phase) => {
+        onChunk: (delta: string, phase: string | undefined) => {
           accumulatedResult += delta;
           callbacks.onChunk(delta, phase);
         },
@@ -122,7 +120,7 @@ export function useAgent(): [UseAgentState, UseAgentActions] {
           });
           callbacks.onDone?.();
         },
-        onError: (error) => {
+        onError: (error: string) => {
           setState((prev) => ({
             ...prev,
             isStreaming: false,

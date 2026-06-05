@@ -1,4 +1,4 @@
-import type { RPCRequest, RPCResponse, StreamEvent } from '@/types/rpc';
+import type { RPCRequest, RPCResponse, StreamEvent } from '@/types/api';
 
 type StreamHandler = (event: StreamEvent) => void;
 

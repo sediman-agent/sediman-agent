@@ -45,6 +45,7 @@ interface SandboxActions {
   stopSandbox: () => void;
   setControlMode: (mode: ControlMode) => void;
   setSandboxType: (type: SandboxType) => void;
+  setIsActive: (active: boolean) => void;
 
   // Connection state
   setConnectionStatus: (status: ConnectionStatus) => void;

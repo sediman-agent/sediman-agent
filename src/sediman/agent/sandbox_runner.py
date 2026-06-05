@@ -100,59 +100,70 @@ class SandboxRunner:
         if self._available is False:
             return None
 
-        try:
-            from opensandbox.sandbox import Sandbox
+        async with self._lock:
+            if self._sandbox is not None:
+                return self._sandbox
+            if self._available is False:
+                return None
 
-            resource = {"cpu": OPENSANDBOX_CPU, "memory": OPENSANDBOX_MEMORY}
-            sb = await Sandbox.create(
-                OPENSANDBOX_IMAGE,
-                connection_config=self._config,
-                timeout=timedelta(seconds=OPENSANDBOX_TIMEOUT_SECS),
-                resource=resource,
-                env={"DEBIAN_FRONTEND": "noninteractive"},
-            )
-            self._sandbox = sb
-            self._sandbox_id = sb.id
-            self._available = True
-            logger.info(
-                "opensandbox_created",
-                sandbox_id=sb.id,
-                image=OPENSANDBOX_IMAGE,
-            )
-            return sb
-        except ConnectionRefusedError as e:
-            self._available = False
-            logger.warning(
-                "opensandbox_connection_refused",
-                error=str(e),
-                message="OpenSandbox server not running. Falling back to raw subprocess.",
-            )
-            return None
-        except TimeoutError as e:
-            self._available = False
-            logger.warning(
-                "opensandbox_creation_timeout",
-                error=str(e),
-                message="Sandbox creation timed out. Falling back to raw subprocess.",
-            )
-            return None
-        except ImportError as e:
-            self._available = False
-            logger.warning(
-                "opensandbox_import_failed",
-                error=str(e),
-                message="OpenSandbox SDK not installed. Falling back to raw subprocess.",
-            )
-            return None
-        except Exception as e:
-            self._available = False
-            logger.warning(
-                "opensandbox_unavailable",
-                error=str(e),
-                error_type=type(e).__name__,
-                message="Falling back to raw subprocess. Install Docker and start opensandbox-server.",
-            )
-            return None
+            try:
+                from opensandbox.sandbox import Sandbox
+
+                resource = {"cpu": OPENSANDBOX_CPU, "memory": OPENSANDBOX_MEMORY}
+                sb = await Sandbox.create(
+                    OPENSANDBOX_IMAGE,
+                    connection_config=self._config,
+                    timeout=timedelta(seconds=OPENSANDBOX_TIMEOUT_SECS),
+                    resource=resource,
+                    env={"DEBIAN_FRONTEND": "noninteractive"},
+                )
+                self._sandbox = sb
+                self._sandbox_id = sb.id
+                self._available = True
+                logger.info(
+                    "opensandbox_created",
+                    sandbox_id=sb.id,
+                    image=OPENSANDBOX_IMAGE,
+                )
+                return sb
+            except ConnectionRefusedError as e:
+                self._available = False
+                logger.warning(
+                    "opensandbox_connection_refused",
+                    error=str(e),
+                    message="OpenSandbox server not running. Falling back to raw subprocess.",
+                )
+                return None
+            except TimeoutError as e:
+                self._available = False
+                logger.warning(
+                    "opensandbox_creation_timeout",
+                    error=str(e),
+                    message="Sandbox creation timed out. Falling back to raw subprocess.",
+                )
+                return None
+            except ImportError as e:
+                self._available = False
+                logger.warning(
+                    "opensandbox_import_failed",
+                    error=str(e),
+                    message="OpenSandbox SDK not installed. Falling back to raw subprocess.",
+                )
+                return None
+            except Exception as e:
+                self._available = False
+                logger.warning(
+                    "opensandbox_unavailable",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    message="Falling back to raw subprocess. Install Docker and start opensandbox-server.",
+                )
+                return None
+
+    def _build_net_prefix(self, allow_net: bool) -> str:
+        if allow_net:
+            return ""
+        return "unshare --net --map-root-user 2>/dev/null; "
 
     async def run(
         self,
@@ -170,6 +181,8 @@ class SandboxRunner:
         full_cmd = command
         if cwd:
             full_cmd = f"cd {cwd} 2>/dev/null; {command}"
+        if not allow_net:
+            full_cmd = self._build_net_prefix(allow_net) + full_cmd
 
         try:
             execution = await asyncio.wait_for(
@@ -207,8 +220,7 @@ class SandboxRunner:
             )
         except ConnectionRefusedError as e:
             logger.warning("opensandbox_connection_lost", command=command[:80], error=str(e))
-            self._sandbox = None
-            self._available = None
+            self._reset_sandbox()
             return SandboxResult(
                 success=False,
                 output=f"Sandbox connection lost: {e}. Retrying may work if connection is reestablished.",
@@ -220,8 +232,7 @@ class SandboxRunner:
             )
         except OSError as e:
             logger.warning("opensandbox_resource_error", command=command[:80], error=str(e))
-            self._sandbox = None
-            self._available = None
+            self._reset_sandbox()
             return SandboxResult(
                 success=False,
                 output=f"Sandbox resource error: {e}. This may indicate insufficient resources or permissions.",
@@ -239,10 +250,14 @@ class SandboxRunner:
                 error=str(e),
                 error_type=error_type_str,
             )
-            self._sandbox = None
-            self._available = None
 
-            # Classify error type for better handling
+            transient = (
+                "timeout" in str(e).lower()
+                or "connection" in str(e).lower()
+            )
+            if transient:
+                self._reset_sandbox()
+
             error_type = SandboxErrorType.UNKNOWN
             if "timeout" in str(e).lower():
                 error_type = SandboxErrorType.TIMEOUT
@@ -253,13 +268,18 @@ class SandboxRunner:
 
             return SandboxResult(
                 success=False,
-                output=f"Sandbox execution failed: {e}. The sandbox state has been reset, retry may work.",
+                output=f"Sandbox execution failed: {e}. {'The sandbox state has been reset, ' if transient else ''}retry may work.",
                 exit_code=1,
                 sandboxed=True,
                 error_type=error_type,
                 error_message=str(e),
                 retryable=True,
             )
+
+    def _reset_sandbox(self) -> None:
+        self._sandbox = None
+        self._sandbox_id = None
+        self._available = None
 
     async def _run_fallback(
         self,
@@ -316,7 +336,6 @@ class SandboxRunner:
                 error_type=error_type_str,
             )
 
-            # Classify the error for better handling
             error_type = SandboxErrorType.RESOURCE_ERROR
             error_message = str(e)
             retryable = False
@@ -401,9 +420,7 @@ class SandboxRunner:
                     await self._sandbox.close()
                 except Exception as e:
                     logger.debug("opensandbox_close_error", error=str(e))
-                finally:
-                    self._sandbox = None
-                    self._sandbox_id = None
+                self._sandbox = None
                 self._sandbox_id = None
 
     @property

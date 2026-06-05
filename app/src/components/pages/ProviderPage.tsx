@@ -1,4 +1,4 @@
-import { Server, Settings } from 'lucide-react';
+import { Server } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 
 export function ProviderPage() {
@@ -8,7 +8,6 @@ export function ProviderPage() {
         icon={Server}
         title="Provider"
         subtitle="Configure LLM provider"
-        iconVariant="primary"
       />
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">

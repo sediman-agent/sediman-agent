@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Send, Plus, Moon, Sun, Monitor } from 'lucide-react';
-import { useAppStore } from '@/stores/useAppStore';
+import { Monitor } from 'lucide-react';
 import { useChatStore } from '@/stores/useChatStore';
 import { useSandboxStore } from '@/stores/useSandboxStore';
 import { getChatService } from '@/services/chatService';
@@ -19,11 +18,6 @@ export function AgentPage() {
   const addMessage = useChatStore((state) => state.addMessage);
   const setMessageStatus = useChatStore((state) => state.setMessageStatus);
   const appendToMessage = useChatStore((state) => state.appendToMessage);
-  const theme = useAppStore((state) => state.theme);
-  const toggleTheme = useAppStore((state) => state.toggleTheme);
-
-  // Sandbox store
-  const sandboxOpen = useSandboxStore((state) => state.isOpen);
   const toggleSandbox = useSandboxStore((state) => state.togglePanel);
 
   const [input, setInput] = useState('');
@@ -80,7 +74,6 @@ export function AgentPage() {
         userMessage,
         {
           onChunk: (delta, phase = 'responding') => {
-            // Update streaming phase based on phase from backend
             if (phase === 'planning') {
               setStreamingPhase('planning');
             } else if (phase === 'executing') {
@@ -91,14 +84,11 @@ export function AgentPage() {
               setStreamingPhase('reflecting');
             }
 
-            // For planning/reflection, append to a separate field or show differently
             if (phase === 'planning' || phase === 'thinking' || phase === 'reflecting') {
-              // Show planning/thinking in a subtle way
               if (lastMessage) {
                 appendToMessage(activeConversationId, lastMessage.id, delta);
               }
             } else if (phase === 'progress') {
-              // Handle progress events (retry countdown, etc.)
               try {
                 const progress = JSON.parse(delta);
                 if (progress.retry) {
@@ -110,23 +100,21 @@ export function AgentPage() {
                   });
                 }
               } catch {
-                // Not JSON, treat as normal text
                 if (lastMessage) {
                   appendToMessage(activeConversationId, lastMessage.id, delta);
                 }
               }
             } else {
-              // Normal execution response
               if (lastMessage) {
                 appendToMessage(activeConversationId, lastMessage.id, delta);
               }
             }
           },
           onProgress: (progress) => {
-            // Handle structured progress events
             if (progress.phase === 'retrying') {
               setStreamingPhase('retrying');
-              const match = progress.detail.match(/attempt (\d+)\/(\d+)/);
+              const detail = progress.detail || '';
+              const match = detail.match(/attempt (\d+)\/(\d+)/);
               if (match) {
                 setRetryProgress({
                   attempt: parseInt(match[1]),
@@ -166,124 +154,135 @@ export function AgentPage() {
     }
   };
 
-  const handleNewChat = () => {
-    const conversation = createConversation('New Chat');
-    selectConversation(conversation.id);
-  };
-
   const hasMessages = activeConversation?.messages && activeConversation.messages.length > 0;
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
-      <div className="h-10 border-b border-border flex items-center justify-between px-3">
-        <h1 className="text-xs font-medium">Chat</h1>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSandbox}
-            className={cn(
-              "h-6 w-6 shrink-0 p-0",
-              sandboxOpen && "bg-accent"
-            )}
-          >
-            <Monitor className="w-3 h-3" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={toggleTheme} className="h-6 w-6 shrink-0 p-0">
-            {theme === 'dark' ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleNewChat} className="h-6 px-2 text-xs">
-            <Plus className="w-3 h-3" />
-            <span className="ml-1">New</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Messages */}
+    <div className="flex flex-col h-screen" style={{ background: 'hsl(var(--background))', fontFamily: 'inherit' }}>
+      {/* Messages area */}
       <ScrollArea className="flex-1">
         <div ref={scrollRef} className={cn(
-          "mx-auto transition-all duration-200",
-          hasMessages ? "max-w-3xl py-2 px-3 space-y-2" : "max-w-2xl py-12 px-3"
-        )}>
+          "mx-auto transition-all duration-200 w-full px-4",
+          hasMessages ? "max-w-4xl py-4 space-y-3" : "max-w-2xl py-16"
+        )} style={{ fontFamily: 'inherit', minHeight: 'calc(100vh - 180px)' }}>
           {hasMessages ? (
             activeConversation?.messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))
           ) : (
-            <div className="flex flex-col items-center justify-center text-center space-y-3 py-12">
-              <h2 className="text-sm font-medium">New conversation</h2>
-              <p className="text-xs text-muted-foreground max-w-sm">
+            <div className="flex flex-col items-center justify-center text-center space-y-4 py-16">
+              <h2 className="text-sm font-medium" style={{ color: 'hsl(var(--foreground))', fontFamily: 'inherit' }}>
+                New conversation
+              </h2>
+              <p className="text-xs" style={{ color: 'hsl(var(--muted-foreground))', fontFamily: 'inherit' }}>
                 Type a message below to get started.
               </p>
-            </div>
-          )}
-          {isStreaming && (
-            <div className="flex flex-col gap-1 text-muted-foreground text-xs">
-              <div className="flex items-center gap-2">
-                {streamingPhase === 'thinking' && (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-                    <span>Thinking…</span>
-                  </>
-                )}
-                {streamingPhase === 'planning' && (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-                    <span>Planning…</span>
-                  </>
-                )}
-                {streamingPhase === 'executing' && (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                    <span>Executing…</span>
-                  </>
-                )}
-                {streamingPhase === 'reflecting' && (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
-                    <span>Reflecting…</span>
-                  </>
-                )}
-                {streamingPhase === 'retrying' && retryProgress && (
-                  <>
-                    <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-                    <span>Retrying ({retryProgress.attempt}/{retryProgress.max})…</span>
-                  </>
-                )}
-              </div>
-              {retryProgress && retryProgress.countdown > 0 && (
-                <div className="text-[10px] text-muted-foreground pl-4">
-                  Retrying in {retryProgress.countdown.toFixed(1)}s…
-                </div>
-              )}
             </div>
           )}
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="border-t border-border p-2 min-h-[38px]">
-        <div className="max-w-3xl mx-auto flex gap-2">
+      {/* Streaming status indicator */}
+      {isStreaming && (
+        <div className="px-4 pb-2">
+          <div className="flex flex-col gap-1 text-xs" style={{ color: 'hsl(var(--muted-foreground))', fontFamily: 'inherit' }}>
+            <div className="flex items-center gap-2">
+              {streamingPhase === 'thinking' && (
+                <>
+                  <span className="w-1.5 h-1.5 bg-foreground rounded-full animate-pulse" />
+                  <span>Thinking…</span>
+                </>
+              )}
+              {streamingPhase === 'planning' && (
+                <>
+                  <span className="w-1.5 h-1.5 bg-foreground rounded-full animate-pulse" />
+                  <span>Planning…</span>
+                </>
+              )}
+              {streamingPhase === 'executing' && (
+                <>
+                  <span className="w-1.5 h-1.5 bg-foreground rounded-full animate-pulse" />
+                  <span>Executing…</span>
+                </>
+              )}
+              {streamingPhase === 'reflecting' && (
+                <>
+                  <span className="w-1.5 h-1.5 bg-foreground rounded-full animate-pulse" />
+                  <span>Reflecting…</span>
+                </>
+              )}
+              {streamingPhase === 'retrying' && retryProgress && (
+                <>
+                  <span className="w-1.5 h-1.5 bg-foreground rounded-full animate-pulse" />
+                  <span>Retrying ({retryProgress.attempt}/{retryProgress.max})…</span>
+                </>
+              )}
+            </div>
+            {retryProgress && retryProgress.countdown > 0 && (
+              <div className="text-[10px] pl-4" style={{ color: 'hsl(var(--muted-foreground))' }}>
+                Retrying in {retryProgress.countdown.toFixed(1)}s…
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Input area */}
+      <div
+        className="p-4 border-t"
+        style={{ borderTop: '1px solid hsl(var(--border))', fontFamily: 'inherit', background: 'hsl(var(--background))' }}
+      >
+        <div className="max-w-4xl mx-auto">
           <Textarea
             ref={textareaRef}
+            placeholder="Type a message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            disabled={isStreaming}
-            autoResize
-            className="min-h-[32px] max-h-[160px] resize-none"
-            style={{ fieldSizing: 'content' }}
+            style={{
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '2px',
+              fontFamily: 'inherit',
+              fontSize: '13px',
+              background: 'hsl(var(--background))',
+              color: 'hsl(var(--foreground))',
+              minHeight: '60px',
+              resize: 'none',
+              width: '100%',
+              padding: '12px'
+            }}
           />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isStreaming}
-            size="md"
-            className="h-8 px-3 shrink-0"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </Button>
+          <div className="flex justify-between items-center mt-2">
+            <div className="text-xs" style={{ color: 'hsl(var(--muted-foreground))', fontFamily: 'inherit' }}>
+              Press Enter to send
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSandbox}
+                title="Toggle browser"
+                style={{ background: 'transparent', border: '1px solid hsl(var(--border))', fontFamily: 'inherit', fontSize: '12px' }}
+              >
+                <Monitor className="w-3 h-3" />
+                Browser
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSend}
+                disabled={!input.trim() || isStreaming}
+                style={{
+                  background: !input.trim() || isStreaming ? 'hsl(var(--muted))' : 'hsl(var(--primary))',
+                  color: !input.trim() || isStreaming ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary-foreground))',
+                  border: '1px solid hsl(var(--border))',
+                  fontFamily: 'inherit',
+                  fontSize: '12px',
+                  padding: '8px 16px'
+                }}
+              >
+                {isStreaming ? 'Sending...' : 'Send'}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

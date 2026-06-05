@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_layout_manager() {
-        let manager = sediman_tui_core::layout::LayoutManager::new();
+        let mut manager = sediman_tui_core::layout::LayoutManager::new();
         let area = sediman_tui_core::renderer::Rect::new(0, 0, 80, 24);
         let zones = manager.split(area);
         // Verify layout split produces valid zones

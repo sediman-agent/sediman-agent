@@ -1,0 +1,242 @@
+/**
+ * OpenCode Design System
+ * Professional terminal-inspired design language
+ * Based on OpenCode's design principles
+ */
+
+/* ===== OPENCODE COLOR SYSTEM ===== */
+:root {
+  /* OpenCode Canvas & Ink */
+  --oc-canvas: #FAF9F6;      /* Cream canvas background */
+  --oc-ink: #1A1A1A;         /* Near-black text */
+  --oc-border: #E8E6E1;      /* Hairline borders */
+
+  /* 5-tier Neutral Gray Ladder */
+  --oc-gray-1: #FAF9F6;       /* Lightest (canvas) */
+  --oc-gray-2: #E8E6E1;       /* Light border */
+  --oc-gray-3: #D1CFCA;       /* Medium border */
+  --oc-gray-4: #8B8680;       /* Muted text */
+  --oc-gray-5: #4A4540;       /* Dark text */
+
+  /* Semantic colors - minimal usage */
+  --oc-accent-blue: #2B5AF0;  /* Subtle blue accent */
+  --oc-accent-green: #1A8F1A; /* Subtle green accent */
+  --oc-accent-red: #D02020;   /* Minimal red accent */
+
+  /* Spacing system */
+  --oc-space-1: 4px;          /* 0.5 unit */
+  --oc-space-2: 8px;          /* 1 unit */
+  --oc-space-3: 12px;         /* 1.5 units */
+  --oc-space-4: 16px;         /* 2 units */
+  --oc-space-5: 20px;         /* 2.5 units */
+  --oc-space-6: 24px;         /* 3 units */
+  --oc-space-8: 32px;         /* 4 units */
+}
+
+/* Dark mode overrides */
+.dark {
+  --oc-canvas: #0D1117;      /* GitHub dark - much darker */
+  --oc-ink: #C9D1D9;         /* GitHub light text - very bright */
+  --oc-border: #303030;      /* Visible borders */
+
+  /* 5-tier Neutral Gray Ladder - Dark */
+  --oc-gray-1: #0D1117;       /* Darkest (dark canvas) */
+  --oc-gray-2: #303030;       /* Dark border */
+  --oc-gray-3: #404040;       /* Medium border */
+  --oc-gray-4: #8B949E;       /* Muted text */
+  --oc-gray-5: #C9D1D9;       /* Light text */
+}
+
+/* ===== OPENCODE TYPOGRAPHY ===== */
+* {
+  font-family: 'Berkeley Mono', 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace !important;
+  font-size: 13px;             /* Base monospace size */
+  line-height: 1.5;
+  letter-spacing: 0.01em;     /* Slight letter spacing for readability */
+}
+
+body {
+  background-color: var(--oc-canvas);
+  color: var(--oc-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode - use CSS variables, not hardcoded colors */
+.dark body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.dark button,
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.dark a {
+  color: hsl(var(--primary));
+}
+
+/* Light mode - use CSS variables */
+body:not(.dark) {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+body:not(.dark) button,
+body:not(.dark) input,
+body:not(.dark) textarea,
+body:not(.dark) select {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+body:not(.dark) a {
+  color: hsl(var(--primary));
+}
+
+/* Typography Scale */
+.oc-text-xs { font-size: 11px; }
+.oc-text-sm { font-size: 12px; }
+.oc-text-base { font-size: 13px; }
+.oc-text-lg { font-size: 14px; }
+.oc-text-xl { font-size: 16px; }
+.oc-text-2xl { font-size: 18px; }
+
+/* ===== OPENCODE LAYOUT ===== */
+.oc-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--oc-space-4);
+}
+
+.oc-section {
+  border: 1px solid var(--oc-border);
+  background: var(--oc-canvas);
+  padding: var(--oc-space-4);
+  margin-bottom: var(--oc-space-4);
+}
+
+.oc-header {
+  border-bottom: 1px solid var(--oc-border);
+  padding: var(--oc-space-3) 0;
+  margin-bottom: var(--oc-space-4);
+}
+
+.oc-text-block {
+  border: 1px solid var(--oc-border);
+  padding: var(--oc-space-3);
+  margin-bottom: var(--oc-space-3);
+  background: var(--oc-canvas);
+}
+
+/* ===== OPENCODE COMPONENTS ===== */
+
+/* Buttons - minimal borders only */
+.oc-button {
+  font-family: inherit;
+  font-size: 13px;
+  padding: var(--oc-space-2) var(--oc-space-3);
+  border: 1px solid var(--oc-border);
+  background: var(--oc-canvas);
+  color: var(--oc-ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.oc-button:hover {
+  border-color: var(--oc-gray-3);
+  background: var(--oc-gray-1);
+}
+
+.oc-button:focus {
+  outline: none;
+  border-color: var(--oc-ink);
+}
+
+.oc-button-primary {
+  border-color: var(--oc-accent-blue);
+  color: var(--oc-accent-blue);
+}
+
+.oc-button-primary:hover {
+  background: rgba(43, 90, 240, 0.1);
+}
+
+/* Inputs - hairline borders */
+.oc-input {
+  font-family: inherit;
+  font-size: 13px;
+  padding: var(--oc-space-2);
+  border: 1px solid var(--oc-border);
+  background: var(--oc-canvas);
+  color: var(--oc-ink);
+  width: 100%;
+  transition: border-color 0.15s ease;
+}
+
+.oc-input:focus {
+  outline: none;
+  border-color: var(--oc-ink);
+}
+
+/* Text blocks with minimal styling */
+.oc-card {
+  border: 1px solid var(--oc-border);
+  padding: var(--oc-space-4);
+  background: var(--oc-canvas);
+}
+
+.oc-card-header {
+  border-bottom: 1px solid var(--oc-border);
+  padding-bottom: var(--oc-space-2);
+  margin-bottom: var(--oc-space-3);
+}
+
+/* Hairline dividers */
+.oc-divider {
+  height: 1px;
+  background: var(--oc-border);
+  margin: var(--oc-space-4) 0;
+  border: none;
+}
+
+/* Navigation */
+.oc-nav {
+  border-right: 1px solid var(--oc-border);
+  padding: var(--oc-space-3);
+}
+
+.oc-nav-item {
+  font-size: 13px;
+  padding: var(--oc-space-2) var(--oc-space-3);
+  border-left: 2px solid transparent;
+  margin-left: var(--oc-space-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.oc-nav-item:hover {
+  border-left-color: var(--oc-gray-3);
+}
+
+.oc-nav-item.active {
+  border-left-color: var(--oc-ink);
+  color: var(--oc-ink);
+}
+
+/* ===== OPENCODE UTILITIES ===== */
+.oc-mono { font-family: inherit; }
+.oc-no-decoration { text-decoration: none; color: inherit; }
+.oc-hairline { border: 1px solid var(--oc-border); }
+.oc-minimal { box-shadow: none !important; }
+
+/* Remove all non-OpenCode styling */
+.shadow-sm, .shadow-md, .shadow-lg, .shadow-xl { box-shadow: none !important; }
+.rounded-lg, .rounded-xl, .rounded-2xl { border-radius: 2px !important; }
+.hover\:shadow-md:hover { box-shadow: none !important; }

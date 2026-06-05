@@ -19,14 +19,13 @@ export function ControlBar({
   isStarting,
   isStopping,
   isActive,
-  onSandboxTypeChange,
   onControlModeChange,
   onStart,
   onStop,
 }: ControlBarProps) {
   return (
-    <div className="h-10 flex items-center justify-between px-3 border-b border-border bg-muted/30">
-      <SandboxTypeSelector />
+    <div className="h-11 flex items-center justify-between px-4 border-b border-border bg-background transition-colors duration-200">
+      <SandboxTypeSelector currentType={sandboxType} onChange={() => {}} />
       <div className="flex items-center gap-2">
         {isActive && (
           <ControlModeToggle
@@ -51,35 +50,13 @@ interface SandboxTypeSelectorProps {
   onChange: (type: SandboxType) => void;
 }
 
-function SandboxTypeSelector({ currentType, onChange }: SandboxTypeSelectorProps) {
+function SandboxTypeSelector({ currentType: _unusedType }: SandboxTypeSelectorProps) {
   return (
     <div className="flex items-center gap-1 p-1 rounded-md bg-background border border-border">
       <div className="px-2 py-1 text-xs font-medium text-foreground">
         Browser
       </div>
     </div>
-  );
-}
-
-interface TypeButtonProps {
-  type: SandboxType;
-  currentType: SandboxType;
-  onChange: (type: SandboxType) => void;
-  icon: React.ReactNode;
-  label: string;
-}
-
-function TypeButton({ type, currentType, onChange, icon, label }: TypeButtonProps) {
-  return (
-    <Button
-      size="sm"
-      variant={currentType === type ? 'secondary' : 'ghost'}
-      onClick={() => onChange(type)}
-      className="h-7 px-2 text-xs"
-    >
-      {icon}
-      {label}
-    </Button>
   );
 }
 
@@ -118,12 +95,14 @@ interface ModeButtonProps {
 }
 
 function ModeButton({ mode, currentMode, onChange, icon, label }: ModeButtonProps) {
+  const isActive = currentMode === mode;
   return (
     <Button
       size="sm"
-      variant={currentMode === mode ? 'secondary' : 'ghost'}
+      variant={isActive ? 'secondary' : 'ghost'}
       onClick={() => onChange(mode)}
-      className="h-7 px-2 text-xs"
+      className="h-7 px-2 text-xs font-medium transition-all duration-200"
+      style={isActive ? {} : undefined}
     >
       {icon}
       {label}
@@ -157,7 +136,11 @@ function StartStopButton({
       variant={variant}
       onClick={onClick}
       disabled={disabled}
-      className="h-7 px-3 text-xs"
+      className={`
+        h-7 px-3 text-xs font-medium
+        transition-all duration-200
+        ${!disabled ? 'hover-lift' : 'cursor-not-allowed opacity-50'}
+      `}
     >
       {icon}
       {label}

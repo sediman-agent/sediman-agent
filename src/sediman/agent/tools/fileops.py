@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import difflib
 import time
 from pathlib import Path
@@ -329,8 +330,6 @@ async def _handle_search_files(
     if not query:
         return ToolResult(success=False, output="query is required.")
     try:
-        import subprocess
-
         base = Path(path or ".").expanduser().resolve()
         if not base.exists():
             return ToolResult(success=False, output=f"Directory not found: {base}")
@@ -339,18 +338,29 @@ async def _handle_search_files(
             cmd.extend(["--glob", file_pattern])
         cmd.append(query)
         cmd.append(str(base))
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            return ToolResult(success=False, output="Search timed out after 15 seconds.")
         if proc.returncode == 2:
             return ToolResult(
-                success=False, output=f"Search error: {proc.stderr[:500]}"
+                success=False, output=f"Search error: {stderr.decode(errors='replace')[:500]}"
             )
-        if proc.returncode == 1 or not proc.stdout.strip():
+        stdout_text = stdout.decode(errors="replace")
+        if proc.returncode == 1 or not stdout_text.strip():
             return ToolResult(
                 success=True,
                 output=f"No matches found for '{query}' in {base}",
                 data={"matches": [], "count": 0},
             )
-        output = proc.stdout.strip()
+        output = stdout_text.strip()
         if len(output) > 30000:
             lines = output.splitlines()
             head = "\n".join(lines[:40])
@@ -367,7 +377,5 @@ async def _handle_search_files(
             success=False,
             output="ripgrep (rg) is not installed. Install it or use terminal with grep.",
         )
-    except subprocess.TimeoutExpired:
-        return ToolResult(success=False, output="Search timed out after 15 seconds.")
     except Exception as e:
         return ToolResult(success=False, output=f"Failed to search files: {e}")

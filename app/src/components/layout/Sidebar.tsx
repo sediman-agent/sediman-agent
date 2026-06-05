@@ -3,8 +3,6 @@ import {
   ChevronRight,
   Sun,
   Moon,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/stores/useAppStore';
@@ -18,43 +16,32 @@ export function Sidebar() {
   const setSidebarOpen = useAppStore((state) => state.setSidebarOpen);
   const theme = useAppStore((state) => state.theme);
   const toggleTheme = useAppStore((state) => state.toggleTheme);
-  const isConnected = useAppStore((state) => state.isConnected);
 
   return (
     <aside
       className={cn(
         'fixed left-0 top-0 h-full flex flex-col z-50',
-        'bg-background',
-        'border-r border-border',
         'transition-all duration-200 ease-out',
         sidebarOpen ? 'w-56' : 'w-12'
       )}
+      style={{
+        background: 'hsl(var(--background))',
+        borderRight: '1px solid hsl(var(--border))',
+        fontFamily: 'inherit',
+        color: 'hsl(var(--foreground))'
+      }}
     >
       {/* Header */}
-      <div className="h-10 flex items-center justify-between px-3 border-b border-border">
+      <div
+        className="h-10 flex items-center justify-between px-3"
+        style={{ borderBottom: '1px solid hsl(var(--border))', fontFamily: 'inherit', color: 'hsl(var(--foreground))' }}
+      >
         <div className="flex items-center gap-2">
           {sidebarOpen && (
-            <span className="text-sm font-medium text-foreground">OpenSkynet</span>
+            <span className="text-sm font-medium" style={{ fontFamily: 'inherit' }}>
+              OpenSkynet
+            </span>
           )}
-          {/* Connection Status Indicator */}
-          <div
-            className={cn(
-              "flex items-center gap-1 text-xs",
-              isConnected ? "text-green-500" : "text-red-500"
-            )}
-            title={isConnected ? "Backend connected" : "Backend disconnected"}
-          >
-            {isConnected ? (
-              <Wifi className="w-3 h-3" />
-            ) : (
-              <WifiOff className="w-3 h-3" />
-            )}
-            {sidebarOpen && (
-              <span className="text-[10px]">
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
-            )}
-          </div>
         </div>
         <div className={cn('flex items-center gap-0', !sidebarOpen && 'mx-auto')}>
           <Button
@@ -62,11 +49,12 @@ export function Sidebar() {
             size="sm"
             onClick={toggleTheme}
             className="h-6 w-6 shrink-0 p-0 rounded"
+            style={{ background: 'transparent' }}
           >
             {theme === 'dark' ? (
-              <Sun className="w-3 h-3" />
+              <Sun className="w-3 h-3" style={{ color: 'hsl(var(--foreground))' }} />
             ) : (
-              <Moon className="w-3 h-3" />
+              <Moon className="w-3 h-3" style={{ color: 'hsl(var(--foreground))' }} />
             )}
           </Button>
           <Button
@@ -74,11 +62,12 @@ export function Sidebar() {
             size="sm"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="h-6 w-6 shrink-0 p-0 rounded"
+            style={{ background: 'transparent' }}
           >
             {sidebarOpen ? (
-              <ChevronLeft className="w-3 h-3" />
+              <ChevronLeft className="w-3 h-3" style={{ color: 'hsl(var(--foreground))' }} />
             ) : (
-              <ChevronRight className="w-3 h-3" />
+              <ChevronRight className="w-3 h-3" style={{ color: 'hsl(var(--foreground))' }} />
             )}
           </Button>
         </div>

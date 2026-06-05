@@ -6,11 +6,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { getRPCClient } from '@/services/rpcClient';
 import {
   createServiceContainer,
-  type SkillsService,
   type Skill,
   type HubSkill,
-} from '@/core/services';
-import { isAppError, getUserMessage } from '@/core/errors';
+} from '@/services';
+import { isAppError, getUserMessage } from '@/errors';
 
 export interface UseSkillsState {
   skills: Skill[];

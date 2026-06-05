@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, MessageSquare, Edit2, Trash2, Check, X } from 'lucide-react';
+import { MessageSquare, Edit2, Trash2, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/stores/useChatStore';
 import { Button } from '@/components/shared/Button';
@@ -8,18 +8,12 @@ import { ScrollArea } from '@/components/shared/ScrollArea';
 export function SidebarAgent() {
   const conversations = useChatStore((state) => state.conversations);
   const activeConversationId = useChatStore((state) => state.activeConversationId);
-  const createConversation = useChatStore((state) => state.createConversation);
   const selectConversation = useChatStore((state) => state.selectConversation);
   const deleteConversation = useChatStore((state) => state.deleteConversation);
   const updateConversationTitle = useChatStore((state) => state.updateConversationTitle);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
-
-  const handleNewChat = () => {
-    const conversation = createConversation('New Chat');
-    selectConversation(conversation.id);
-  };
 
   const handleStartEdit = (id: string, title: string) => {
     setEditingId(id);
@@ -41,38 +35,33 @@ export function SidebarAgent() {
 
   return (
     <div className="space-y-2">
-      {/* Header with New Chat button */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      {/* Header - Simplified, no redundant button */}
+      <div className="px-3 py-2">
+        <span className="text-xs font-medium" style={{ color: 'hsl(var(--foreground))', fontFamily: 'inherit', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Conversations
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6 shrink-0"
-          onClick={handleNewChat}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
       </div>
 
       {/* Conversation list */}
       <ScrollArea className="h-44">
-        <nav className="space-y-0.5">
+        <nav className="space-y-0">
           {conversations.map((conversation) => (
             <div
               key={conversation.id}
               className={cn(
-                'group flex items-center gap-2 px-2 py-1.5 rounded text-sm',
+                'group flex items-center gap-2 px-3 py-2 text-sm',
                 'transition-all duration-150',
+                'border-l-2',
                 activeConversationId === conversation.id
-                  ? 'bg-accent text-accent-foreground'
-                  : 'hover:bg-accent hover:text-foreground text-muted-foreground'
+                  ? 'border-primary text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50'
               )}
+              style={{ fontFamily: 'inherit', cursor: 'pointer' }}
             >
               <button
                 onClick={() => selectConversation(conversation.id)}
                 className="flex-1 text-left flex items-center gap-2 min-w-0"
+                style={{ background: 'transparent', border: 'none', fontFamily: 'inherit' }}
               >
                 <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                 {editingId === conversation.id ? (

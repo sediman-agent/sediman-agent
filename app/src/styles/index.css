@@ -1,47 +1,60 @@
 @import './tokens.css';
 @import './components.css';
+@import './opencode.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* OpenCode Light Theme - Orange (default) */
-    --background: 0 0% 100%;
-    --foreground: 20 10% 10%;
+    /* OpenCode Design System - Cream Canvas & Ink */
+    --background: #FAF9F6;      /* Cream canvas */
+    --foreground: #1A1A1A;     /* Near-black ink */
 
-    --card: 0 0% 100%;
-    --card-foreground: 20 10% 10%;
+    --card: #FAF9F6;           /* Same as canvas */
+    --card-foreground: #1A1A1A;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 20 10% 10%;
+    --popover: #FAF9F6;
+    --popover-foreground: #1A1A1A;
 
-    --primary: 25 96% 64%; /* #fab283 - OpenCode orange */
-    --primary-foreground: 0 0% 100%;
+    --primary: #1A1A1A;        /* Primary text color */
+    --primary-foreground: #FAF9F6;
 
-    --secondary: 199 89% 60%; /* #5c9cf5 - Blue accent */
-    --secondary-foreground: 0 0% 100%;
+    --secondary: #8B8680;      /* Muted gray */
+    --secondary-foreground: #1A1A1A;
 
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: #E8E6E1;          /* Border color */
+    --muted-foreground: #8B8680;
 
-    --accent: 25 96% 64%;
-    --accent-foreground: 0 0% 100%;
+    --accent: #1A1A1A;         /* Accent same as ink */
+    --accent-foreground: #FAF9F6;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: #D02020;    /* Minimal red */
+    --destructive-foreground: #FAF9F6;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 25 96% 64%;
+    --border: #E8E6E1;        /* Hairline borders */
+    --input: #E8E6E1;
+    --ring: #1A1A1A;
 
-    /* OpenCode: 4px border radius */
-    --radius: 0.25rem;
+    /* OpenCode: Minimal border radius */
+    --radius: 0.125rem;        /* 2px - minimal rounding */
 
-    --success: 142 76% 36%;
-    --warning: 32 95% 44%;
-    --info: 199 89% 48%;
-    --error: 0 84% 60%;
+    --success: #1A8F1A;       /* Minimal green */
+    --warning: #B08020;        /* Minimal amber */
+    --info: #2B5AF0;          /* Minimal blue */
+    --error: #D02020;         /* Minimal red */
+
+    /* Badge colors */
+    --badge-primary: #E8E6E1;
+    --badge-foreground: #1A1A1A;
+    --badge-success: #E8F5E9;
+    --badge-success-foreground: #1A8F1A;
+    --badge-warning: #FFF3E0;
+    --badge-warning-foreground: #B08020;
+    --badge-error: #FFEBEE;
+    --badge-error-foreground: #D02020;
+    --badge-info: #E3F2FD;
+    --badge-info-foreground: #2B5AF0;
   }
 
   /* Blue Theme */
@@ -80,39 +93,51 @@
   }
 
   .dark {
-    /* OpenCode Dark Theme - Orange (default) */
-    --background: 0 0% 8%;
-    --foreground: 210 40% 98%;
+    /* GitHub Dark Theme - Proven high contrast */
+    --background: 214 9% 7%;      /* #0D1117 - very dark background */
+    --foreground: 210 12% 92%;     /* #C9D1D9 - GitHub light text */
 
-    --card: 0 0% 12%; /* #1E1A1A */
-    --card-foreground: 210 40% 98%;
+    --card: 214 9% 10%;        /* #161B22 */
+    --card-foreground: 210 12% 92%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 214 9% 10%;
+    --popover-foreground: 210 12% 92%;
 
     --primary: 25 96% 64%; /* #fab283 - OpenCode orange */
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 0 0% 10%;
 
     --secondary: 199 89% 60%; /* #5c9cf5 - Blue accent */
-    --secondary-foreground: 0 0% 100%;
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 0 0% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 214 9% 14%;
+    --muted-foreground: 210 12% 82%;
 
     --accent: 25 96% 64%;
-    --accent-foreground: 0 0% 100%;
+    --accent-foreground: 0 0% 10%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 210 12% 92%;
 
-    --border: 0 0% 24%; /* #3D3838 */
-    --input: 0 0% 24%;
+    --border: 214 9% 18%;      /* #303030 */
+    --input: 214 9% 14%;
     --ring: 25 96% 64%;
 
     --success: 142 76% 50%;
     --warning: 32 95% 55%;
     --info: 199 89% 55%;
     --error: 0 84% 65%;
+
+    /* Badge colors */
+    --badge-primary: 214 9% 20%;
+    --badge-foreground: 210 12% 92%;
+    --badge-success: 142 76% 20%;
+    --badge-success-foreground: 142 76% 92%;
+    --badge-warning: 32 95% 20%;
+    --badge-warning-foreground: 32 95% 92%;
+    --badge-error: 0 84% 20%;
+    --badge-error-foreground: 0 84% 92%;
+    --badge-info: 199 89% 20%;
+    --badge-info-foreground: 199 89% 92%;
   }
 
   /* Dark - Blue Theme */
@@ -158,26 +183,14 @@
 
   body {
     @apply bg-background text-foreground;
-    /* System font stack for best performance and native feel */
-    font-family:
-      -apple-system,
-      BlinkMacSystemFont,
-      'SF Pro Text',
-      'Segoe UI',
-      'Roboto',
-      'Oxygen',
-      'Ubuntu',
-      'Cantarell',
-      'Fira Sans',
-      'Droid Sans',
-      'Helvetica Neue',
-      sans-serif;
+    /* OpenCode: 100% Monospace - Berkeley Mono first, fallback to system monospace */
+    font-family: 'Berkeley Mono', 'SF Mono', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: 'liga' 1, 'calt' 1;
-    font-size: 13px; /* Slightly smaller for tighter, more professional look */
+    font-size: 13px;
     line-height: 1.5;
     text-rendering: optimizeLegibility;
+    letter-spacing: 0.01em;
   }
 
   *:focus-visible {
@@ -386,15 +399,16 @@
 
   /* Message bubble styles - modern and clean */
   .message-bubble {
-    @apply max-w-[80%] rounded-2xl px-5 py-3;
+    @apply max-w-[80%] rounded-2xl px-4 py-2.5;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   .message-bubble-user {
-    @apply bg-gradient-to-br from-primary to-primary/95 text-white ml-auto rounded-br-md shadow-sm;
+    @apply bg-primary text-white ml-auto rounded-br-md shadow-sm;
   }
 
   .message-bubble-assistant {
-    @apply bg-white text-gray-800 mr-auto rounded-bl-md shadow-sm border border-gray-200/60;
+    @apply bg-white text-gray-800 mr-auto rounded-bl-md shadow-sm border border-gray-200/70;
   }
 }
 
@@ -473,4 +487,303 @@
 
 .hljs-strong {
   font-weight: 500;
+}
+
+/* ===== PROFESSIONAL ANIMATIONS ===== */
+
+/* Fade animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Slide animations */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scale animations */
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ===== PROFESSIONAL UTILITIES ===== */
+
+/* Smooth hover lift effect */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Card elevation with hover */
+.card-elevation {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.card-elevation:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+/* Professional focus ring */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.5);
+  border-radius: 4px;
+}
+
+/* Animation utilities */
+.animate-in {
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-out {
+  animation: fadeOut 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.slide-in-from-right {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.slide-in-from-left {
+  animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.slide-in-from-up {
+  animation: slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.zoom-in {
+  animation: zoomIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Professional button states */
+.button-interactive {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.button-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.button-interactive:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Loading pulse */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Spinner */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Professional backdrop blur */
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(8px);
+}
+
+.backdrop-blur-lg {
+  backdrop-filter: blur(16px);
+}
+
+/* Transition utilities */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-colors {
+  transition-property: color, background-color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Duration utilities */
+.duration-150 {
+  transition-duration: 150ms;
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+.duration-300 {
+  transition-duration: 300ms;
+}
+
+/* Ease utilities */
+.ease-in {
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.ease-out {
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+}
+
+.ease-in-out {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== PROFESSIONAL CARD STYLES ===== */
+
+.pro-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pro-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: hsl(var(--border) / 0.8);
+}
+
+/* ===== PROFESSIONAL DIVIDER ===== */
+
+.pro-divider {
+  height: 1px;
+  background: hsl(var(--border));
+  margin: 1rem 0;
+}
+
+.pro-divider-vertical {
+  width: 1px;
+  background: hsl(var(--border));
+  margin: 0 1rem;
+}
+
+/* ===== PROPER DARK MODE SUPPORT ===== */
+.dark {
+  /* Bright text in dark mode */
+  color: #F0F0F0 !important;
+}
+
+.dark body {
+  background-color: #1E1E1E !important;
+  color: #F0F0F0 !important;
+}
+
+/* Light mode - clear text on light background */
+body:not(.dark) {
+  background-color: #FAF9F6 !important;
+  color: #1A1A1A !important;
+}
+
+.dark button,
+.dark input,
+.dark textarea {
+  background-color: #2E2E2E !important;
+  color: #F0F0F0 !important;
+  border-color: #4E4E4E !important;
+}
+
+body:not(.dark) button,
+body:not(.dark) input,
+body:not(.dark) textarea {
+  background-color: #FFFFFF !important;
+  color: #1A1A1A !important;
+  border-color: #E8E6E1 !important;
 }

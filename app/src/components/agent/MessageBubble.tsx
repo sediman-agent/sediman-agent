@@ -32,12 +32,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       )}>
         <div
           className={cn(
-            'relative rounded px-2 py-1',
+            'relative border px-2 py-1',
             'text-xs leading-relaxed',
+            'transition-colors duration-150',
             isUser
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-foreground'
+              ? 'border-border bg-primary text-primary-foreground'
+              : 'border-border bg-muted text-foreground'
           )}
+          style={{ fontFamily: 'inherit', borderRadius: '2px' }}
         >
           <div className="markdown-content prose prose-sm max-w-none">
             <ReactMarkdown

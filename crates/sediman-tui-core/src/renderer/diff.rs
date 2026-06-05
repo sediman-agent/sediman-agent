@@ -13,7 +13,7 @@ impl DiffEngine {
     pub fn diff(old: &CellBuffer, new: &CellBuffer) -> Vec<Change> {
         let width = old.width().max(new.width());
         let height = old.height().max(new.height());
-        let mut changes = Vec::new();
+        let mut changes = Vec::with_capacity(width as usize);
 
         for y in 0..height {
             let old_dirty = old.is_row_dirty(y);
@@ -61,11 +61,67 @@ impl DiffEngine {
         changes
     }
 
+    pub fn diff_into(old: &CellBuffer, new: &CellBuffer, changes: &mut Vec<Change>) {
+        changes.clear();
+        let width = old.width().max(new.width());
+        let height = old.height().max(new.height());
+
+        for y in 0..height {
+            let old_dirty = old.is_row_dirty(y);
+            let new_dirty = new.is_row_dirty(y);
+            if !old_dirty && !new_dirty {
+                continue;
+            }
+
+            let old_row = y < old.height();
+            let new_row = y < new.height();
+
+            if old_row && new_row && old.width() == width && new.width() == width {
+                let old_start = (y as usize) * (old.area().width as usize);
+                let new_start = (y as usize) * (new.area().width as usize);
+                let old_cells = &old.cells_ref()[old_start..old_start + width as usize];
+                let new_cells = &new.cells_ref()[new_start..new_start + width as usize];
+                for x in 0..width as usize {
+                    if old_cells[x] != new_cells[x] {
+                        changes.push(Change {
+                            x: x as u16,
+                            y,
+                            cell: new_cells[x],
+                        });
+                    }
+                }
+            } else {
+                for x in 0..width {
+                    let old_cell = old.get(x, y);
+                    let new_cell = new.get(x, y);
+                    match (old_cell, new_cell) {
+                        (Some(old), Some(new)) if old != new => {
+                            changes.push(Change { x, y, cell: *new });
+                        }
+                        (None, Some(new)) if !new.is_empty() => {
+                            changes.push(Change { x, y, cell: *new });
+                        }
+                        (Some(old), None) if !old.is_empty() => {
+                            changes.push(Change { x, y, cell: Cell::default() });
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
     pub fn diff_and_clear(old: &mut CellBuffer, new: &mut CellBuffer) -> Vec<Change> {
         let changes = Self::diff(old, new);
         old.clear_dirty();
         new.clear_dirty();
         changes
+    }
+
+    pub fn diff_and_clear_into(old: &mut CellBuffer, new: &mut CellBuffer, changes: &mut Vec<Change>) {
+        Self::diff_into(old, new, changes);
+        old.clear_dirty();
+        new.clear_dirty();
     }
 
     pub fn optimize(changes: &mut [Change]) {

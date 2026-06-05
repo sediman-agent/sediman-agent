@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use std::io::Write;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -55,8 +56,10 @@ pub enum AppModal {
         checks: Vec<DoctorCheck>,
         cursor: usize,
         scroll: u16,
-        installing: bool,
+        install_state: DoctorInstallState,
         install_output: Vec<String>,
+        filter: String,
+        search_active: bool,
     },
     Info {
         title: String,
@@ -95,6 +98,18 @@ pub struct DoctorCheck {
     #[allow(dead_code)]
     pub optional: bool,
     pub install_cmd: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum DoctorInstallState {
+    Idle,
+    Confirming {
+        cmd: String,
+        category: String,
+    },
+    Running {
+        category: String,
+    },
 }
 
 /// Tab selection for agent message display
@@ -324,6 +339,8 @@ pub enum ChatMessage {
         tab_expanded: bool,
         #[serde(skip)]
         cached_response_md: Option<Vec<Line>>,
+        #[serde(skip)]
+        cached_thinking_md: Option<Vec<Vec<Line>>>,
     },
     System {
         text: String,
@@ -693,6 +710,7 @@ impl App {
             selected_tab: AgentTab::Steps,
             tab_expanded: false,
             cached_response_md: None,
+            cached_thinking_md: None,
         });
         self.scroll.auto_scroll = true;
         self.mark_dirty();
@@ -728,7 +746,7 @@ impl App {
         } else {
             None
         };
-        if let Some(ChatMessage::Agent { result, success: s, elapsed_secs: e, skill_created: sc, scheduled_job: sj, selected_tab, tab_expanded, cached_response_md, state, .. }) = self.messages.last_mut() {
+        if let Some(ChatMessage::Agent { result, success: s, elapsed_secs: e, skill_created: sc, scheduled_job: sj, selected_tab, tab_expanded, cached_response_md, cached_thinking_md, state, thinking_text, .. }) = self.messages.last_mut() {
             *result = Some(result_text);
             *s = success;
             *e = elapsed_secs;
@@ -737,6 +755,16 @@ impl App {
             *selected_tab = AgentTab::Response;
             *tab_expanded = true;
             *cached_response_md = md_lines;
+            if cached_thinking_md.is_none() && !thinking_text.is_empty() {
+                let app_theme = self.theme.clone();
+                *cached_thinking_md = Some(thinking_text.lines().map(|l| {
+                    if l.is_empty() {
+                        vec![]
+                    } else {
+                        sediman_tui_core::markdown::render_markdown_with_theme(l, &app_theme)
+                    }
+                }).collect());
+            }
             *state = MessageState::Completed;
         }
         self.agent.running = false;
@@ -1140,39 +1168,44 @@ pub async fn run(
     let mut front = CellBuffer::new(width, height);
     let mut back = CellBuffer::new(width, height);
     let mut ansi = AnsiWriter::new();
+    let mut changes_buf: Vec<sediman_tui_core::renderer::Change> = Vec::with_capacity(width as usize * 2);
+    let mut output_buf: Vec<u8> = Vec::with_capacity(8192);
 
     AnsiWriter::clear_all(&mut stdout);
     AnsiWriter::hide_cursor(&mut stdout);
 
     let mut tick_counter = 0u64;
-    let mut pending_resize: Option<(u16, u16)> = None;
+    let mut last_rendered_version: u64 = u64::MAX;
 
     loop {
         if !app.running {
             break;
         }
 
-        if let Some((w, h)) = pending_resize.take() {
-            width = w;
-            height = h;
-            front.resize(width, height);
-            back.resize(width, height);
-        }
-        let (w, h) = crossterm::terminal::size().unwrap_or((width, height));
-        if w != width || h != height {
-            width = w;
-            height = h;
-            front.resize(width, height);
-            back.resize(width, height);
+        if let Some((w, h)) = app.pending_resize.take() {
+            if w != width || h != height {
+                width = w;
+                height = h;
+                front.resize(width, height);
+                back.resize(width, height);
+                last_rendered_version = u64::MAX;
+            }
         }
 
         back.clear();
         crate::view::render_into(&mut back, &mut app);
 
-        let mut changes = DiffEngine::diff_and_clear(&mut front, &mut back);
-        DiffEngine::optimize(&mut changes);
-        ansi.write(&mut stdout, &changes)?;
-
+        if app.render_version != last_rendered_version {
+            last_rendered_version = app.render_version;
+            DiffEngine::diff_and_clear_into(&mut front, &mut back, &mut changes_buf);
+            if !changes_buf.is_empty() {
+                DiffEngine::optimize(&mut changes_buf);
+                output_buf.clear();
+                ansi.write_buffered(&mut output_buf, &changes_buf);
+                let _ = stdout.write_all(&output_buf);
+                let _ = stdout.flush();
+            }
+        }
         std::mem::swap(&mut front, &mut back);
 
         let mut events_processed = 0usize;
@@ -1198,11 +1231,13 @@ pub async fn run(
                     if Instant::now() >= expiry {
                         app.toast_text.clear();
                         app.toast_expiry = None;
+                        app.mark_dirty();
                     }
                 }
 
                 if app.agent.running && tick_counter.is_multiple_of(3) {
                     app.advance_spinner();
+                    app.mark_dirty();
                 }
                 if tick_counter.is_multiple_of(HEALTH_CHECK_INTERVAL_TICKS) {
                     let was_connected = app.connection.is_connected;
@@ -1942,6 +1977,7 @@ mod new_feature_tests {
             selected_tab: AgentTab::Response,
             tab_expanded: true,
             cached_response_md: None,
+            cached_thinking_md: None,
         };
         let json = serde_json::to_string(&msg).unwrap();
         let restored: ChatMessage = serde_json::from_str(&json).unwrap();

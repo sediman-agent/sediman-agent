@@ -6,6 +6,7 @@ stored locally since the sandbox is a remote container.
 """
 from __future__ import annotations
 
+import asyncio
 import io
 import os
 import shutil
@@ -196,9 +197,6 @@ class CheckpointManager:
 
     def get_last(self) -> CheckpointInfo | None:
         return self._last_checkpoint
-
-
-import asyncio
 
 
 def _create_tar(directory: str) -> bytes:

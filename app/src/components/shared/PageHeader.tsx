@@ -23,20 +23,7 @@ export interface PageHeaderProps {
    * Additional CSS classes
    */
   className?: string;
-  /**
-   * Icon color variant
-   * @default 'default'
-   */
-  iconVariant?: 'default' | 'primary' | 'success' | 'warning' | 'destructive';
 }
-
-const iconVariants = {
-  default: 'bg-muted text-foreground',
-  primary: 'bg-primary/10 text-primary',
-  success: 'bg-success/10 text-success',
-  warning: 'bg-warning/10 text-warning',
-  destructive: 'bg-destructive/10 text-destructive',
-};
 
 export function PageHeader({
   icon: Icon,
@@ -44,7 +31,6 @@ export function PageHeader({
   subtitle,
   actions,
   className,
-  iconVariant = 'default',
 }: PageHeaderProps) {
   return (
     <div

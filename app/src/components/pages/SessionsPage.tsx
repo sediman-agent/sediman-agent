@@ -1,4 +1,4 @@
-import { History, Settings } from 'lucide-react';
+import { History } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 
 export function SessionsPage() {
@@ -8,7 +8,6 @@ export function SessionsPage() {
         icon={History}
         title="Sessions"
         subtitle="Chat sessions"
-        iconVariant="primary"
       />
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">

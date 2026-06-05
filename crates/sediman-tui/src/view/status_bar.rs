@@ -1,8 +1,9 @@
+use std::fmt::Write;
 use sediman_tui_core::renderer::{CellBuffer, Rect, Style, display_width};
 use sediman_tui_core::component::{fill_row, draw_pill};
 use crate::app::App;
 
-use super::messages::format_elapsed;
+use super::messages::format_elapsed_into;
 
 pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
     let t = &app.theme;
@@ -11,13 +12,15 @@ pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
     fill_row(buf, y, area.x, area.right(), Style::new().bg(t.background_panel).fg(t.text));
 
     let mut x = area.x;
+    let mut pill = String::with_capacity(32);
+    let mut elapsed_buf = String::with_capacity(16);
 
     if app.agent.running {
-        let elapsed = format_elapsed(app.agent.start.elapsed().as_secs());
-        let pill = format!(" \u{25cf} {} ", elapsed);
+        format_elapsed_into(app.agent.start.elapsed().as_secs(), &mut elapsed_buf);
+        pill.clear();
+        write!(pill, " \u{25cf} {} ", elapsed_buf).unwrap();
         x = draw_pill(buf, x, y, &pill, Style::new().bg(t.primary).fg(t.background_darker));
 
-        // Show streaming phase with enhanced indicators
         if !app.agent.streaming_phase.is_empty() {
             let (phase_label, phase_color) = match app.agent.streaming_phase.as_str() {
                 "thinking" => ("thinking", t.warning),
@@ -30,20 +33,20 @@ pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
                 _ => ("", t.text),
             };
             if !phase_label.is_empty() {
-                let phase_pill = format!(" {} ", phase_label);
-                x = draw_pill(buf, x, y, &phase_pill, Style::new().bg(phase_color).fg(t.background_darker));
+                pill.clear();
+                write!(pill, " {} ", phase_label).unwrap();
+                x = draw_pill(buf, x, y, &pill, Style::new().bg(phase_color).fg(t.background_darker));
             }
         }
 
-        // Show retry countdown
         if let (Some(attempt), Some(max), Some(countdown)) = (app.agent.retry_attempt, app.agent.retry_max, app.agent.retry_countdown) {
             if countdown > 0.0 {
-                let retry_text = format!(" {} ({}/{}) {:.1}s ", "⟳", attempt, max, countdown);
-                x = draw_pill(buf, x, y, &retry_text, Style::new().bg(t.error).fg(t.background_darker));
+                pill.clear();
+                write!(pill, " {} ({}/{}) {:.1}s ", "⟳", attempt, max, countdown).unwrap();
+                x = draw_pill(buf, x, y, &pill, Style::new().bg(t.error).fg(t.background_darker));
             }
         }
 
-        // Show validation confidence
         if let Some(confidence) = app.agent.validation_confidence {
             let conf_color = if confidence >= 0.8 {
                 t.success
@@ -52,19 +55,21 @@ pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
             } else {
                 t.error
             };
-            let conf_text = format!(" {:.0}% ", confidence * 100.0);
-            x = draw_pill(buf, x, y, &conf_text, Style::new().bg(conf_color).fg(t.background_darker));
+            pill.clear();
+            write!(pill, " {:.0}% ", confidence * 100.0).unwrap();
+            x = draw_pill(buf, x, y, &pill, Style::new().bg(conf_color).fg(t.background_darker));
         }
 
-        // Show validation issues count
         if let Some(issues) = app.agent.validation_issues {
             if issues > 0 {
-                let issues_text = format!(" ⚠ {} ", issues);
-                x = draw_pill(buf, x, y, &issues_text, Style::new().bg(t.warning).fg(t.background_darker));
+                pill.clear();
+                write!(pill, " ⚠ {} ", issues).unwrap();
+                x = draw_pill(buf, x, y, &pill, Style::new().bg(t.warning).fg(t.background_darker));
             }
         }
     } else if app.agent.task_count > 0 {
-        let pill = format!(" {} ", app.agent.task_count);
+        pill.clear();
+        write!(pill, " {} ", app.agent.task_count).unwrap();
         x = draw_pill(buf, x, y, &pill, Style::new().bg(t.background_darker).fg(t.text_muted));
     }
 
@@ -75,14 +80,16 @@ pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
         "auto" => t.error,
         _ => t.text,
     };
-    let mode_text = format!(" {} ", mode);
-    x = draw_pill(buf, x, y, &mode_text, Style::new().bg(mode_color).fg(t.background_darker));
+    pill.clear();
+    write!(pill, " {} ", mode).unwrap();
+    x = draw_pill(buf, x, y, &pill, Style::new().bg(mode_color).fg(t.background_darker));
 
     let model = app.model.as_deref().unwrap_or("default");
-    let model_text = format!(" {} ", model);
-    let model_x = area.right().saturating_sub(display_width(&model_text));
+    pill.clear();
+    write!(pill, " {} ", model).unwrap();
+    let model_x = area.right().saturating_sub(display_width(&pill));
     if model_x > x + 2 {
-        buf.draw_str(model_x, y, &model_text, Style::new().bg(t.background_darker).fg(t.text_muted));
+        buf.draw_str(model_x, y, &pill, Style::new().bg(t.background_darker).fg(t.text_muted));
     }
 }
 
