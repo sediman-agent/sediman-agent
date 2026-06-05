@@ -64,8 +64,6 @@ pub struct ModalLayout {
     cursor_y: u16,
     content_top: u16,
     content_bottom: u16,
-    footer_reserve: u16,
-    close_hint: CloseHint,
     footer_hints: Option<&'static str>,
 }
 
@@ -113,8 +111,6 @@ impl ModalLayout {
             cursor_y: content_top,
             content_top,
             content_bottom,
-            footer_reserve,
-            close_hint: config.close_hint,
             footer_hints: config.footer_hints,
         }
     }
@@ -381,7 +377,7 @@ impl ModalLayout {
         let arrow = if expanded { '\u{25BE}' } else { '\u{25B8}' };
         let header_style = Style::new().fg(theme.secondary).bg(theme.background);
         buf.draw_str(self.inner_x, self.cursor_y, truncate_str(label, self.inner_w), header_style);
-        buf.put_char(self.inner_x + display_width(label) as u16 + 1, self.cursor_y, arrow, header_style);
+        buf.put_char(self.inner_x + display_width(label) + 1, self.cursor_y, arrow, header_style);
         self.cursor_y = self.cursor_y.saturating_add(1);
 
         if expanded {

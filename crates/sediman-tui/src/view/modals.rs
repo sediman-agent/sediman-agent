@@ -1033,8 +1033,7 @@ pub fn render_doctor_modal(
 
     let mut prev_category = "";
 
-    for vi in visible_start..visible_end {
-        let i = filtered[vi];
+    for &i in filtered.iter().skip(visible_start).take(visible_end - visible_start) {
         let check = &checks[i];
 
         if !layout.has_room() {

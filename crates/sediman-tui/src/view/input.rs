@@ -54,7 +54,7 @@ pub fn render_input(buf: &mut CellBuffer, area: Rect, app: &mut App) {
     app.editor.set_prompt(prompt);
 
     // Inner editor area: starts after badge on first row, full width on subsequent rows
-    let badge_w = display_width(&badge) as u16;
+    let badge_w = display_width(&badge);
     let inner_start = x_left + 2 + badge_w + 1;
     let inner_w = x_right.saturating_sub(inner_start);
 

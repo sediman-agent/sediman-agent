@@ -10,14 +10,14 @@ fn levenshtein(a: &str, b: &str) -> usize {
     let mut prev = vec![0usize; b_len + 1];
     let mut curr = vec![0usize; b_len + 1];
 
-    for j in 0..=b_len {
-        prev[j] = j;
+    for (j, slot) in prev.iter_mut().enumerate().take(b_len + 1) {
+        *slot = j;
     }
 
-    for i in 0..a_len {
+    for (i, a_ch) in a_chars.iter().enumerate().take(a_len) {
         curr[0] = i + 1;
-        for j in 0..b_len {
-            let cost = if a_chars[i] == b_chars[j] { 0 } else { 1 };
+        for (j, b_ch) in b_chars.iter().enumerate().take(b_len) {
+            let cost = if *a_ch == *b_ch { 0 } else { 1 };
             curr[j + 1] = (prev[j + 1] + 1)
                 .min(curr[j] + 1)
                 .min(prev[j] + cost);

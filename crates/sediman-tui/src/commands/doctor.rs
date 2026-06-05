@@ -351,16 +351,15 @@ async fn check_tools() -> Vec<DoctorCheck> {
     }
 
     if docker_found {
-        match check_docker_daemon_async().await {
-            Some(running) => result.push(DoctorCheck {
+        if let Some(running) = check_docker_daemon_async().await {
+            result.push(DoctorCheck {
                 category: "Tools".into(),
                 name: "Docker daemon".into(),
                 status: if running { DoctorStatus::Pass } else { DoctorStatus::Fail },
                 message: if running { "running".into() } else { "not running — start Docker".into() },
                 optional: false,
                 install_cmd: if running { None } else { Some(docker_start_cmd()) },
-            }),
-            None => {}
+            });
         }
     }
 
@@ -417,7 +416,7 @@ async fn check_coders(current_backend: &str) -> Vec<DoctorCheck> {
     result.push(DoctorCheck {
         category: "Coder Backends".into(),
         name: "internal".into(),
-        status: if current_backend == "internal" { DoctorStatus::Pass } else { DoctorStatus::Pass },
+        status: DoctorStatus::Pass,
         message: if current_backend == "internal" {
             "built-in (current)".into()
         } else {
@@ -577,10 +576,10 @@ pub fn which_fast(name: &str) -> Option<String> {
     let separator = if cfg!(windows) { ';' } else { ':' };
     for dir in path_var.split(separator) {
         let candidate = std::path::Path::new(dir).join(name);
-        if candidate.exists() {
-            if candidate.is_file() || candidate.is_symlink() {
-                return Some(candidate.to_string_lossy().to_string());
-            }
+        if candidate.exists()
+            && (candidate.is_file() || candidate.is_symlink())
+        {
+            return Some(candidate.to_string_lossy().to_string());
         }
     }
     None

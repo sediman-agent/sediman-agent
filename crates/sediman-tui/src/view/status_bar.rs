@@ -42,7 +42,7 @@ pub fn render_status_bar(buf: &mut CellBuffer, area: Rect, app: &App) {
         if let (Some(attempt), Some(max), Some(countdown)) = (app.agent.retry_attempt, app.agent.retry_max, app.agent.retry_countdown) {
             if countdown > 0.0 {
                 pill.clear();
-                write!(pill, " {} ({}/{}) {:.1}s ", "⟳", attempt, max, countdown).unwrap();
+                write!(pill, " ⟳ ({}/{}) {:.1}s ", attempt, max, countdown).unwrap();
                 x = draw_pill(buf, x, y, &pill, Style::new().bg(t.error).fg(t.background_darker));
             }
         }

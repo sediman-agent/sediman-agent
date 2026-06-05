@@ -12,9 +12,7 @@ pub struct DrawerFrame {
     pub inner_x: u16,
     pub inner_w: usize,
     cursor_y: u16,
-    content_top: u16,
     content_bottom: u16,
-    footer_reserve: u16,
     footer_hints: Option<&'static str>,
 }
 
@@ -55,17 +53,14 @@ impl DrawerFrame {
         }
 
         let footer_reserve = if config.footer_hints.is_some() { 3u16 } else { 0 };
-        let content_top = rect.y + 1;
         let content_bottom = rect.bottom().saturating_sub(1 + footer_reserve);
 
         Self {
             rect,
             inner_x: rect.x + 2,
             inner_w: rect.width.saturating_sub(4) as usize,
-            cursor_y: content_top,
-            content_top,
+            cursor_y: rect.y + 1,
             content_bottom,
-            footer_reserve,
             footer_hints: config.footer_hints,
         }
     }
@@ -212,7 +207,7 @@ impl DrawerFrame {
         let header_style = Style::new().fg(theme.secondary).bg(theme.background);
         buf.draw_str(self.inner_x, self.cursor_y, truncate_str(label, self.inner_w), header_style);
         buf.put_char(
-            self.inner_x + display_width(label) as u16 + 1,
+            self.inner_x + display_width(label) + 1,
             self.cursor_y,
             arrow,
             header_style,
