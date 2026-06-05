@@ -1,4 +1,4 @@
-import { Database, Settings } from 'lucide-react';
+import { Database } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 
 export function MemoryPage() {
@@ -8,7 +8,6 @@ export function MemoryPage() {
         icon={Database}
         title="Memory"
         subtitle="Agent memory system"
-        iconVariant="primary"
       />
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">

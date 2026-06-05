@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useSandbox } from '@/hooks/useSandbox';
-import { BrowserView } from './BrowserView';
-import { X, Plus, Maximize2, Minimize2, RefreshCw, ExternalLink } from 'lucide-react';
+import { ElectronWebView } from '@/components/electron/ElectronWebView';
+import { X, Plus, Maximize2, Minimize2, RefreshCw, ExternalLink, Globe } from 'lucide-react';
 import { Button } from '@/components/shared/Button';
-import { getRPCClient } from '@/services/rpcClient';
+import { useSandboxStore } from '@/stores/useSandboxStore';
+import { SkillRecordingControls } from '@/components/skills/SkillRecordingControls';
 
 interface Tab {
   id: string;
@@ -13,12 +13,16 @@ interface Tab {
 }
 
 export function SandboxPanel() {
-  const [state, actions] = useSandbox();
+  // Get state from store
+  const isOpen = useSandboxStore(state => state.isOpen);
+  const isActive = useSandboxStore(state => state.isActive);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(600);
   const [isResizing, setIsResizing] = useState(false);
+  const [browserUrl] = useState('https://www.google.com');
   const [tabs, setTabs] = useState<Tab[]>([
-    { id: '1', title: 'Google', url: 'https://www.google.com', isActive: true }
+    { id: '1', title: 'Browser', url: 'https://www.google.com', isActive: true }
   ]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -75,11 +79,23 @@ export function SandboxPanel() {
     setTabs(prev => prev.map(t => ({ ...t, isActive: t.id === tabId })));
   };
 
-  if (!state.isOpen) {
+  if (!isOpen) {
     return null;
   }
 
   const activeTab = tabs.find(t => t.isActive);
+
+  const handleStart = async () => {
+    try {
+      // For Electron, we don't need to do anything special
+      // Just mark the browser as active
+      useSandboxStore.getState().setIsActive(true);
+      useSandboxStore.getState().setConnectionStatus('connected');
+      console.log('[SandboxPanel] Browser started in Electron mode');
+    } catch (error) {
+      console.error('[SandboxPanel] Failed to start browser:', error);
+    }
+  };
 
   return (
     <>
@@ -92,7 +108,7 @@ export function SandboxPanel() {
         />
       )}
       <div
-        className={`flex flex-col bg-background ${isFullscreen ? 'fixed inset-0 z-50' : 'fixed right-0 top-0 h-screen border-l border-border z-40'}`}
+        className={`flex flex-col bg-background shadow-lg transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-50' : 'fixed right-0 top-0 h-screen border-l border-border z-40'}`}
         style={{ width: isFullscreen ? '100%' : panelWidth }}
       >
         {/* Browser Chrome */}
@@ -102,18 +118,18 @@ export function SandboxPanel() {
             {tabs.map(tab => (
               <div
                 key={tab.id}
-                className={`flex items-center gap-2 px-3 py-2 border-r border-border cursor-pointer group relative ${
-                  tab.isActive ? 'bg-background' : 'bg-muted/30 hover:bg-muted/50'
+                className={`flex items-center gap-2 px-3 py-2 border-r border-border cursor-pointer group relative transition-all duration-200 ${
+                  tab.isActive ? 'bg-background shadow-sm' : 'bg-muted/30 hover:bg-muted/50'
                 }`}
                 onClick={() => switchTab(tab.id)}
               >
-                <span className="text-sm max-w-[150px] truncate">{tab.title}</span>
+                <span className="text-sm max-w-[150px] truncate font-medium">{tab.title}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab.id);
                   }}
-                  className="opacity-0 group-hover:opacity-100 hover:bg-muted-foreground/20 rounded p-0.5 transition-opacity"
+                  className="opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive rounded p-0.5 transition-all duration-200"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -121,14 +137,15 @@ export function SandboxPanel() {
             ))}
             <button
               onClick={addTab}
-              className="p-2 hover:bg-muted-foreground/20 transition-colors"
+              className="p-2 hover:bg-muted-foreground/20 rounded transition-all duration-200 hover-lift"
+              title="New tab"
             >
               <Plus className="w-4 h-4" />
             </button>
             <div className="flex-1" />
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-2 hover:bg-muted-foreground/20 transition-colors"
+              className="p-2 hover:bg-muted-foreground/20 rounded transition-all duration-200 hover-lift"
               title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -138,17 +155,24 @@ export function SandboxPanel() {
           {/* URL Bar */}
           <div className="flex items-center gap-2 px-3 py-2">
             <div className="flex items-center gap-1">
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Back">
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover-lift" title="Back">
                 <span className="text-xs">◀</span>
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Forward">
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover-lift" title="Forward">
                 <span className="text-xs">▶</span>
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Refresh">
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover-lift" title="Refresh">
                 <RefreshCw className="w-3 h-3" />
               </Button>
             </div>
-            <div className="flex-1 flex items-center bg-background border border-border rounded-md px-3 py-1.5">
+
+            {/* Skill Recording Controls */}
+            {isActive && (
+              <div className="flex items-center">
+                <SkillRecordingControls position="header" />
+              </div>
+            )}
+            <div className="flex-1 flex items-center bg-background border border-border rounded-md px-3 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all duration-200">
               <ExternalLink className="w-3 h-3 text-muted-foreground mr-2" />
               <input
                 type="text"
@@ -161,102 +185,30 @@ export function SandboxPanel() {
         </div>
 
         {/* Browser View */}
-        <div className="flex-1 flex items-center justify-center bg-gray-900 relative overflow-hidden">
-          {!state.isActive ? (
-            <div className="text-center">
-              <p className="text-white/60 mb-4">Click Start to launch the browser</p>
-              <Button onClick={() => actions.start('browser')} size="lg">
-                Start Browser
-              </Button>
+        <div className="flex-1 relative" style={{ background: 'hsl(var(--background))' }}>
+          {!isActive ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center p-8">
+                <Globe className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground mb-2">Browser ready to start</p>
+                <Button onClick={handleStart} size="lg">
+                  Start Browser
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center p-4">
-              <div className="mb-4 text-center">
-                <p className="text-white/60 text-sm mb-2">Debug: screenshot length = {state.lastScreenshot?.length || 0} bytes</p>
-                <p className="text-white/40 text-xs">Blue border should be visible below</p>
-              </div>
-              <BrowserView
-                screenshot={state.lastScreenshot}
-                isActive={state.isActive}
-                isLoading={state.isStarting}
-                error={state.error}
-              />
-              {/* Test buttons */}
-              <div className="mt-4 flex gap-2 flex-wrap justify-center">
-                <Button
-                  onClick={() => {
-                    console.log('Test button clicked');
-                    console.log('Current state:', {
-                      isActive: state.isActive,
-                      screenshotLength: state.lastScreenshot?.length,
-                      isStarting: state.isStarting
-                    });
-                    alert(`Active: ${state.isActive}\nScreenshot: ${state.lastScreenshot?.length || 0} bytes`);
-                  }}
-                  size="sm"
-                  variant="outline"
-                >
-                  Test State
-                </Button>
-                <Button
-                  onClick={() => {
-                    console.log('Download clicked, screenshot length:', state.lastScreenshot?.length);
-                    if (!state.lastScreenshot) {
-                      alert('No screenshot available!');
-                      return;
-                    }
-                    try {
-                      const link = document.createElement('a');
-                      link.href = `data:image/png;base64,${state.lastScreenshot}`;
-                      link.download = `browser-screenshot-${Date.now()}.png`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      console.log('Download triggered!');
-                      alert('Screenshot downloaded!');
-                    } catch (error) {
-                      console.error('Download failed:', error);
-                      alert('Download failed: ' + error);
-                    }
-                  }}
-                  size="sm"
-                >
-                  Download Screenshot
-                </Button>
-                <Button
-                  onClick={async () => {
-                    try {
-                      console.log('Navigating to Google via browser.goto...');
-                      const rpc = getRPCClient();
-                      const result = await rpc.call('browser.goto', {
-                        url: 'https://www.google.com'
-                      });
-                      console.log('Navigation result:', result);
-                      if (result.success) {
-                        alert('Navigated to Google! Check the browser view in 2-3 seconds.');
-                      } else {
-                        alert('Navigation failed: ' + result.error);
-                      }
-                    } catch (error) {
-                      console.error('Navigation failed:', error);
-                      alert('Navigation failed: ' + error);
-                    }
-                  }}
-                  size="sm"
-                  variant="default"
-                >
-                  Go to Google
-                </Button>
-              </div>
-            </div>
+            <ElectronWebView
+              url={activeTab?.url || browserUrl}
+              style={{ width: '100%', height: '100%' }}
+            />
           )}
         </div>
 
         {/* Status Bar */}
-        {state.isActive && (
+        {isActive && (
           <div className="flex items-center justify-between px-3 py-1 bg-muted/30 border-t border-border text-xs text-muted-foreground">
             <span>Connected</span>
-            <span>{state.isStreaming ? '● Streaming' : '○ Idle'}</span>
+            <span>Electron Runtime</span>
           </div>
         )}
       </div>

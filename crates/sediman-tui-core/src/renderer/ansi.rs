@@ -79,6 +79,29 @@ impl AnsiWriter {
         }
     }
 
+    fn write_sgr_to(out: &mut dyn IoWrite, style: Style) -> io::Result<()> {
+        let mut s = String::with_capacity(64);
+        s.push_str("\x1b[0");
+        if let Some(fg) = style.fg {
+            Self::write_color(&mut s, SGR_FG, fg);
+        } else {
+            let _ = write!(s, ";{}", SGR_FG_DEFAULT);
+        }
+        if let Some(bg) = style.bg {
+            Self::write_color(&mut s, SGR_BG, bg);
+        } else {
+            let _ = write!(s, ";{}", SGR_BG_DEFAULT);
+        }
+        if style.attrs.bold { let _ = write!(s, ";{}", SGR_BOLD); }
+        if style.attrs.dim { let _ = write!(s, ";{}", SGR_DIM); }
+        if style.attrs.italic { let _ = write!(s, ";{}", SGR_ITALIC); }
+        if style.attrs.underline { let _ = write!(s, ";{}", SGR_UNDERLINE); }
+        if style.attrs.reverse { let _ = write!(s, ";{}", SGR_REVERSE); }
+        if style.attrs.strikethrough { let _ = write!(s, ";{}", SGR_STRIKETHROUGH); }
+        s.push('m');
+        out.write_all(s.as_bytes())
+    }
+
     fn build_sgr(style: Style) -> String {
         let mut out = String::with_capacity(32);
         out.push_str("\x1b[0");
@@ -102,26 +125,25 @@ impl AnsiWriter {
         out
     }
 
-    #[inline]
-    fn write_sgr_inline(out: &mut dyn IoWrite, style: Style) -> io::Result<()> {
-        let sgr = Self::build_sgr(style);
-        out.write_all(sgr.as_bytes())
+    pub fn reset(&mut self) {
+        self.last_fg = None;
+        self.last_bg = None;
+        self.last_attrs = 0;
     }
 
-    pub fn write(&mut self, stdout: &mut dyn IoWrite, changes: &[super::diff::Change]) -> io::Result<()> {
+    pub fn write_buffered(&mut self, output: &mut Vec<u8>, changes: &[super::diff::Change]) {
         if changes.is_empty() {
-            return Ok(());
+            return;
         }
 
-        let mut buf = [0u8; 32];
+        let mut buf = [0u8; 4];
         let mut last_y: Option<u16> = None;
         let mut next_x: Option<u16> = None;
 
         for change in changes {
             let need_position = last_y != Some(change.y) || next_x != Some(change.x);
             if need_position {
-                let pos = format!("\x1b[{};{}H", change.y + 1, change.x + 1);
-                stdout.write_all(pos.as_bytes())?;
+                let _ = write!(output, "\x1b[{};{}H", change.y + 1, change.x + 1);
             }
 
             let attrs = attrs_bitmask(change.cell.style.attrs);
@@ -130,7 +152,66 @@ impl AnsiWriter {
             let attrs_changed = self.last_attrs != attrs;
 
             if fg_changed || bg_changed || attrs_changed {
-                Self::write_sgr_inline(stdout, change.cell.style)?;
+                Self::write_sgr_to_vec(output, change.cell.style);
+                self.last_fg = change.cell.style.fg;
+                self.last_bg = change.cell.style.bg;
+                self.last_attrs = attrs;
+            }
+
+            let ch = if change.cell.ch == '\0' { ' ' } else { change.cell.ch };
+            let enc = ch.encode_utf8(&mut buf);
+            output.extend_from_slice(enc.as_bytes());
+            let w = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) as u16;
+            last_y = Some(change.y);
+            next_x = Some(change.x + w);
+        }
+    }
+
+    fn write_sgr_to_vec(out: &mut Vec<u8>, style: Style) {
+        let mut s = String::with_capacity(64);
+        s.push_str("\x1b[0");
+        if let Some(fg) = style.fg {
+            Self::write_color(&mut s, SGR_FG, fg);
+        } else {
+            let _ = write!(s, ";{}", SGR_FG_DEFAULT);
+        }
+        if let Some(bg) = style.bg {
+            Self::write_color(&mut s, SGR_BG, bg);
+        } else {
+            let _ = write!(s, ";{}", SGR_BG_DEFAULT);
+        }
+        if style.attrs.bold { let _ = write!(s, ";{}", SGR_BOLD); }
+        if style.attrs.dim { let _ = write!(s, ";{}", SGR_DIM); }
+        if style.attrs.italic { let _ = write!(s, ";{}", SGR_ITALIC); }
+        if style.attrs.underline { let _ = write!(s, ";{}", SGR_UNDERLINE); }
+        if style.attrs.reverse { let _ = write!(s, ";{}", SGR_REVERSE); }
+        if style.attrs.strikethrough { let _ = write!(s, ";{}", SGR_STRIKETHROUGH); }
+        s.push('m');
+        out.extend_from_slice(s.as_bytes());
+    }
+
+    pub fn write(&mut self, stdout: &mut dyn IoWrite, changes: &[super::diff::Change]) -> io::Result<()> {
+        if changes.is_empty() {
+            return Ok(());
+        }
+
+        let mut buf = [0u8; 4];
+        let mut last_y: Option<u16> = None;
+        let mut next_x: Option<u16> = None;
+
+        for change in changes {
+            let need_position = last_y != Some(change.y) || next_x != Some(change.x);
+            if need_position {
+                write!(stdout, "\x1b[{};{}H", change.y + 1, change.x + 1)?;
+            }
+
+            let attrs = attrs_bitmask(change.cell.style.attrs);
+            let fg_changed = self.last_fg != change.cell.style.fg;
+            let bg_changed = self.last_bg != change.cell.style.bg;
+            let attrs_changed = self.last_attrs != attrs;
+
+            if fg_changed || bg_changed || attrs_changed {
+                Self::write_sgr_to(stdout, change.cell.style)?;
                 self.last_fg = change.cell.style.fg;
                 self.last_bg = change.cell.style.bg;
                 self.last_attrs = attrs;
@@ -142,7 +223,6 @@ impl AnsiWriter {
             let w = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) as u16;
             last_y = Some(change.y);
             next_x = Some(change.x + w);
-            let _ = &buf;
         }
         stdout.flush()
     }

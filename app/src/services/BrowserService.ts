@@ -1,0 +1,409 @@
+/**
+ * Browser Service - Handles IPC communication between webview and agent
+ * Provides real-time browser state synchronization and context sharing
+ */
+
+import { EventEmitter } from '@/utils/EventEmitter';
+
+// Browser state types
+export interface BrowserState {
+  url: string;
+  title: string;
+  isLoading: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  isActive: boolean;
+  lastError: string | null;
+}
+
+export interface BrowserContext {
+  url: string;
+  title: string;
+  cookies: Record<string, string>;
+  localStorage: Record<string, string>;
+  sessionStorage: Record<string, string>;
+  screenshot?: string;
+}
+
+export interface BrowserEvent {
+  type: 'navigate' | 'load' | 'error' | 'console' | 'screenshot' | 'dom-ready';
+  timestamp: number;
+  data: unknown;
+}
+
+class BrowserService extends EventEmitter {
+  private currentState: BrowserState = {
+    url: '',
+    title: '',
+    isLoading: false,
+    canGoBack: false,
+    canGoForward: false,
+    isActive: false,
+    lastError: null,
+  };
+
+  private webviewRef: HTMLWebViewElement | null = null;
+  private eventHistory: BrowserEvent[] = [];
+  private maxHistorySize = 100;
+
+  constructor() {
+    super();
+    this.setupEventListeners();
+  }
+
+  /**
+   * Register and initialize the webview element
+   */
+  registerWebview(webview: HTMLWebViewElement): void {
+    this.webviewRef = webview;
+    this.setupWebviewListeners(webview);
+    console.log('[BrowserService] Webview registered');
+  }
+
+  /**
+   * Setup webview event listeners for IPC communication
+   */
+  private setupWebviewListeners(webview: HTMLWebViewElement): void {
+    // Navigation events
+    webview.addEventListener('will-navigate', (event: Event) => {
+      const e = event as CustomEvent;
+      this.handleNavigate(e.detail as string);
+    });
+
+    webview.addEventListener('did-start-loading', () => {
+      this.updateState({ isLoading: true });
+      this.recordEvent('load', { status: 'start' });
+    });
+
+    webview.addEventListener('did-stop-loading', () => {
+      this.updateState({ isLoading: false });
+      this.recordEvent('load', { status: 'complete' });
+    });
+
+    webview.addEventListener('did-finish-load', () => {
+      this.updateState({ isLoading: false });
+      this.recordEvent('load', { status: 'finished' });
+      this.emit('browser-ready', this.currentState);
+    });
+
+    webview.addEventListener('dom-ready', () => {
+      console.log('[BrowserService] DOM ready');
+      this.recordEvent('dom-ready', {});
+      this.extractPageContext();
+    });
+
+    // Console messages for debugging
+    webview.addEventListener('console-message', (event: Event) => {
+      const e = event as CustomEvent;
+      this.recordEvent('console', {
+        level: e.detail?.level,
+        message: e.detail?.message,
+        line: e.detail?.line,
+        sourceId: e.detail?.sourceId,
+      });
+    });
+
+    // Error handling
+    webview.addEventListener('did-fail-load', (event: Event) => {
+      const e = event as CustomEvent;
+      this.handleError(e.detail);
+    });
+
+    // Page title changes
+    webview.addEventListener('page-title-updated', (event: Event) => {
+      const e = event as CustomEvent;
+      this.updateState({ title: e.detail?.title || '' });
+    });
+  }
+
+  /**
+   * Handle navigation events
+   */
+  private handleNavigate(url: string): void {
+    this.updateState({ url });
+    this.recordEvent('navigate', { url });
+    this.emit('browser-navigate', { url, state: this.currentState });
+
+    // Notify agent of navigation for context awareness
+    this.notifyAgentNavigation(url);
+  }
+
+  /**
+   * Handle browser errors
+   */
+  private handleError(detail: unknown): void {
+    const error = detail as { errorCode: number; errorDescription: string; validatedURL: string };
+    const errorMessage = `${error.errorCode}: ${error.errorDescription}`;
+
+    this.updateState({
+      isLoading: false,
+      lastError: errorMessage,
+    });
+
+    this.recordEvent('error', {
+      code: error.errorCode,
+      description: error.errorDescription,
+      url: error.validatedURL,
+    });
+
+    this.emit('browser-error', { error: errorMessage, url: error.validatedURL });
+  }
+
+  /**
+   * Update browser state and emit events
+   */
+  private updateState(updates: Partial<BrowserState>): void {
+    const oldState = { ...this.currentState };
+    this.currentState = { ...this.currentState, ...updates };
+    this.emit('browser-state-change', { oldState, newState: this.currentState });
+  }
+
+  /**
+   * Record event for history tracking
+   */
+  private recordEvent(type: BrowserEvent['type'], data: unknown): void {
+    const event: BrowserEvent = {
+      type,
+      timestamp: Date.now(),
+      data,
+    };
+
+    this.eventHistory.push(event);
+
+    // Maintain max history size
+    if (this.eventHistory.length > this.maxHistorySize) {
+      this.eventHistory.shift();
+    }
+
+    this.emit('browser-event', event);
+  }
+
+  /**
+   * Extract page context for agent awareness
+   */
+  private async extractPageContext(): Promise<void> {
+    if (!this.webviewRef) return;
+
+    try {
+      const context = await this.webviewRef.executeJavaScript(`
+        (async () => {
+          return {
+            url: window.location.href,
+            title: document.title,
+            // Sample of localStorage (not full dump for privacy)
+            hasLocalStorage: Object.keys(localStorage).length > 0,
+            localStorageKeys: Object.keys(localStorage).slice(0, 10),
+            // Sample of sessionStorage
+            hasSessionStorage: Object.keys(sessionStorage).length > 0,
+            sessionStorageKeys: Object.keys(sessionStorage).slice(0, 10),
+            // Basic page info
+            hasForms: document.forms.length > 0,
+            formCount: document.forms.length,
+            hasInputs: document.querySelectorAll('input, textarea').length > 0,
+            inputCount: document.querySelectorAll('input, textarea').length,
+            // Links
+            linkCount: document.links.length,
+            // Basic meta info
+            description: document.querySelector('meta[name="description"]')?.content || '',
+          };
+        })()
+      `);
+
+      this.emit('browser-context-extracted', context);
+      console.log('[BrowserService] Context extracted:', context);
+    } catch (error) {
+      console.error('[BrowserService] Failed to extract context:', error);
+    }
+  }
+
+  /**
+   * Notify agent of navigation for context awareness
+   */
+  private notifyAgentNavigation(url: string): void {
+    // This will be used to keep the agent aware of browser state
+    this.emit('agent-notify-navigation', {
+      url,
+      timestamp: Date.now(),
+      state: this.currentState
+    });
+  }
+
+  /**
+   * Navigate to a URL
+   */
+  navigate(url: string): void {
+    if (this.webviewRef) {
+      console.log('[BrowserService] Navigating to:', url);
+      this.webviewRef.src = url;
+    } else {
+      console.error('[BrowserService] No webview registered');
+    }
+  }
+
+  /**
+   * Navigate back
+   */
+  goBack(): void {
+    if (this.webviewRef && this.currentState.canGoBack) {
+      this.webviewRef.goBack();
+    }
+  }
+
+  /**
+   * Navigate forward
+   */
+  goForward(): void {
+    if (this.webviewRef && this.currentState.canGoForward) {
+      this.webviewRef.goForward();
+    }
+  }
+
+  /**
+   * Reload current page
+   */
+  reload(): void {
+    if (this.webviewRef) {
+      this.webviewRef.reload();
+    }
+  }
+
+  /**
+   * Take a screenshot of the current page
+   */
+  async takeScreenshot(): Promise<string | undefined> {
+    if (!this.webviewRef) return undefined;
+
+    try {
+      const screenshot = await this.webviewRef.executeJavaScript(`
+        (async () => {
+          // Use html2canvas or similar for better results
+          // For now, basic canvas capture
+          const canvas = document.createElement('canvas');
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          const ctx = canvas.getContext('2d');
+
+          // Capture the visible viewport
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Simple capture - in production use html2canvas
+          ctx.drawWindow(window, 0, 0, canvas.width, canvas.height, 'rgb(255,255,255)');
+
+          return canvas.toDataURL('image/png', 0.9);
+        })()
+      `);
+
+      this.recordEvent('screenshot', { success: true });
+      this.emit('browser-screenshot', screenshot);
+      return screenshot;
+    } catch (error) {
+      console.error('[BrowserService] Screenshot failed:', error);
+      this.recordEvent('screenshot', { success: false, error });
+      return undefined;
+    }
+  }
+
+  /**
+   * Execute JavaScript in the browser context
+   */
+  async executeScript<T>(script: string): Promise<T | undefined> {
+    if (!this.webviewRef) return undefined;
+
+    try {
+      const result = await this.webviewRef.executeJavaScript(script);
+      return result;
+    } catch (error) {
+      console.error('[BrowserService] Script execution failed:', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Get current browser state
+   */
+  getState(): BrowserState {
+    return { ...this.currentState };
+  }
+
+  /**
+   * Get event history
+   */
+  getEventHistory(limit?: number): BrowserEvent[] {
+    if (limit) {
+      return this.eventHistory.slice(-limit);
+    }
+    return [...this.eventHistory];
+  }
+
+  /**
+   * Check if browser is ready for interaction
+   */
+  isReady(): boolean {
+    return this.currentState.isActive && !this.currentState.isLoading;
+  }
+
+  /**
+   * Setup additional event listeners
+   */
+  private setupEventListeners(): void {
+    // Listen for agent requests for browser state
+    this.on('agent-request-state', () => {
+      this.emit('browser-state-response', this.currentState);
+    });
+
+    // Listen for agent requests for screenshots
+    this.on('agent-request-screenshot', async () => {
+      const screenshot = await this.takeScreenshot();
+      this.emit('browser-screenshot-response', screenshot);
+    });
+  }
+
+  /**
+   * Activate browser session
+   */
+  activate(): void {
+    this.updateState({ isActive: true });
+    console.log('[BrowserService] Browser activated');
+  }
+
+  /**
+   * Deactivate browser session
+   */
+  deactivate(): void {
+    this.updateState({ isActive: false, isLoading: false });
+    console.log('[BrowserService] Browser deactivated');
+  }
+
+  /**
+   * Reset browser state
+   */
+  reset(): void {
+    this.currentState = {
+      url: '',
+      title: '',
+      isLoading: false,
+      canGoBack: false,
+      canGoForward: false,
+      isActive: false,
+      lastError: null,
+    };
+    this.eventHistory = [];
+    console.log('[BrowserService] Browser state reset');
+  }
+}
+
+// Singleton instance
+export const browserService = new BrowserService();
+
+// Type declaration for global window object
+declare global {
+  interface Window {
+    browserService?: typeof browserService;
+  }
+}
+
+// Make available globally for easy access
+if (typeof window !== 'undefined') {
+  window.browserService = browserService;
+}

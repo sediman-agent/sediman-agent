@@ -1,7 +1,7 @@
 //! Update event handler for the TUI.
 
 mod handlers;
-mod modals;
+pub mod modals;
 mod util;
 
 use tokio::sync::mpsc;
@@ -38,6 +38,10 @@ fn send_desktop_notification(title: &str, body: &str) {
 
 /// Handle events from the TUI event loop.
 pub async fn handle_message(app: &mut App, event: AppEvent, event_tx: &mpsc::Sender<AppEvent>) {
+    if !matches!(event, AppEvent::Shutdown) {
+        app.mark_dirty();
+    }
+
     match event {
         AppEvent::Key(key) => {
             use crossterm::event::{KeyCode, KeyModifiers};
@@ -170,7 +174,43 @@ pub async fn handle_message(app: &mut App, event: AppEvent, event_tx: &mpsc::Sen
                 installing: false,
                 install_progress: String::new(),
             });
-            app.mark_dirty();
+        }
+        AppEvent::DoctorInstallOutput(line) => {
+            if let Some(crate::app::AppModal::Doctor { ref mut install_output, .. }) = app.modals.active {
+                install_output.push(line);
+            }
+        }
+        AppEvent::DoctorInstallDone { category, success: _ } => {
+            if let Some(crate::app::AppModal::Doctor { ref checks, ref mut cursor, ref mut install_state, ref mut install_output, ref filter, .. }) = app.modals.active {
+                let saved_cursor = *cursor;
+                let saved_output = std::mem::take(install_output);
+                let saved_filter = filter.clone();
+
+                let new_category_checks = crate::commands::doctor::run_category_check(
+                    &category,
+                    &app.connection.bridge,
+                    &app.provider,
+                    &app.agent.coder_backend,
+                ).await;
+
+                let mut new_checks: Vec<_> = checks.clone()
+                    .into_iter()
+                    .filter(|c| c.category != category)
+                    .collect();
+                let insert_pos = new_checks.iter().position(|c| c.category > category).unwrap_or(new_checks.len());
+                new_checks.splice(insert_pos..insert_pos, new_category_checks);
+
+                *install_state = crate::app::DoctorInstallState::Idle;
+                app.modals.active = Some(crate::app::AppModal::Doctor {
+                    checks: new_checks,
+                    cursor: saved_cursor,
+                    scroll: 0,
+                    install_state: crate::app::DoctorInstallState::Idle,
+                    install_output: saved_output,
+                    filter: saved_filter,
+                    search_active: false,
+                });
+            }
         }
     }
 }
@@ -193,7 +233,7 @@ async fn handle_modal_key(app: &mut App, key: crossterm::event::KeyEvent, event_
         Some(AppModal::CoderPicker) => handle_coder_picker(app, key).await,
         Some(AppModal::SearchModePicker) => handle_search_mode_picker(app, key).await,
         Some(AppModal::BrowserModePicker) => handle_browser_mode_picker(app, key).await,
-        Some(AppModal::Doctor { .. }) => handle_doctor(app, key).await,
+        Some(AppModal::Doctor { .. }) => handle_doctor(app, key, event_tx).await,
         Some(AppModal::Help { .. }) => handle_help_modal(app, key).await,
         Some(AppModal::Info { .. }) => handle_info_modal(app, key).await,
         Some(AppModal::UpdateAvailable { .. }) => handle_update_available_modal(app, key, event_tx).await,

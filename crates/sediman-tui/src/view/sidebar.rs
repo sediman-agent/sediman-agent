@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use sediman_tui_core::renderer::{CellBuffer, Rect, Style, TextAttributes, display_width};
 use sediman_tui_core::component::draw_separator;
 use crate::app::{App, SideTab};
@@ -52,17 +53,26 @@ pub fn render_side_panel(buf: &mut CellBuffer, area: Rect, app: &App) {
 }
 
 fn render_list_tab(title: &str, empty_hint: &str, cache: &[String], t: &sediman_tui_core::styling::Theme) -> Vec<(String, Style)> {
-    let mut out = Vec::new();
-    out.push(("".into(), Style::new()));
-    out.push((format!("  {}", title), Style::new().fg(t.secondary).add_modifier(TextAttributes::bold())));
+    let mut out = Vec::with_capacity(cache.len() + 3);
+    out.push((String::new(), Style::new()));
+    let mut s = String::with_capacity(64);
+    write!(s, "  {}", title).unwrap();
+    out.push((s, Style::new().fg(t.secondary).add_modifier(TextAttributes::bold())));
 
     if cache.is_empty() {
         out.push(("  none yet".into(), Style::new().fg(t.text_muted)));
-        out.push((format!("  \u{2502} {}", empty_hint), Style::new().fg(t.text_muted)));
+        let mut s2 = String::with_capacity(64);
+        write!(s2, "  \u{2502} {}", empty_hint).unwrap();
+        out.push((s2, Style::new().fg(t.text_muted)));
     } else {
+        let mut entry_buf = String::with_capacity(MAX_ENTRY_DISPLAY + 6);
         for entry in cache {
-            let d: String = entry.chars().take(MAX_ENTRY_DISPLAY).collect();
-            out.push((format!("  \u{2022} {}", d), Style::new().fg(t.text)));
+            entry_buf.clear();
+            write!(entry_buf, "  \u{2022} ").unwrap();
+            for ch in entry.chars().take(MAX_ENTRY_DISPLAY) {
+                entry_buf.push(ch);
+            }
+            out.push((entry_buf.clone(), Style::new().fg(t.text)));
         }
     }
     out
@@ -74,16 +84,22 @@ fn render_status_tab_inner(app: &App) -> Vec<(String, Style)> {
     let agent_status = if app.agent.running { "running" } else { "idle" };
     let agent_style = if app.agent.running { Style::new().fg(t.success) } else { Style::new().fg(t.text_muted) };
 
-    vec![
-        ("".into(), Style::new()),
-        ("  Status".into(), Style::new().fg(t.secondary).add_modifier(TextAttributes::bold())),
-        ("".into(), Style::new()),
-        (format!("  Model   {}", app.model.as_deref().unwrap_or("default")), Style::new().fg(t.text)),
-        (format!("  Mode    {}", mode), Style::new().fg(t.text)),
-        (format!("  Tasks   {}", app.agent.task_count), Style::new().fg(t.text)),
-        (format!("  Browser {}", if app.headless { "headless" } else { "headed" }), Style::new().fg(t.text)),
-        (format!("  Agent   {}", agent_status), agent_style),
-    ]
+    let mut s = String::with_capacity(64);
+    let mut lines = Vec::with_capacity(8);
+    lines.push((String::new(), Style::new()));
+    lines.push(("  Status".into(), Style::new().fg(t.secondary).add_modifier(TextAttributes::bold())));
+    lines.push((String::new(), Style::new()));
+    s.clear(); write!(s, "  Model   {}", app.model.as_deref().unwrap_or("default")).unwrap();
+    lines.push((s.clone(), Style::new().fg(t.text)));
+    s.clear(); write!(s, "  Mode    {}", mode).unwrap();
+    lines.push((s.clone(), Style::new().fg(t.text)));
+    s.clear(); write!(s, "  Tasks   {}", app.agent.task_count).unwrap();
+    lines.push((s.clone(), Style::new().fg(t.text)));
+    s.clear(); write!(s, "  Browser {}", if app.headless { "headless" } else { "headed" }).unwrap();
+    lines.push((s.clone(), Style::new().fg(t.text)));
+    s.clear(); write!(s, "  Agent   {}", agent_status).unwrap();
+    lines.push((s, agent_style));
+    lines
 }
 
 #[cfg(test)]

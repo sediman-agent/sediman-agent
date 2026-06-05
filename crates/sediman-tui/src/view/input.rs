@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use sediman_tui_core::renderer::{CellBuffer, Rect, Style, TextAttributes, display_width};
 use sediman_tui_core::component::draw_separator;
 use crate::app::{App, AgentMode};
@@ -34,17 +35,17 @@ pub fn render_input(buf: &mut CellBuffer, area: Rect, app: &mut App) {
     let content_start = area.y + 2;
     let content_rows = row_bot.saturating_sub(content_start);
 
-    // Fill all content rows with bg
+    // Fill all content rows with bg using a single fill call
+    let content_fill = Rect::new(x_left + 1, content_start, x_right.saturating_sub(x_left + 1), content_rows);
+    buf.fill(content_fill, sediman_tui_core::renderer::Cell::new(' ', panel));
     for row in content_start..row_bot {
-        for sx in x_left..=x_right {
-            buf.put_char(sx, row, ' ', panel);
-        }
         buf.put_char(x_left, row, '\u{2502}', Style::new().fg(mode_color).bg(t.background));
         buf.put_char(x_right, row, '\u{2502}', border);
     }
 
     // Mode badge on first content row
-    let badge = format!(" {} ", mode_label);
+    let mut badge = String::with_capacity(16);
+    write!(badge, " {} ", mode_label).unwrap();
     let badge_style = Style::new().bg(mode_color).fg(t.background).add_modifier(TextAttributes::bold());
     buf.draw_str(x_left + 2, content_start, &badge, badge_style);
 

@@ -1,59 +1,71 @@
 fn levenshtein(a: &str, b: &str) -> usize {
-    let a_len = a.chars().count();
-    let b_len = b.chars().count();
-    let mut matrix = vec![vec![0; b_len + 1]; a_len + 1];
+    let a_chars: Vec<char> = a.chars().collect();
+    let b_chars: Vec<char> = b.chars().collect();
+    let a_len = a_chars.len();
+    let b_len = b_chars.len();
 
-    for (i, row) in matrix.iter_mut().enumerate() {
-        row[0] = i;
-    }
-    for (j, val) in matrix[0].iter_mut().enumerate() {
-        *val = j;
+    if a_len == 0 { return b_len; }
+    if b_len == 0 { return a_len; }
+
+    let mut prev = vec![0usize; b_len + 1];
+    let mut curr = vec![0usize; b_len + 1];
+
+    for j in 0..=b_len {
+        prev[j] = j;
     }
 
-    for (i, ca) in a.chars().enumerate() {
-        for (j, cb) in b.chars().enumerate() {
-            let cost = if ca == cb { 0 } else { 1 };
-            matrix[i + 1][j + 1] = (matrix[i][j + 1] + 1)
-                .min(matrix[i + 1][j] + 1)
-                .min(matrix[i][j] + cost);
+    for i in 0..a_len {
+        curr[0] = i + 1;
+        for j in 0..b_len {
+            let cost = if a_chars[i] == b_chars[j] { 0 } else { 1 };
+            curr[j + 1] = (prev[j + 1] + 1)
+                .min(curr[j] + 1)
+                .min(prev[j] + cost);
         }
+        std::mem::swap(&mut prev, &mut curr);
     }
 
-    matrix[a_len][b_len]
+    prev[b_len]
 }
 
 use super::registry::Command;
 
 pub fn fuzzy_match(input: &str, commands: &[&Command]) -> Option<usize> {
     let input_lower = input.to_lowercase();
+    if input_lower.is_empty() {
+        return commands.first().map(|_| 0);
+    }
 
-    let exact = commands.iter().position(|c| {
-        c.name.to_lowercase() == input_lower
-            || c.aliases.iter().any(|a| a.to_lowercase() == input_lower)
-    });
+    let lower_names: Vec<String> = commands.iter().map(|c| c.name.to_lowercase()).collect();
+    let lower_aliases: Vec<Vec<String>> = commands.iter()
+        .map(|c| c.aliases.iter().map(|a| a.to_lowercase()).collect())
+        .collect();
+
+    let exact = lower_names.iter().position(|n| n == &input_lower)
+        .or_else(|| {
+            lower_aliases.iter().position(|aliases| aliases.iter().any(|a| a == &input_lower))
+        });
     if let Some(idx) = exact {
         return Some(idx);
     }
 
-    let starts_with = commands.iter().position(|c| {
-        c.name.to_lowercase().starts_with(&input_lower)
-            || c.aliases.iter().any(|a| a.to_lowercase().starts_with(&input_lower))
-    });
+    let starts_with = lower_names.iter().position(|n| n.starts_with(&input_lower))
+        .or_else(|| {
+            lower_aliases.iter().position(|aliases| aliases.iter().any(|a| a.starts_with(&input_lower)))
+        });
     if let Some(idx) = starts_with {
         return Some(idx);
     }
 
-    let contains = commands.iter().position(|c| {
-        c.name.to_lowercase().contains(&input_lower)
-    });
+    let contains = lower_names.iter().position(|n| n.contains(&input_lower));
     if let Some(idx) = contains {
         return Some(idx);
     }
 
-    let best = commands
+    let best = lower_names
         .iter()
         .enumerate()
-        .map(|(i, c)| (levenshtein(&input_lower, &c.name.to_lowercase()), i))
+        .map(|(i, n)| (levenshtein(&input_lower, n), i))
         .filter(|(dist, _)| *dist <= 3)
         .min_by_key(|(dist, _)| *dist);
 

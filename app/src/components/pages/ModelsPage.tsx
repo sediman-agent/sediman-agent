@@ -1,4 +1,4 @@
-import { Bot, Settings } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 
 export function ModelsPage() {
@@ -8,7 +8,6 @@ export function ModelsPage() {
         icon={Bot}
         title="Models"
         subtitle="Manage AI models"
-        iconVariant="primary"
       />
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">

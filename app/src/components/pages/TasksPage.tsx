@@ -76,7 +76,6 @@ export function TasksPage() {
         icon={Sparkles}
         title="Tasks"
         subtitle="Run one-shot browser automation"
-        iconVariant="primary"
       />
 
       {/* Content */}

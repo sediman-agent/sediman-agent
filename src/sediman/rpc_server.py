@@ -1423,7 +1423,6 @@ async def handle_sandbox_control(params: dict[str, Any], notify: NotifyFn | None
     """Handle input events for sandbox control."""
     global _sandbox_control_mode
 
-    # Only process user input when in user mode
     if _sandbox_control_mode != "user":
         logger.debug("sandbox_input_ignored", mode=_sandbox_control_mode)
         return {"processed": False, "reason": "Not in user control mode"}
@@ -1438,32 +1437,47 @@ async def handle_sandbox_control(params: dict[str, Any], notify: NotifyFn | None
         return {"processed": False, "reason": "Browser not active"}
 
     try:
-        # Handle mouse events
+        pw_page = await _get_active_playwright_page(browser)
+        if pw_page is None:
+            return {"processed": False, "reason": "No active browser page"}
+
         if event_type == "mouse":
+            x, y = data.get("x", 0), data.get("y", 0)
             if action == "click":
-                x = data.get("x", 0)
-                y = data.get("y", 0)
                 button = data.get("button", "left")
-                # Would need to implement browser control via Playwright
-                logger.debug("sandbox_mouse_click", x=x, y=y, button=button)
+                await pw_page.mouse.click(x, y, button=button)
                 return {"processed": True}
             elif action == "move":
-                x = data.get("x", 0)
-                y = data.get("y", 0)
-                logger.debug("sandbox_mouse_move", x=x, y=y)
+                await pw_page.mouse.move(x, y)
                 return {"processed": True}
 
-        # Handle keyboard events
         elif event_type == "keyboard":
             if action == "type":
                 text = data.get("text", "")
-                logger.debug("sandbox_keyboard_type", text_length=len(text))
+                await pw_page.keyboard.type(text, delay=30)
+                return {"processed": True}
+            elif action == "press":
+                key = data.get("key", "Enter")
+                await pw_page.keyboard.press(key)
                 return {"processed": True}
 
         return {"processed": False, "reason": "Unknown event type"}
     except Exception as e:
         logger.error("sandbox_control_error", error=str(e))
         return {"processed": False, "reason": str(e)}
+
+
+async def _get_active_playwright_page(browser: Any) -> Any:
+    try:
+        session = await browser._browser.get_or_create_cdp_session()
+        if session and session.agent_current_page:
+            return session.agent_current_page
+        contexts = browser._browser.playwright_browser.contexts if hasattr(browser._browser, "playwright_browser") else []
+        if contexts and contexts[0].pages:
+            return contexts[0].pages[-1]
+    except Exception as e:
+        logger.debug("get_active_page_failed", error=str(e))
+    return None
 
 
 async def handle_sandbox_test_browser(params: dict[str, Any], notify: NotifyFn | None = None) -> dict[str, Any]:

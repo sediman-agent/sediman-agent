@@ -1,8 +1,10 @@
 import { cn } from '@/lib/utils';
 
+type ThemeType = 'default' | 'blue' | 'purple' | 'green' | 'rose' | 'cyan';
+
 interface ThemePickerProps {
-  currentTheme: string;
-  onThemeChange: (theme: string) => void;
+  currentTheme: ThemeType;
+  onThemeChange: (theme: ThemeType) => void;
 }
 
 const themes = [
@@ -31,7 +33,7 @@ export function ThemePicker({ currentTheme, onThemeChange }: ThemePickerProps) {
         return (
           <button
             key={theme.id}
-            onClick={() => onThemeChange(theme.id)}
+            onClick={() => onThemeChange(theme.id as ThemeType)}
             className={cn(
               'relative flex items-center justify-center w-7 h-7 rounded border transition-all duration-150',
               'hover:scale-105 active:scale-95',

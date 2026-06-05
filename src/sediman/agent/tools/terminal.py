@@ -19,6 +19,13 @@ def _get_runner() -> SandboxRunner:
     return _runner
 
 
+async def cleanup() -> None:
+    global _runner
+    if _runner is not None:
+        await _runner.close()
+        _runner = None
+
+
 async def _handle_terminal(
     command: str | None = None,
     cwd: str | None = None,

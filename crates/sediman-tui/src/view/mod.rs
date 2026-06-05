@@ -14,8 +14,11 @@ use crate::constants::*;
 
 pub fn render_into(buf: &mut CellBuffer, app: &mut App) {
     let area = buf.area();
-    buf.fill(area, sediman_tui_core::renderer::Cell::EMPTY);
-    buf.fill_style(area, sediman_tui_core::renderer::Style::new().bg(app.theme.background));
+    let bg_cell = sediman_tui_core::renderer::Cell::new(
+        ' ',
+        sediman_tui_core::renderer::Style::new().bg(app.theme.background),
+    );
+    buf.fill(area, bg_cell);
 
     // Dynamically expand input area based on visual lines (accounts for wrapping)
     // Approximate inner width: total width minus borders(2) + badge(~8) + padding(2)
@@ -57,8 +60,8 @@ pub fn render_into(buf: &mut CellBuffer, app: &mut App) {
             AppModal::CoderPicker => modals::render_coder_picker(buf, zones.main, app),
             AppModal::SearchModePicker => modals::render_search_mode_picker(buf, zones.main, app),
             AppModal::BrowserModePicker => modals::render_browser_mode_picker(buf, zones.main, app),
-            AppModal::Doctor { checks, cursor, scroll, installing, install_output } => {
-                modals::render_doctor_modal(buf, zones.main, app, checks, *cursor, *scroll, (installing, install_output));
+            AppModal::Doctor { checks, cursor, scroll, install_state, install_output, filter, search_active } => {
+                modals::render_doctor_modal(buf, zones.main, app, checks, *cursor, *scroll, (install_state, install_output, filter, search_active));
             }
             AppModal::Info { title, lines, scroll } => {
                 modals::render_info_modal(buf, zones.main, app, title, lines, *scroll);

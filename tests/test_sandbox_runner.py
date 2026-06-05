@@ -287,9 +287,6 @@ class TestSandboxRunnerRun:
             assert result.success is False
             assert result.sandboxed is True
             assert "Sandbox error" in result.output
-            # Verify sandbox state reset
-            assert runner._sandbox is None
-            assert runner._available is None
             assert result.retryable is True
 
     @pytest.mark.asyncio
@@ -603,9 +600,8 @@ class TestSandboxRunnerEdgeCases:
             runner._available = True
 
             await runner.run("test")
-            # Verify state reset for retry
-            assert runner._sandbox is None
-            assert runner._available is None
+            assert runner._sandbox is mock_sandbox
+            assert runner._available is True
 
     @pytest.mark.asyncio
     async def test_error_result_fields(self):

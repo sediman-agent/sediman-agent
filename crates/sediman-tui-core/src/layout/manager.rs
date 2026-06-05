@@ -13,6 +13,11 @@ pub struct LayoutManager {
     pub show_progress: bool,
     pub show_side_panel: bool,
     pub input_lines: u16,
+    cached_zones: Option<LayoutZones>,
+    cached_input: u16,
+    cached_width: u16,
+    cached_height: u16,
+    cached_side: bool,
 }
 
 impl LayoutManager {
@@ -22,10 +27,40 @@ impl LayoutManager {
             show_progress: false,
             show_side_panel: false,
             input_lines: 4,
+            cached_zones: None,
+            cached_input: 0,
+            cached_width: 0,
+            cached_height: 0,
+            cached_side: false,
         }
     }
 
-    pub fn split(&self, area: Rect) -> LayoutZones {
+    pub fn split(&mut self, area: Rect) -> LayoutZones {
+        let area = if area.width < 10 || area.height < 3 {
+            Rect::new(area.x, area.y, area.width.max(10), area.height.max(3))
+        } else {
+            area
+        };
+
+        if self.cached_zones.is_some()
+            && self.cached_input == self.input_lines
+            && self.cached_width == area.width
+            && self.cached_height == area.height
+            && self.cached_side == self.show_side_panel
+        {
+            return self.cached_zones.clone().unwrap();
+        }
+
+        let zones = self.compute_split(area);
+        self.cached_input = self.input_lines;
+        self.cached_width = area.width;
+        self.cached_height = area.height;
+        self.cached_side = self.show_side_panel;
+        self.cached_zones = Some(zones.clone());
+        zones
+    }
+
+    fn compute_split(&self, area: Rect) -> LayoutZones {
         let area = if area.width < 10 || area.height < 3 {
             Rect::new(area.x, area.y, area.width.max(10), area.height.max(3))
         } else {
@@ -63,6 +98,7 @@ impl Default for LayoutManager {
     }
 }
 
+#[derive(Clone)]
 pub struct LayoutZones {
     pub title_bar: Rect,
     pub main: Rect,
@@ -81,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_new_defaults() {
-        let lm = LayoutManager::new();
+        let mut lm = LayoutManager::new();
         assert!(lm.show_banner);
         assert!(!lm.show_progress);
         assert!(!lm.show_side_panel);
@@ -90,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_split_basic() {
-        let lm = LayoutManager::new();
+        let mut lm = LayoutManager::new();
         let zones = lm.split(area(80, 24));
         assert_eq!(zones.title_bar.height, 1);
         assert_eq!(zones.status_bar.height, 1);
@@ -112,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_split_small_terminal() {
-        let lm = LayoutManager::new();
+        let mut lm = LayoutManager::new();
         let zones = lm.split(area(20, 6));
         assert_eq!(zones.title_bar.height, 1);
         assert_eq!(zones.status_bar.height, 1);
@@ -122,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_split_tiny_terminal_does_not_panic() {
-        let lm = LayoutManager::new();
+        let mut lm = LayoutManager::new();
         let zones = lm.split(area(10, 3));
         assert_eq!(zones.title_bar.width, 10);
         _ = zones.main.height;
@@ -140,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_split_full_width() {
-        let lm = LayoutManager::new();
+        let mut lm = LayoutManager::new();
         let zones = lm.split(area(120, 40));
         assert_eq!(zones.title_bar.width, 120);
         assert_eq!(zones.status_bar.width, 120);

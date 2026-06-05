@@ -6,10 +6,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { getRPCClient } from '@/services/rpcClient';
 import {
   createServiceContainer,
-  type MemoryService,
   type MemoryData,
-} from '@/core/services';
-import { isAppError, getUserMessage } from '@/core/errors';
+} from '@/services';
+import { isAppError, getUserMessage } from '@/errors';
 
 export interface UseMemoryState {
   data: MemoryData | null;

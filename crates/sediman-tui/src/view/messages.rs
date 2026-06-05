@@ -7,6 +7,7 @@
 //! - Auto-scroll with pause-on-scroll-up
 
 use std::cell::RefCell;
+use std::fmt::Write as FmtWrite;
 
 use sediman_tui_core::renderer::{CellBuffer, Color, Line, Rect, Style, TextAttributes, display_width};
 use sediman_tui_core::markdown;
@@ -267,7 +268,7 @@ fn render_completed_message(
         ChatMessage::Agent {
             steps, thinking_text, result, success, elapsed_secs,
             skill_created, scheduled_job, selected_tab, tab_expanded,
-            cached_response_md, ..
+            cached_response_md, cached_thinking_md, ..
         } => {
             lines.push(MessageLine::empty());
 
@@ -305,19 +306,36 @@ fn render_completed_message(
                             let show_all = total <= CODE_COLLAPSE_THRESHOLD;
                             let limit = if show_all { total } else { CODE_COLLAPSED_LINES };
 
-                            for tline in content_lines.iter().take(limit) {
-                                if !tline.is_empty() {
-                                    let md_lines = markdown::render_markdown_with_theme(tline, &app.theme);
-                                    for md_line in &md_lines {
-                                        let (text, style) = flatten_line(md_line, app);
-                                        if !text.is_empty() {
-                                            push_wrapped(lines, &format!("    {}", text), style, max_width);
-                                        } else {
-                                            lines.push(MessageLine::empty());
-    }
-}
-                                } else {
-                                    lines.push(MessageLine::empty());
+                            if let Some(ref cached_lines) = cached_thinking_md {
+                                for md_lines in cached_lines.iter().take(limit) {
+                                    if md_lines.is_empty() {
+                                        lines.push(MessageLine::empty());
+                                    } else {
+                                        for md_line in md_lines {
+                                            let (text, style) = flatten_line(md_line, app);
+                                            if !text.is_empty() {
+                                                push_wrapped(lines, &format!("    {}", text), style, max_width);
+                                            } else {
+                                                lines.push(MessageLine::empty());
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                for tline in content_lines.iter().take(limit) {
+                                    if !tline.is_empty() {
+                                        let md_lines = markdown::render_markdown_with_theme(tline, &app.theme);
+                                        for md_line in &md_lines {
+                                            let (text, style) = flatten_line(md_line, app);
+                                            if !text.is_empty() {
+                                                push_wrapped(lines, &format!("    {}", text), style, max_width);
+                                            } else {
+                                                lines.push(MessageLine::empty());
+                                            }
+                                        }
+                                    } else {
+                                        lines.push(MessageLine::empty());
+                                    }
                                 }
                             }
                             if !show_all {
@@ -370,20 +388,33 @@ fn render_completed_message(
 
                                 if !res.is_empty() {
                                     lines.push(MessageLine::empty());
-                                    let md_lines = match cached_response_md.as_ref() {
-                                        Some(cached) => cached.clone(),
-                                        None => markdown::render_markdown_with_theme(res, &app.theme),
-                                    };
-                                    for md_line in &md_lines {
-                                        let (text, style) = flatten_line(md_line, app);
-                                        if !text.is_empty() {
-                                            push_wrapped(lines, &format!("    {}", text), style, max_width);
-                                        } else {
-                                            lines.push(MessageLine::empty());
+                                    let md_lines = cached_response_md.as_ref()
+                                        .unwrap_or_else(|| {
+                                            static EMPTY: Vec<Line> = Vec::new();
+                                            &EMPTY
+                                        });
+                                    if cached_response_md.is_none() {
+                                        let rendered = markdown::render_markdown_with_theme(res, &app.theme);
+                                        for md_line in &rendered {
+                                            let (text, style) = flatten_line(md_line, app);
+                                            if !text.is_empty() {
+                                                push_wrapped(lines, &format!("    {}", text), style, max_width);
+                                            } else {
+                                                lines.push(MessageLine::empty());
+                                            }
                                         }
-        }
-    }
-}
+                                    } else {
+                                        for md_line in md_lines {
+                                            let (text, style) = flatten_line(md_line, app);
+                                            if !text.is_empty() {
+                                                push_wrapped(lines, &format!("    {}", text), style, max_width);
+                                            } else {
+                                                lines.push(MessageLine::empty());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -618,16 +649,23 @@ fn push_wrapped(lines: &mut Vec<MessageLine>, text: &str, style: Style, max_widt
     }
 }
 
-pub fn format_elapsed(secs: u64) -> String {
+pub fn format_elapsed_into(secs: u64, buf: &mut String) {
+    buf.clear();
     if secs >= SECONDS_PER_HOUR {
-        format!("{}h {:02}m", secs / SECONDS_PER_HOUR, (secs % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE)
+        write!(buf, "{}h {:02}m", secs / SECONDS_PER_HOUR, (secs % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE).unwrap();
     } else if secs >= SECONDS_PER_MINUTE {
-        format!("{}m {:02}s", secs / SECONDS_PER_MINUTE, secs % SECONDS_PER_MINUTE)
+        write!(buf, "{}m {:02}s", secs / SECONDS_PER_MINUTE, secs % SECONDS_PER_MINUTE).unwrap();
     } else if secs == 0 {
-        "< 1s".to_string()
+        buf.push_str("< 1s");
     } else {
-        format!("{}s", secs)
+        write!(buf, "{}s", secs).unwrap();
     }
+}
+
+pub fn format_elapsed(secs: u64) -> String {
+    let mut s = String::with_capacity(16);
+    format_elapsed_into(secs, &mut s);
+    s
 }
 
 #[allow(dead_code)]
@@ -1219,6 +1257,7 @@ mod tests {
                 selected_tab: AgentTab::Response,
                 tab_expanded: true,
                 cached_response_md: None,
+                cached_thinking_md: None,
             });
             let lines = build_lines(&mut app);
             let has_thinking_tab = lines.iter().any(|l| match l {
@@ -1253,6 +1292,7 @@ mod tests {
                 selected_tab: AgentTab::Thinking,
                 tab_expanded: true,
                 cached_response_md: None,
+                cached_thinking_md: None,
             });
             let lines = build_lines(&mut app);
             let has_thinking = lines.iter().any(|l| match l {
@@ -1277,6 +1317,7 @@ mod tests {
                 selected_tab: AgentTab::Steps,
                 tab_expanded: true,
                 cached_response_md: None,
+                cached_thinking_md: None,
             });
             let lines = build_lines(&mut app);
             let has_step = lines.iter().any(|l| match l {
@@ -1301,6 +1342,7 @@ mod tests {
                 selected_tab: AgentTab::Response,
                 tab_expanded: false,
                 cached_response_md: None,
+                cached_thinking_md: None,
             });
             let lines = build_lines(&mut app);
             let has_skill = lines.iter().any(|l| match l {
@@ -1325,6 +1367,7 @@ mod tests {
                 selected_tab: AgentTab::Response,
                 tab_expanded: false,
                 cached_response_md: None,
+                cached_thinking_md: None,
             });
             let lines = build_lines(&mut app);
             let has_collapsed = lines.iter().any(|l| match l {
@@ -1350,6 +1393,7 @@ mod tests {
                 selected_tab: AgentTab::Response,
                 tab_expanded: true,
                 cached_response_md: Some(lines),
+                cached_thinking_md: None,
             });
             let result = build_lines(&mut app);
             assert!(!result.is_empty());

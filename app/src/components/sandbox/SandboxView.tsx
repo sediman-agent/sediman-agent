@@ -8,7 +8,7 @@ interface SandboxViewProps {
 
 export function SandboxView({ screenshot, isLoading, error }: SandboxViewProps) {
   return (
-    <div className="flex-1 flex items-center justify-center bg-black/50 relative overflow-hidden">
+    <div className="flex-1 flex items-center justify-center relative overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.5)' }}>
       {renderContent(isLoading, error, screenshot)}
     </div>
   );

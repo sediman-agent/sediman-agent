@@ -268,16 +268,20 @@ impl CellBuffer {
     }
 
     pub fn resize(&mut self, width: u16, height: u16) {
+        if width == self.area.width && height == self.area.height {
+            return;
+        }
         let new_area = Rect::new(self.area.x, self.area.y, width, height);
         let new_len = (width as usize) * (height as usize);
         let mut new_cells = vec![Cell::default(); new_len];
-        for y in 0..self.area.height.min(height) {
-            for x in 0..self.area.width.min(width) {
-                if let Some(old) = self.get(x, y) {
-                    let idx = (y as usize) * (width as usize) + (x as usize);
-                    new_cells[idx] = *old;
-                }
-            }
+        let copy_w = self.area.width.min(width) as usize;
+        let old_w = self.area.width as usize;
+        let new_w = width as usize;
+        for y in 0..self.area.height.min(height) as usize {
+            let src_start = y * old_w;
+            let dst_start = y * new_w;
+            new_cells[dst_start..dst_start + copy_w]
+                .copy_from_slice(&self.cells[src_start..src_start + copy_w]);
         }
         self.area = new_area;
         self.cells = new_cells;
@@ -321,9 +325,10 @@ impl CellBuffer {
         if let Some(i) = self.index(cx, y) {
             self.cells[i] = Cell::new(ch, style);
         }
-        for (cx, _) in (cx + 1..).zip(1..w) {
-            if cx < right {
-                if let Some(i) = self.index(cx, y) {
+        if w > 1 {
+            let next = cx + 1;
+            if next < right {
+                if let Some(i) = self.index(next, y) {
                     self.cells[i].skip = true;
                 }
             }
@@ -402,21 +407,34 @@ impl CellBuffer {
 
     pub fn blit(&mut self, dst_rect: Rect, src: &CellBuffer, src_rect: Rect) {
         let dst_clamped = dst_rect.clamp(self.area);
-        let w = dst_clamped.width.min(src_rect.width);
-        let h = dst_clamped.height.min(src_rect.height);
+        let w = dst_clamped.width.min(src_rect.width) as usize;
+        let h = dst_clamped.height.min(src_rect.height) as usize;
+        let dst_w = self.area.width as usize;
+        let src_w = src.area.width as usize;
         for row in 0..h {
-            for col in 0..w {
-                let sx = src_rect.x + col;
-                let sy = src_rect.y + row;
-                let dst_x = dst_clamped.x + col;
-                let dst_y = dst_clamped.y + row;
-                if let Some(cell) = src.get(sx, sy) {
-                    if let Some(i) = self.index(dst_x, dst_y) {
-                        self.cells[i] = *cell;
+            let sy = (src_rect.y as usize) + row;
+            let sx = src_rect.x as usize;
+            let dst_y = (dst_clamped.y as usize) + row;
+            let dst_x = dst_clamped.x as usize;
+            if sx + w <= src_w && dst_x + w <= dst_w && sy < src.area.height as usize {
+                let src_start = sy * src_w + sx;
+                let dst_start = dst_y * dst_w + dst_x;
+                self.cells[dst_start..dst_start + w]
+                    .copy_from_slice(&src.cells[src_start..src_start + w]);
+            } else {
+                for col in 0..w {
+                    let sx = src_rect.x + col as u16;
+                    let sy = src_rect.y + row as u16;
+                    let dst_x = dst_clamped.x + col as u16;
+                    let dst_y = dst_clamped.y + row as u16;
+                    if let Some(cell) = src.get(sx, sy) {
+                        if let Some(i) = self.index(dst_x, dst_y) {
+                            self.cells[i] = *cell;
+                        }
                     }
                 }
             }
-            self.mark_dirty(dst_clamped.y + row);
+            self.mark_dirty(dst_clamped.y + row as u16);
         }
     }
 

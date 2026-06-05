@@ -1,29 +1,14 @@
 // Chat-specific types
 
+// Import types first to avoid circular dependency
+import type { Message } from './index';
+import type { TokenUsage } from './api';
+
 export interface ChatState {
   conversations: Conversation[];
   activeConversationId: string | null;
   isStreaming: boolean;
 }
-
-export interface Conversation {
-  id: string;
-  title: string;
-  messages: Message[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
-  status?: MessageStatus;
-  metadata?: MessageMetadata;
-}
-
-export type MessageStatus = 'idle' | 'sending' | 'streaming' | 'done' | 'error';
 
 export interface MessageMetadata {
   model?: string;
@@ -38,14 +23,17 @@ export interface MessageChunk {
   usage?: TokenUsage;
 }
 
-export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
 export interface StreamingState {
   isStreaming: boolean;
   currentMessage: string;
   buffer: string;
+}
+
+// Define Conversation locally to break circular dependency
+export interface Conversation {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: Date;
+  updatedAt: Date;
 }

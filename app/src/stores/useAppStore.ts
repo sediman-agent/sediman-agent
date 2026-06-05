@@ -28,8 +28,8 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       // Initial state
       rpcUrl: 'ws://localhost:8765',
-      autoConnect: true,
-      theme: 'light',
+      autoConnect: false, // Don't auto-connect to avoid RPC errors
+      theme: 'dark',
       isConnected: false,
       agentStatus: {
         state: 'idle',

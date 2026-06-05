@@ -21,6 +21,11 @@ pub enum AppEvent {
         release_notes: String,
         current_version: String,
     },
+    DoctorInstallOutput(String),
+    DoctorInstallDone {
+        category: String,
+        success: bool,
+    },
 }
 
 #[derive(Clone, Debug)]
