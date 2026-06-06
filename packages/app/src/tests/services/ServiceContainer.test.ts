@@ -120,9 +120,9 @@ describe('ServiceContainer', () => {
       expect(agent).toEqual({ _type: 'rpc-agent' });
     });
 
-    it('agent calls createAgentService with the rpc client', () => {
+    it('agent calls createAgentService without arguments', () => {
       container.agent;
-      expect(mockedCreateAgentService).toHaveBeenCalledWith(rpc);
+      expect(mockedCreateAgentService).toHaveBeenCalledWith();
     });
 
     it('skills getter returns RPC-based service (not LocalSkillsService)', () => {
@@ -131,9 +131,9 @@ describe('ServiceContainer', () => {
       expect(skills).toEqual({ _type: 'rpc-skills' });
     });
 
-    it('skills calls createSkillsService with the rpc client', () => {
+    it('skills calls createSkillsService without arguments', () => {
       container.skills;
-      expect(mockedCreateSkillsService).toHaveBeenCalledWith(rpc);
+      expect(mockedCreateSkillsService).toHaveBeenCalledWith();
     });
 
     it('memory getter returns RPC-based service (not LocalMemoryService)', () => {
@@ -142,9 +142,9 @@ describe('ServiceContainer', () => {
       expect(memory).toEqual({ _type: 'rpc-memory' });
     });
 
-    it('memory calls createMemoryService with the rpc client', () => {
+    it('memory calls createMemoryService without arguments', () => {
       container.memory;
-      expect(mockedCreateMemoryService).toHaveBeenCalledWith(rpc);
+      expect(mockedCreateMemoryService).toHaveBeenCalledWith();
     });
   });
 
@@ -262,6 +262,14 @@ describe('ServiceContainer', () => {
 
       expect(mockedCreateSandboxService).toHaveBeenCalledTimes(1);
       expect(sandbox).toEqual({ _type: 'sandbox' });
+    });
+
+    it('calls createSandboxService without arguments', () => {
+      const rpc = createMockRPCClient();
+      const container = new ServiceContainer(rpc as any);
+      container.sandbox;
+
+      expect(mockedCreateSandboxService).toHaveBeenCalledWith();
     });
   });
 

@@ -19,7 +19,9 @@ jobs:
       - name: Install dependencies
         run: bun install
       - name: Run TypeScript tests
-        run: bun test packages/
+        run: |
+          cd packages/app
+          bun run test
       - name: Build Electron app
         run: |
           cd packages/app
