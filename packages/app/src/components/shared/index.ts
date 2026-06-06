@@ -41,4 +41,4 @@ export type { Toast, ToastType, ToastContextType } from './Toast';
 export { ErrorBoundary } from './ErrorBoundary';
 
 export { FileUploadZone } from './FileUploadZone';
-export type { FileUploadZoneProps } from './FileUploadZone';
+export type { UploadedFile } from './FileUploadZone';

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Monitor, Paperclip, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Monitor, Paperclip, X } from 'lucide-react';
 import { useChatStore } from '@/stores/useChatStore';
 import { useSandboxStore } from '@/stores/useSandboxStore';
 import { useAppStore } from '@/stores/useAppStore';
@@ -49,7 +49,6 @@ export function AgentPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (conversations.length === 0) {

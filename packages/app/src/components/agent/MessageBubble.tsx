@@ -1,4 +1,4 @@
-import { Copy, Check, FileText, Image as ImageIcon, File, X } from 'lucide-react';
+import { Copy, Check, FileText, FileImage, FileType, File } from 'lucide-react';
 import { Message } from '@/types';
 import { cn } from '@/lib/utils';
 import { formatRelativeTime } from '@/lib/utils';
@@ -6,14 +6,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import { useState, memo } from 'react';
-
-interface Attachment {
-  id: string;
-  name: string;
-  size: number;
-  type: string;
-  status: 'uploading' | 'done' | 'error';
-}
 
 interface MessageBubbleProps {
   message: Message;
@@ -30,12 +22,15 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const attachments = (message as any).attachments as Attachment[] | undefined;
+  const attachments = message.attachments;
 
-  const getFileIcon = (type: string) => {
-    if (type.includes('pdf')) return <FileText className="w-4 h-4" />;
-    if (type.includes('image')) return <ImageIcon className="w-4 h-4" />;
-    return <File className="w-4 h-4" />;
+  const getFileIcon = (type: string, className = 'w-4 h-4') => {
+    if (type.includes('pdf')) return <FileText className={className} />;
+    if (type.includes('image')) return <FileImage className={className} />;
+    if (type.includes('powerpoint') || type.includes('presentation') || type.includes('ppt')) {
+      return <FileType className={className} />;
+    }
+    return <File className={className} />;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -66,7 +61,7 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
                 key={attachment.id}
                 className="flex items-center gap-2 px-2 py-1 bg-background border border-input rounded-md text-xs"
               >
-                {getFileIcon(attachment.type)}
+                {getFileIcon(attachment.type, 'w-4 h-4 text-muted-foreground')}
                 <span className="max-w-[120px] truncate">{attachment.name}</span>
                 <span className="text-muted-foreground">
                   ({formatFileSize(attachment.size)})

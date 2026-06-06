@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { Upload, FileText, X, Check, AlertCircle } from 'lucide-react';
+import { Upload, FileText, FileImage, File, X, Check, AlertCircle, FileType, Archive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface UploadedFile {
+export interface UploadedFile {
   id: string;
   name: string;
   size: number;
@@ -49,7 +49,10 @@ export function FileUploadZone({
     // Upload each file
     for (const fileData of newFiles) {
       try {
-        const file = files[Array.from(files).findIndex(f => f.name === fileData.name)];
+        const fileIndex = Array.from(files).findIndex(f => f.name === fileData.name);
+        if (fileIndex === -1) continue;
+
+        const file = files[fileIndex];
 
         const formData = new FormData();
         formData.append('file', file);
@@ -60,7 +63,6 @@ export function FileUploadZone({
         });
 
         if (response.ok) {
-          const result = await response.json();
           setUploadedFiles(prev =>
             prev.map(f =>
               f.id === fileData.id
@@ -90,15 +92,15 @@ export function FileUploadZone({
 
     setIsUploading(false);
 
-    const completedFiles = uploadedFiles => {
-      const newFiles = [...uploadedFiles, ...newFiles];
-      return newFiles.map(f => {
+    // Notify parent with completed files
+    const completedFiles = (currentFiles: UploadedFile[]) => {
+      return [...currentFiles, ...newFiles].map((f) => {
         const updated = newFiles.find(nf => nf.id === f.id);
         return updated || f;
       });
     };
 
-    onFilesUploaded?.(completedFiles);
+    onFilesUploaded?.(completedFiles(uploadedFiles));
   }, [disabled, uploadedFiles, onFilesUploaded, apiBaseUrl]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -145,12 +147,19 @@ export function FileUploadZone({
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const getFileIcon = (type: string) => {
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('powerpoint') || type.includes('presentation')) return '📊';
-    if (type.includes('word') || type.includes('document')) return '📝';
-    if (type.includes('image')) return '🖼️';
-    return '📎';
+  const getFileIcon = (type: string, className = '') => {
+    if (type.includes('pdf')) return <FileText className={className} />;
+    if (type.includes('powerpoint') || type.includes('presentation') || type.includes('ppt')) {
+      return <FileType className={className} />;
+    }
+    if (type.includes('word') || type.includes('document') || type.includes('wordprocessingml')) {
+      return <File className={className} />;
+    }
+    if (type.includes('image')) return <FileImage className={className} />;
+    if (type.includes('zip') || type.includes('rar') || type.includes('archive') || type.includes('compressed')) {
+      return <Archive className={className} />;
+    }
+    return <File className={className} />;
   };
 
   return (
@@ -227,8 +236,8 @@ export function FileUploadZone({
                 )}
               >
                 {/* File Icon */}
-                <div className="text-2xl">
-                  {getFileIcon(file.type)}
+                <div className="text-foreground/70">
+                  {getFileIcon(file.type, 'w-5 h-5')}
                 </div>
 
                 {/* File Info */}
@@ -279,8 +288,9 @@ export function FileUploadZone({
 
           {uploadedFiles.some(f => f.status === 'error') && (
             <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded">
-              <p className="text-xs text-amber-800 dark:text-amber-200">
-                ⚠️ Some files failed to upload. Please try again.
+              <p className="text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                <AlertCircle className="w-3 h-3" />
+                Some files failed to upload. Please try again.
               </p>
             </div>
           )}
