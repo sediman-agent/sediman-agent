@@ -16,6 +16,7 @@ import type { BuiltinTool, ExecutableToolResult, ToolExecution } from '../toolin
 import { literalRulePattern, matchesGlobRuleSubject } from '../tooling/types';
 import { ToolAccesses } from '../tooling/tool-access';
 import { ToolResultBuilder } from '../tooling/result-builder';
+import { zodToJsonSchema as convertSchema } from '../tooling/schema-utils';
 
 const execAsync = promisify(exec);
 
@@ -58,7 +59,7 @@ Usage examples:
 
 Default working directory is the current workspace.`;
 
-  readonly parameters = zodToJsonSchema(ShellInputSchema);
+  readonly parameters = convertSchema(ShellInputSchema);
 
   constructor(private readonly cwd: string = process.cwd()) {}
 
@@ -161,17 +162,4 @@ Default working directory is the current workspace.`;
       return builder.error('Shell command execution failed');
     }
   }
-}
-
-function zodToJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  return {
-    type: 'object',
-    properties: {
-      command: { type: 'string' },
-      cwd: { type: 'string' },
-      timeout: { type: 'number' },
-      env: { type: 'object' }
-    },
-    required: ['command']
-  };
 }
