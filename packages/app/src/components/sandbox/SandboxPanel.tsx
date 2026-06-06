@@ -19,6 +19,17 @@ interface UploadedFile {
   size: number;
 }
 
+interface SandboxSession {
+  id: string;
+  name: string;
+  type: 'browser' | 'computer';
+  status: 'starting' | 'running' | 'stopped' | 'error';
+  createdAt: number;
+  lastUsedAt: number;
+  browserInstanceId?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export function SandboxPanel() {
   const isOpen = useSandboxStore(state => state.isOpen);
   const isActive = useSandboxStore(state => state.isActive);
@@ -33,6 +44,8 @@ export function SandboxPanel() {
   ]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sandboxSessions, setSandboxSessions] = useState<SandboxSession[]>([]);
+  const [showSessionManager, setShowSessionManager] = useState(false);
   const apiBaseUrl = 'http://localhost:3001';
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -125,6 +138,82 @@ export function SandboxPanel() {
 
   const handleOpenFilePicker = () => {
     fileInputRef.current?.click();
+  };
+
+  // Load sandbox sessions on mount
+  useEffect(() => {
+    loadSandboxSessions();
+    const interval = setInterval(loadSandboxSessions, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadSandboxSessions = async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/sandbox/list`);
+      if (response.ok) {
+        const data = await response.json();
+        setSandboxSessions(data.sessions || []);
+      }
+    } catch (error) {
+      console.error('Failed to load sandbox sessions:', error);
+    }
+  };
+
+  const handleCreateSandbox = async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/sandbox/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `Sandbox ${new Date().toLocaleTimeString()}`,
+          type: 'browser',
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success || result.session) {
+          await loadSandboxSessions();
+          // Activate the newly created sandbox
+          if (result.session) {
+            useSandboxStore.getState().setIsActive(true);
+            useSandboxStore.getState().setConnectionStatus('connected');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create sandbox:', error);
+    }
+  };
+
+  const handleStopSandbox = async (sessionId: string) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/sandbox/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      if (response.ok) {
+        await loadSandboxSessions();
+      }
+    } catch (error) {
+      console.error('Failed to stop sandbox:', error);
+    }
+  };
+
+  const handleDeleteSandbox = async (sessionId: string) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/sandbox/${sessionId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await loadSandboxSessions();
+      }
+    } catch (error) {
+      console.error('Failed to delete sandbox:', error);
+    }
   };
 
   if (!isOpen) {
@@ -246,6 +335,90 @@ export function SandboxPanel() {
             </div>
           </div>
 
+          {/* Sandbox Sessions Section */}
+          {sandboxSessions.length > 0 && (
+            <div className="border-b border-border bg-muted/30 px-3 py-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Globe className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Active Sandboxes</span>
+                  <span className="text-xs text-muted-foreground">({sandboxSessions.filter(s => s.status === 'running').length})</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={handleCreateSandbox}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  New Sandbox
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {sandboxSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex items-center gap-2 bg-background border border-input rounded-md px-2 py-1 text-sm"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={cn(
+                          "w-2 h-2 rounded-full",
+                          session.status === 'running' ? 'bg-green-500' : 'bg-yellow-500',
+                          session.status === 'error' && 'bg-red-500'
+                        )}
+                      />
+                      <span className="font-medium text-xs">{session.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">
+                        {session.type === 'browser' ? 'Browser' : 'Computer'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        ({session.status})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 ml-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleStopSandbox(session.id)}
+                        disabled={session.status !== 'running'}
+                        className="h-6 px-1.5 text-xs"
+                        title="Stop"
+                      >
+                        <Square className="w-2.5 h-2.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteSandbox(session.id)}
+                        className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
+                        title="Delete"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sandboxSessions.length === 0 && (
+            <div className="border-b border-border px-3 py-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCreateSandbox}
+                className="w-full text-xs"
+              >
+                <Globe className="w-3 h-3 mr-2" />
+                Create Browser Sandbox
+              </Button>
+            </div>
+          )}
+
           {/* File Workspace Section */}
           {uploadedFiles.length > 0 && (
             <div className="border-b border-border bg-muted/30 px-3 py-2">
@@ -288,7 +461,39 @@ export function SandboxPanel() {
             </div>
           )}
 
-          {uploadedFiles.length === 0 && (
+          {uploadedFiles.length === 0 && sandboxSessions.length === 0 && (
+            <div className="border-b border-border px-3 py-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCreateSandbox}
+                  className="text-xs"
+                >
+                  <Globe className="w-3 h-3 mr-2" />
+                  Create Sandbox
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenFilePicker}
+                  className="text-xs"
+                >
+                  <Upload className="w-3 h-3 mr-2" />
+                  Upload Files
+                </Button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+          )}
+
+          {uploadedFiles.length === 0 && sandboxSessions.length > 0 && (
             <div className="border-b border-border px-3 py-2">
               <Button
                 size="sm"
@@ -299,8 +504,16 @@ export function SandboxPanel() {
                 <Upload className="w-3 h-3 mr-2" />
                 Upload Files to Workspace
               </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
             </div>
           )}
+
           <input
             ref={fileInputRef}
             type="file"

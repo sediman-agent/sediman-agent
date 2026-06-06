@@ -19,6 +19,7 @@ import { BrowserSession } from "./browser/session";
 import { BrowserController } from "./browser/controller";
 import { createAgentToolRegistry } from "./agent/tools";
 import { cleanupBrowserTools } from "./agent/tools/browser-tools";
+import { sandboxSessionManager } from "./sandbox/SessionManager";
 import type { RPCHandlerDeps } from "./rpc/deps";
 
 function parseMode(argv: string[]): "rpc" | "api" | "all" {
@@ -175,3 +176,5 @@ export * from "./core/utils";
 export * from "./core/logging";
 export * from "./core/sentry";
 export { getDb, initDb, closeDb } from "./store/db";
+export * from "./sandbox/SessionManager";
+export { sandboxSessionManager } from "./sandbox/SessionManager";
