@@ -17,6 +17,68 @@ import logger from "../core/logging";
 const CRON_FIELD_RE = /^[\d*/,-]+$/;
 const JOB_ID_RE = /^[a-f0-9]{1,12}$/;
 
+/**
+ * Validate a single cron field value against its allowed range
+ */
+function validateCronField(field: string, min: number, max: number): boolean {
+  // Handle wildcard
+  if (field === "*") return true;
+
+  // Handle lists (comma-separated values)
+  if (field.includes(",")) {
+    return field.split(",").every(part => validateCronField(part.trim(), min, max));
+  }
+
+  // Handle ranges (e.g., 1-5)
+  if (field.includes("-")) {
+    const [start, end] = field.split("-");
+    const startNum = parseInt(start, 10);
+    const endNum = parseInt(end, 10);
+    if (isNaN(startNum) || isNaN(endNum)) return false;
+    return startNum >= min && startNum <= max && endNum >= min && endNum <= max && startNum <= endNum;
+  }
+
+  // Handle step values (e.g., */5 or 1-10/2)
+  if (field.includes("/")) {
+    const [base, step] = field.split("/");
+    const stepNum = parseInt(step, 10);
+    if (isNaN(stepNum) || stepNum <= 0) return false;
+    if (base === "*") return true;
+    return validateCronField(base, min, max);
+  }
+
+  // Handle single number
+  const num = parseInt(field, 10);
+  if (isNaN(num)) return false;
+  return num >= min && num <= max;
+}
+
+/**
+ * Validate a cron expression
+ * Format: minute hour day-of-month month day-of-week
+ */
+export function validateCronExpr(expr: string): boolean {
+  const parts = expr.trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+
+  // Check each part has valid characters
+  if (!parts.every((p) => CRON_FIELD_RE.test(p))) return false;
+
+  // Validate ranges: minute(0-59), hour(0-23), dom(1-31), month(1-12), dow(0-6)
+  const ranges = [
+    [0, 59],   // minute
+    [0, 23],   // hour
+    [1, 31],   // day of month
+    [1, 12],   // month
+    [0, 6],    // day of week (0=Sunday, 6=Saturday)
+  ];
+
+  return parts.every((part, i) => {
+    const [min, max] = ranges[i];
+    return validateCronField(part, min, max);
+  });
+}
+
 interface StoredCronJob {
   id: string;
   cron: string;
@@ -41,12 +103,6 @@ interface ResultEntry {
 
 const _listJobsCache = new Map<string, { ts: number; jobs: StoredCronJob[] }>();
 const CACHE_TTL = 30_000;
-
-export function validateCronExpr(expr: string): boolean {
-  const parts = expr.trim().split(/\s+/);
-  if (parts.length !== 5) return false;
-  return parts.every((p) => CRON_FIELD_RE.test(p));
-}
 
 export class CronManager {
   private jobsDir: string;
