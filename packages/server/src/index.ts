@@ -4,12 +4,6 @@ import { initSentry } from "./core/sentry";
 import { initDb, closeDb } from "./store/db";
 import { createRPCServer } from "./rpc";
 import { startApiServer } from "./api";
-import { getConfig } from "./core/config";
-import { setupLogging, createLogger } from "./core/logging";
-import { initSentry } from "./core/sentry";
-import { initDb, closeDb } from "./store/db";
-import { createRPCServer } from "./rpc";
-import { startApiServer } from "./api";
 import { createProvider } from "./llm/provider";
 import { FileMemoryStrategy } from "./memory/strategies/file-memory";
 import { SkillEngine } from "./skills/engine";
@@ -23,6 +17,8 @@ import { Changelog } from "./memory/utils/changelog";
 import { RecordingManager } from "./agent/recording/manager";
 import { BrowserSession } from "./browser/session";
 import { BrowserController } from "./browser/controller";
+import { createAgentToolRegistry } from "./agent/tools";
+import { cleanupBrowserTools } from "./agent/tools/browser-tools";
 import type { RPCHandlerDeps } from "./rpc/deps";
 
 function parseMode(argv: string[]): "rpc" | "api" | "all" {
@@ -74,11 +70,20 @@ async function main() {
 
   const browserController = new BrowserController(browserSession);
 
+  // Create tool registry with browser tools enabled
+  const toolRegistry = createAgentToolRegistry({
+    terminalAllowed: false,
+    memoryManager: memory,
+    skillEngine,
+    enableBrowserTools: true,
+  });
+
   const agentLoop = new AgentLoop({
     llmProvider,
     browserSession,
     memory,
     skillEngine,
+    toolBus: toolRegistry,
     headless,
   });
 
@@ -137,6 +142,14 @@ async function main() {
         logger.error({ err: (err as Error).message }, "server_stop_error");
       }
     }
+
+    // Cleanup browser tools and close all browser instances
+    try {
+      await cleanupBrowserTools();
+    } catch (err) {
+      logger.error({ err: (err as Error)?.message }, "browser_cleanup_error");
+    }
+
     closeDb();
     logger.info("shutdown_complete");
     process.exit(0);

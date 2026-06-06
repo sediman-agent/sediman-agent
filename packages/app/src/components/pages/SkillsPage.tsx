@@ -177,6 +177,30 @@ export function SkillsPage() {
     }
   };
 
+  const handleInstallSkill = async (skillName: string) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/hub/install`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: skillName }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.installed) {
+          // Reload skills after installation
+          loadSkills();
+        } else {
+          console.error('Install failed:', result.message);
+        }
+      } else {
+        console.error('Install request failed:', response.status);
+      }
+    } catch (error) {
+      console.error('Failed to install skill:', error);
+    }
+  };
+
   const installedCount = skills.filter((s) => s.installed).length;
   const availableCount = skills.filter((s) => !s.installed).length;
 
@@ -343,6 +367,16 @@ export function SkillsPage() {
 
                           {/* Actions */}
                           <div className="flex items-center gap-2">
+                            {!skill.installed && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleInstallSkill(skill.name)}
+                              >
+                                <Package className="w-3 h-3 mr-1" />
+                                Install
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
