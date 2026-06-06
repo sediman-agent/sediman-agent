@@ -97,41 +97,25 @@ describe("WebTool", () => {
     });
 
     test("supports POST method", async () => {
+      // Test with a simple POST request to a reliable endpoint
+      const execution = await tool.resolveExecution({
+        action: "fetch",
+        url: "https://example.com",
+        method: "POST",
+        body: "test data",
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      });
 
-      // Use AbortController with timeout to prevent hanging
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      const result = await execution.execute({
+        turnId: "test-turn",
+        toolCallId: "test-call",
+        signal: AbortSignal.timeout(3000), // 3 second timeout
+      });
 
-      try {
-        const execution = await tool.resolveExecution({
-          action: "fetch",
-          url: "https://httpbin.org/post",
-          method: "POST",
-          body: "test data",
-          headers: {
-            "Content-Type": "text/plain",
-          },
-        });
-
-        const result = await execution.execute({
-          turnId: "test-turn",
-          toolCallId: "test-call",
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
-        // httpbin might be unavailable, so we just check the structure
-        expect(result !== undefined).toBe(true);
-      } catch (error) {
-        clearTimeout(timeout);
-        // If it's an abort error, the test timed out - this is acceptable for network tests
-        if (error instanceof Error && error.name === 'AbortError') {
-          expect(true).toBe(true); // Test passes - timeout handled correctly
-        } else {
-          throw error; // Re-throw other errors
-        }
-      }
+      // Check that we got a result (success or error is fine)
+      expect(result !== undefined).toBe(true);
     });
   });
 
