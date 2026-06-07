@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Command } from 'cmdk';
 import {
   MessageSquare,
+  FolderOpen,
   Bot,
   Server,
   Database,
@@ -17,6 +18,7 @@ import { useChatStore } from '@/stores/useChatStore';
 
 const pages = [
   { id: 'agent' as const, label: 'Chat', icon: MessageSquare },
+  { id: 'projects' as const, label: 'Projects', icon: FolderOpen },
   { id: 'models' as const, label: 'Models', icon: Bot },
   { id: 'provider' as const, label: 'Provider', icon: Server },
   { id: 'memory' as const, label: 'Memory', icon: Database },

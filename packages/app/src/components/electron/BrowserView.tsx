@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw, Home, Eye, MousePointer2, Minimize2, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/shared/Button';
+import { Button } from '@/elements/actions/Button';
 
 // Types
 interface BrowserState {

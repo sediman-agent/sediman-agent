@@ -3,6 +3,10 @@ const path = require('path');
 
 let mainWindow;
 
+// Check for --showcase flag
+const args = process.argv.slice(1);
+const isShowcase = args.includes('--showcase');
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -14,6 +18,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true, // Enable webview tag
+      additionalArguments: isShowcase ? ['--showcase'] : [],
     },
     show: false,
   });

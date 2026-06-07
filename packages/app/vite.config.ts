@@ -16,10 +16,16 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
   },
-  envPrefix: ["VITE_"],
   build: {
     target: "chrome105",
     minify: !process.env.DEBUG ? "esbuild" : false,
     sourcemaps: !!process.env.DEBUG,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        'ui-docs': path.resolve(__dirname, 'ui-docs.html'),
+      },
+    },
   },
+  envPrefix: ["VITE_"],
 });

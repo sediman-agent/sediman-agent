@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/shared/Button';
-import { Input } from '@/components/shared/Input';
-import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
-import { ScrollArea } from '@/components/shared/ScrollArea';
-import { ThemePicker } from '@/components/shared/ThemePicker';
+import { Button } from '@/elements/actions/Button';
+import { Input } from '@/elements/form/Input';
+import { ToggleSwitch } from '@/elements/form/ToggleSwitch';
+import { ScrollArea } from '@/elements/data/ScrollArea';
+import { ThemePicker } from '@/elements/feedback/ThemePicker';
 import { useAppStore } from '@/stores/useAppStore';
 import { toast } from 'sonner';
 

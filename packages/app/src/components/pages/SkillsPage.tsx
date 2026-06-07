@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Trash2, Search, Package, Code, X, Folder, ExternalLink, Circle, Square, Download } from 'lucide-react';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { Button } from '@/components/shared/Button';
-import { Input } from '@/components/shared/Input';
-import { ScrollArea } from '@/components/shared/ScrollArea';
-import { Badge } from '@/components/shared/Badge';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/elements/actions/Button';
+import { Input } from '@/elements/form/Input';
+import { ScrollArea } from '@/elements/data/ScrollArea';
+import { Badge } from '@/elements/feedback/Badge';
 import { type Skill } from '@/types';
 import { cn } from '@/lib/utils';
 

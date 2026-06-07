@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Download, Trash2, Bug, Info, AlertTriangle, AlertCircle, FileText, Search } from 'lucide-react';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { Button } from '@/components/shared/Button';
-import { Input } from '@/components/shared/Input';
-import { Card } from '@/components/shared/Card';
-import { ScrollArea } from '@/components/shared/ScrollArea';
-import { StatusBadge } from '@/components/shared/StatusBadge';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/elements/actions/Button';
+import { Input } from '@/elements/form/Input';
+import { Card } from '@/elements/data/Card';
+import { ScrollArea } from '@/elements/data/ScrollArea';
+import { StatusBadge } from '@/elements/feedback/StatusBadge';
 import { type LogEntry } from '@/types';
 
 export function LogsPage() {

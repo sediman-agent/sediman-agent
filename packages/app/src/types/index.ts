@@ -14,6 +14,7 @@ export interface Message {
   status?: MessageStatus;
   metadata?: MessageMetadata;
   attachments?: Attachment[];
+  thinking?: string; // Thinking content extracted from <think/> tags
 }
 
 export type MessageStatus = 'idle' | 'sending' | 'streaming' | 'done' | 'error';

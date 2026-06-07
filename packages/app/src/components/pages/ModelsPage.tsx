@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Bot, Check, Copy, AlertCircle } from 'lucide-react';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { Button } from '@/components/shared/Button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shared/Card';
-import { ScrollArea } from '@/components/shared/ScrollArea';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/elements/actions/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/elements/data/Card';
+import { ScrollArea } from '@/elements/data/ScrollArea';
 import { useAppStore } from '@/stores/useAppStore';
 
 interface Model {

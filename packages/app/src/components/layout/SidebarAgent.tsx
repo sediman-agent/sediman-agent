@@ -10,9 +10,9 @@ import {
 import { useState, memo, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/stores/useChatStore';
-import { Button } from '@/components/shared/Button';
-import { ScrollArea } from '@/components/shared/ScrollArea';
-import { Input } from '@/components/shared/Input';
+import { Button } from '@/elements/actions/Button';
+import { ScrollArea } from '@/elements/data/ScrollArea';
+import { Input } from '@/elements/form/Input';
 
 interface ConversationItemProps {
   id: string;

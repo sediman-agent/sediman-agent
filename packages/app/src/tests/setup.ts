@@ -2,6 +2,17 @@
  * Jest configuration and setup for OpenSkynet Desktop
  */
 
+// Import jest-dom for custom matchers
+import '@testing-library/jest-dom';
+
+// Mock fetch
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({ status: 'ok' }),
+  } as Response)
+);
+
 // Mock Electron APIs
 global.window = {
   ...global.window,

@@ -6,8 +6,10 @@ interface AppState extends AppSettings {
   agentStatus: AgentStatus;
   notifications: Notification[];
   sidebarOpen: boolean;
-  currentPage: 'agent' | 'models' | 'provider' | 'memory' | 'sessions' | 'skills' | 'logs' | 'settings';
+  currentPage: 'agent' | 'projects' | 'models' | 'provider' | 'memory' | 'sessions' | 'skills' | 'logs' | 'settings';
   colorTheme: 'default' | 'blue' | 'purple' | 'green' | 'rose' | 'cyan';
+  model: string;
+  provider: string;
 
   setAgentStatus: (status: Partial<AgentStatus>) => void;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
@@ -25,8 +27,10 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       apiBaseUrl: 'http://localhost:3001',
-      autoConnect: false,
+      autoConnect: true,
       theme: 'dark',
+      model: '',
+      provider: '',
       agentStatus: {
         state: 'idle',
         rpcConnected: false,
@@ -94,9 +98,15 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      setModel: (model: string) => set({ model }),
+      setModel: (model: string) => {
+        console.log('Setting model:', model);
+        set({ model });
+      },
 
-      setProvider: (provider: string) => set({ provider }),
+      setProvider: (provider: string) => {
+        console.log('Setting provider:', provider);
+        set({ provider });
+      },
     }),
     {
       name: 'openskynet-app-store',

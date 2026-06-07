@@ -1,5 +1,6 @@
 import { Hono } from "hono";
-import { PROVIDERS, listProvidersWithAuth } from "../../llm/provider";
+import { PROVIDERS, listProvidersWithAuth, createProvider } from "../../llm/provider";
+import { setKey, getKey } from "../../core/auth";
 import type { ApiDeps } from "../app";
 
 export function createModelRoutes(deps: ApiDeps): Hono {
@@ -10,6 +11,7 @@ export function createModelRoutes(deps: ApiDeps): Hono {
       provider: string;
       model?: string;
       base_url?: string;
+      api_key?: string;
     }>();
     if (!body.provider?.trim()) {
       return c.json(
@@ -28,6 +30,47 @@ export function createModelRoutes(deps: ApiDeps): Hono {
 
     const resolvedModel = body.model ?? preset.model;
     const resolvedBaseUrl = body.base_url ?? preset.base_url;
+    let apiKey = body.api_key;
+
+    // If no API key provided in request, try to get from saved storage or env
+    if (!apiKey && preset.api_key_env) {
+      // First check saved storage
+      const savedKey = await getKey(body.provider);
+      if (savedKey) {
+        apiKey = savedKey;
+      } else {
+        // Fall back to environment variable
+        apiKey = process.env[preset.api_key_env];
+      }
+    }
+
+    // Save the API key if provided
+    if (apiKey && preset.api_key_env) {
+      try {
+        await setKey(body.provider, apiKey);
+      } catch (err) {
+        console.error("Failed to save API key:", err);
+      }
+    }
+
+    // Create new provider instance
+    let newProvider;
+    try {
+      newProvider = createProvider(body.provider, resolvedModel, resolvedBaseUrl, apiKey);
+    } catch (err) {
+      return c.json(
+        { error: "PROVIDER_ERROR", message: `Failed to create provider: ${(err as Error).message}` },
+        500,
+      );
+    }
+
+    // Update the agent loop's provider
+    if (deps.agentLoop) {
+      deps.agentLoop.setLLMProvider(newProvider);
+    }
+
+    // Also update the shared llmProvider reference
+    deps.llmProvider = newProvider;
 
     return c.json({
       provider: body.provider,

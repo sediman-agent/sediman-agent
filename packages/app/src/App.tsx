@@ -9,6 +9,7 @@ import { initializeRendererIPC } from '@/services/browser';
 import { Toaster } from 'sonner';
 
 const AgentPage = lazy(() => import('@/components/pages/AgentPage').then(m => ({ default: m.AgentPage })));
+const ProjectPage = lazy(() => import('@/components/pages/ProjectPage').then(m => ({ default: m.ProjectPage })));
 const ModelsPage = lazy(() => import('@/components/pages/ModelsPage').then(m => ({ default: m.ModelsPage })));
 const ProviderPage = lazy(() => import('@/components/pages/ProviderPage').then(m => ({ default: m.ProviderPage })));
 const MemoryPage = lazy(() => import('@/components/pages/MemoryPage').then(m => ({ default: m.MemoryPage })));
@@ -56,6 +57,8 @@ function App() {
     switch (currentPage) {
       case 'agent':
         return <AgentPage />;
+      case 'projects':
+        return <ProjectPage />;
       case 'models':
         return <ModelsPage />;
       case 'provider':

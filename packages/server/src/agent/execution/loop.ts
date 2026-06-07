@@ -161,8 +161,28 @@ export class AgentLoop {
         const tools = this.toolBus.getDefinitions();
 
         let response;
+        let fullContent = "";
+
         try {
-          response = await this.llmProvider.chat(messages, tools, systemPrompt);
+          // Use streaming to get chunks as they arrive
+          const stream = this.llmProvider.chatStream(messages, tools, systemPrompt);
+
+          for await (const chunk of stream) {
+            fullContent += chunk;
+            // Emit content event for each chunk
+            this.streamEmitter.emitContent(chunk, false);
+          }
+
+          // Emit final content event
+          this.streamEmitter.emitContent(fullContent, true);
+
+          // Create a response object from the accumulated content
+          // This maintains compatibility with the rest of the code
+          response = {
+            text: fullContent,
+            tool_calls: [],
+            usage: null,
+          };
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
           logger.error({ err: errorMsg, iteration }, "llm_call_failed");
@@ -183,6 +203,7 @@ export class AgentLoop {
             const detail = JSON.stringify(tc.arguments);
 
             // Emit step start event
+            console.log('[AgentLoop] Emitting step_start for tool:', action);
             this.streamEmitter.emitStepStart("executing", action, detail);
 
             const step: StepEvent = {
@@ -214,27 +235,18 @@ export class AgentLoop {
             }
           }
 
-          if (response.text) {
-            const parsed = this.thinkParser.parse(response.text);
-            if (parsed.visible) {
-              this.addAssistantMessage(parsed.visible);
-
-              // Emit content event for visible response
-              this.streamEmitter.emitContent(parsed.visible, false);
-            }
-          }
+          // Note: Content was already streamed and emitted during the LLM call above
+          // No need to emit again here
         } else {
-          const text = response.text ?? "";
-          const parsed = this.thinkParser.parse(text);
+          // No tool calls, just a text response
+          // Content was already streamed and emitted, just parse and finalize
+          const parsed = this.thinkParser.parse(fullContent);
 
           if (parsed.visible) {
             this.addAssistantMessage(parsed.visible);
-
-            // Emit final content event
-            this.streamEmitter.emitContent(parsed.visible, true);
           }
 
-          finalResult = parsed.visible ?? text;
+          finalResult = parsed.visible ?? fullContent;
           done = true;
 
           steps.push({
@@ -332,23 +344,138 @@ export class AgentLoop {
       const tools = this.toolBus.getDefinitions();
       const systemPrompt = this.soul || loadSoul();
       const messages: Message[] = [{ role: "user", content: task }];
+      const allSteps: StepEvent[] = [];
+      const maxToolRounds = 5; // Allow up to 5 rounds of tool calls
+      let toolRound = 0;
 
-      const response = await this.llmProvider.chat(messages, tools, systemPrompt);
+      while (toolRound < maxToolRounds) {
+        // Use chatStreamWithTools to get tool calls
+        const response = await this.llmProvider.chatStreamWithTools(
+          messages,
+          tools,
+          systemPrompt,
+          (token) => {
+            // Only stream content for the first round (user's initial request)
+            if (toolRound === 0) {
+              this.streamEmitter.emitContent(token, false);
+            }
+          }
+        );
 
-      if (response.tool_calls.length === 0 && response.text) {
-        const parsed = this.thinkParser.parse(response.text);
-        return {
-          task,
-          result: parsed.visible ?? response.text,
-          success: true,
-          steps: [{ phase: "done", action: "turbo_response", detail: parsed.visible ?? response.text }],
-          actions_taken: [],
-          iterations: 1,
-          strategy_used: "turbo",
-          elapsed_secs: 0,
-        };
+        console.log('[AgentLoop] Turbo path: LLM response:', { text: response.text, toolCalls: response.tool_calls });
+
+        // If no tool calls, we're done
+        if (!response.tool_calls || response.tool_calls.length === 0) {
+          if (toolRound === 0 && response.text) {
+            // First round with just text response
+            const parsed = this.thinkParser.parse(response.text);
+            return {
+              task,
+              result: parsed.visible ?? response.text,
+              success: true,
+              steps: [],
+              actions_taken: [],
+              iterations: 1,
+              strategy_used: "turbo",
+              elapsed_secs: 0,
+            };
+          } else if (response.text) {
+            // Subsequent rounds with text response
+            this.streamEmitter.emitContent(response.text, true);
+            return {
+              task,
+              result: response.text,
+              success: true,
+              steps: allSteps,
+              actions_taken: allSteps.map(s => s.action),
+              iterations: toolRound + 1,
+              strategy_used: "turbo_with_tools",
+              elapsed_secs: 0,
+            };
+          }
+          break; // No text either, we're done
+        }
+
+        // Execute tool calls
+        console.log('[AgentLoop] Turbo path: Round', toolRound + 1, '- Executing tool calls:', response.tool_calls.map(tc => tc.name));
+
+        // Add assistant message with tool calls
+        messages.push({
+          role: "assistant",
+          content: response.text || "",
+          tool_calls: response.tool_calls
+        });
+
+        for (const tc of response.tool_calls) {
+          const action = tc.name;
+          const detail = JSON.stringify(tc.arguments);
+
+          // Emit step start event
+          console.log('[AgentLoop] Turbo path: Emitting step_start for tool:', action);
+          this.streamEmitter.emitStepStart("executing", action, detail);
+
+          const step: StepEvent = {
+            phase: "executing",
+            action,
+            detail,
+          };
+          allSteps.push(step);
+
+          try {
+            const result = await this.toolBus.execute(action, tc.arguments);
+            console.log('[AgentLoop] Turbo path: Tool result:', result.success);
+            step.observation = result.success ? (result.output ?? "") : (result.error ?? "");
+
+            // Emit step complete event
+            this.streamEmitter.emitStepComplete("executing", action, step.observation, result.success);
+
+            // Add tool response message
+            messages.push({
+              role: "tool",
+              content: step.observation || "",
+              tool_call_id: tc.id
+            });
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            console.log('[AgentLoop] Turbo path: Tool error:', errMsg);
+            step.observation = errMsg;
+
+            this.streamEmitter.emitStepComplete("executing", action, errMsg, false);
+
+            // Add tool response message with error
+            messages.push({
+              role: "tool",
+              content: errMsg,
+              tool_call_id: tc.id
+            });
+          }
+        }
+
+        toolRound++;
       }
-    } catch {
+
+      // After all tool rounds, get final response
+      const finalResponse = await this.llmProvider.chatStreamWithTools(
+        messages,
+        tools,
+        systemPrompt,
+        (token) => {
+          this.streamEmitter.emitContent(token, true);
+        }
+      );
+
+      return {
+        task,
+        result: finalResponse.text || "Task completed",
+        success: true,
+        steps: allSteps,
+        actions_taken: allSteps.map(s => s.action),
+        iterations: toolRound,
+        strategy_used: "turbo_with_tools",
+        elapsed_secs: 0,
+      };
+    } catch (err) {
+      console.log('[AgentLoop] Turbo path error:', err);
       return null;
     }
 
@@ -482,6 +609,10 @@ export class AgentLoop {
     } catch (err) {
       logger.warn({ err: (err as Error).message }, "post_task_error");
     }
+  }
+
+  setLLMProvider(provider: LLMProvider): void {
+    this.llmProvider = provider;
   }
 
   private addUserMessage(content: string): void {

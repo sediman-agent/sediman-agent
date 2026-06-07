@@ -6,6 +6,7 @@ import logger from "../core/logging";
 import { BrowserSession } from "./session";
 import { DISMISS_OVERLAYS_JS } from "./scripts/dismiss-overlays";
 import { SNAPSHOT_JS } from "./scripts/snapshot";
+import { EventEmitter } from "../core/events";
 
 // Types
 export interface ElementInfo {
@@ -77,11 +78,16 @@ export class BrowserController {
 
   // Get current page
   private page(): Page {
-    const page = this.pageProvider
-      ? this.pageProvider()
-      : this.session.context?.pages()[0] ?? null;
-    if (!page) throw new Error("no active page");
-    return page;
+    if (this.pageProvider) {
+      const page = this.pageProvider();
+      if (page) return page;
+    }
+    // Safely get pages array
+    const pages = this.session?.context?.pages();
+    if (!pages || pages.length === 0) {
+      throw new Error("no active page - browser may not be started");
+    }
+    return pages[0];
   }
 
   // Emit step event
@@ -106,11 +112,46 @@ export class BrowserController {
   async navigate(url: string): Promise<string> {
     try {
       const page = this.page();
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-      this.emit("navigate", url);
-      return `Navigated to ${url}`;
+      console.log('[BrowserController] Navigating to:', url);
+
+      // Try with different strategies
+      let result = '';
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await page.goto(url, {
+            waitUntil: "domcontentloaded",
+            timeout: 45000
+          });
+          result = `Navigated to ${url}`;
+          this.emit("navigate", url);
+          console.log('[BrowserController] ✅ Navigation succeeded on attempt', attempt);
+          break;
+        } catch (gotoError: any) {
+          console.log('[BrowserController] ❌ Attempt', attempt, 'failed:', gotoError.message);
+          if (attempt === 3) {
+            // Last attempt failed, try with just load state
+            try {
+              await page.goto(url, {
+                waitUntil: "commit",
+                timeout: 30000
+              });
+              result = `Navigated to ${url} (committed)`;
+              this.emit("navigate", url);
+              console.log('[BrowserController] ✅ Navigation succeeded with commit');
+              break;
+            } catch (commitError: any) {
+              result = `Failed to navigate to ${url}: ${commitError.message}`;
+            }
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
+      }
+
+      return result;
     } catch (e: any) {
-      return `Failed to navigate to ${url}: ${e.message}`;
+      const error = `Failed to navigate to ${url}: ${e.message}`;
+      console.error('[BrowserController]', error);
+      return error;
     }
   }
 

@@ -3,22 +3,38 @@ import { apiPost, apiStream } from './apiClient';
 export interface ChatStreamOptions {
   onChunk: (delta: string, phase?: string) => void;
   onProgress?: (progress: { phase: string; message: string; detail?: string }) => void;
-  onDone?: () => void;
+  onDone?: (result?: any) => void;
   onError?: (error: string) => void;
+}
+
+interface RunTaskParams {
+  task: string;
+  model?: string;
+  provider?: string;
+  mode?: string;
 }
 
 class ChatService {
   async runTask(
     task: string,
     options: ChatStreamOptions,
-    mode = 'manager'
+    params?: { model?: string; provider?: string; mode?: string }
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       let isDone = false;
 
+      const requestBody: RunTaskParams = {
+        task,
+        mode: params?.mode || 'manager',
+      };
+
+      // Only add model and provider if they're set
+      if (params?.model) requestBody.model = params.model;
+      if (params?.provider) requestBody.provider = params.provider;
+
       apiStream(
         '/api/agent/run',
-        { task, mode },
+        requestBody,
         (type, data) => {
           switch (type) {
             case 'chunk':
@@ -30,7 +46,7 @@ class ChatService {
             case 'done':
               if (!isDone) {
                 isDone = true;
-                options.onDone?.();
+                options.onDone?.(data);
                 resolve();
               }
               break;

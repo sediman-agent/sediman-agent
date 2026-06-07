@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Server, Check, Key, CheckCircle, AlertCircle, ChevronRight, Search } from 'lucide-react';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { Button } from '@/components/shared/Button';
-import { Input } from '@/components/shared/Input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/Card';
-import { ScrollArea } from '@/components/shared/ScrollArea';
-import { Badge } from '@/components/shared/Badge';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { Button } from '@/elements/actions/Button';
+import { Input } from '@/elements/form/Input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/elements/data/Card';
+import { ScrollArea } from '@/elements/data/ScrollArea';
+import { Badge } from '@/elements/feedback/Badge';
 import { useAppStore } from '@/stores/useAppStore';
 import { toast } from 'sonner';
 
@@ -49,16 +49,13 @@ export function ProviderPage() {
 
   const handleSelectProvider = (providerName: string) => {
     setSelectedProvider(providerName);
-    setProvider(providerName);
+    // Don't set provider in store yet - wait for backend confirmation
     setExpandedProvider(providerName === expandedProvider ? null : providerName);
     setApiKey('');
   };
 
   const handleSave = async () => {
     if (!selectedProvider) return;
-
-    // Save provider
-    setProvider(selectedProvider);
 
     try {
       const response = await fetch('http://localhost:3001/api/model/switch', {
@@ -72,18 +69,21 @@ export function ProviderPage() {
 
       if (response.ok) {
         const result = await response.json();
+        // Only set provider in store after backend confirms
+        setProvider(selectedProvider);
         if (result.model) {
           setModel(result.model);
         }
         setStatuses(prev => ({ ...prev, [selectedProvider]: 'connected' }));
-        toast.success('Provider configured successfully');
+        toast.success(`Provider ${selectedProvider} configured successfully`);
       } else {
+        const errorData = await response.json().catch(() => ({}));
         setStatuses(prev => ({ ...prev, [selectedProvider]: 'error' }));
-        toast.error('Failed to configure provider');
+        toast.error(`Failed to configure provider: ${errorData.error || 'Unknown error'}`);
       }
-    } catch {
+    } catch (error) {
       setStatuses(prev => ({ ...prev, [selectedProvider]: 'error' }));
-      toast.error('Failed to configure provider');
+      toast.error('Failed to configure provider: Network error');
     }
   };
 

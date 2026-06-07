@@ -87,9 +87,21 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
   (set) => ({
     ...initialState,
 
-    // Panel actions
-    togglePanel: () => set((state) => ({ isOpen: !state.isOpen })),
-    setOpen: (open) => set({ isOpen: open }),
+    // Panel actions - auto-activate when opening
+    togglePanel: () => set((state) => {
+      const newOpen = !state.isOpen;
+      return {
+        isOpen: newOpen,
+        isActive: newOpen ? true : false,
+        connectionStatus: newOpen ? 'connecting' : 'disconnected'
+      };
+    }),
+
+    setOpen: (open) => set({
+      isOpen: open,
+      isActive: open,
+      connectionStatus: open ? 'connecting' : 'disconnected'
+    }),
 
     // Sandbox control
     startSandbox: (type) =>

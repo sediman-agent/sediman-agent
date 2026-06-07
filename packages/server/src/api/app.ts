@@ -16,6 +16,7 @@ import { createModelRoutes } from "./routes/model.js";
 import { createFileRoutes } from "./routes/files.js";
 import { createLogsRoutes } from "./routes/logs.js";
 import { createProjectRoutes } from "./routes/project.js";
+import { createBrowserRoutes } from "./routes/browser";
 import type { AgentLoop } from "../agent/loop";
 import type { LLMProvider } from "../llm/provider";
 import type { ProjectManager } from "../project/manager";
@@ -52,6 +53,7 @@ export function createApiApp(deps: ApiDeps): Hono {
   app.route("/api/files", createFileRoutes(deps));
   app.route("/api/logs", createLogsRoutes(deps));
   app.route("/api/projects", createProjectRoutes(deps));
+  app.route("/api/browser", createBrowserRoutes());
 
   app.get("/api/health", (c) => c.json({ status: "ok" }));
 

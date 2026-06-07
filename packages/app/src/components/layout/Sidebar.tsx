@@ -4,6 +4,7 @@ import {
   Sun,
   Moon,
   MessageSquare,
+  FolderOpen,
   Bot,
   Server,
   Database,
@@ -17,7 +18,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { SidebarNav } from './SidebarNav';
 import { SidebarAgent } from './SidebarAgent';
 import { SidebarStatus } from './SidebarStatus';
-import { Button } from '@/components/shared/Button';
+import { Button } from '@/elements/actions/Button';
 
 export function Sidebar() {
   const sidebarOpen = useAppStore((state) => state.sidebarOpen);
@@ -101,6 +102,7 @@ export function Sidebar() {
         {!sidebarOpen && (
           <nav className="flex-1 flex flex-col items-center py-2 gap-0.5" aria-label="Page navigation (collapsed)">
             <CollapsedNavItem icon={MessageSquare} label="Chat" page="agent" />
+            <CollapsedNavItem icon={FolderOpen} label="Projects" page="projects" />
             <CollapsedNavItem icon={Bot} label="Models" page="models" />
             <CollapsedNavItem icon={Server} label="Provider" page="provider" />
             <CollapsedNavItem icon={Database} label="Memory" page="memory" />

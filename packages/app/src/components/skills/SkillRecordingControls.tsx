@@ -5,9 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { Circle, Square, X } from 'lucide-react';
-import { Button } from '@/components/shared/Button';
-import { Input } from '@/components/shared/Input';
-import { Modal } from '@/components/shared/Modal';
+import { Button } from '@/elements/actions/Button';
+import { Input } from '@/elements/form/Input';
+import { Modal } from '@/elements/overlays/Modal';
 
 interface RecordingState {
   isRecording: boolean;

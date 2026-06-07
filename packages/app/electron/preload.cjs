@@ -1,8 +1,13 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Check for --showcase flag
+const isShowcase = process.argv.includes('--showcase');
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
+  // Check if running in showcase mode
+  isShowcase: () => isShowcase,
   // Browser visibility control
   browserShow: () => ipcRenderer.invoke('browser-show'),
   browserHide: () => ipcRenderer.invoke('browser-hide'),

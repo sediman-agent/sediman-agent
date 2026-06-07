@@ -1,125 +1,205 @@
+/**
+ * Browser Panel - Fixed iframe height issue
+ * Using direct DOM manipulation to set webview dimensions
+ */
+
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { X, Maximize2, Minimize2, RefreshCw, ExternalLink, Globe, Upload, FileText, Square, Plus } from 'lucide-react';
-import { Button } from '@/components/shared/Button';
+import {
+  X, Maximize2, Minimize2, RefreshCw, ExternalLink, Globe, Plus, Wifi, WifiOff, Loader2
+} from 'lucide-react';
+import { Button } from '@/elements/actions/Button';
 import { useSandboxStore } from '@/stores/useSandboxStore';
 import { cn } from '@/lib/utils';
+import { browserService } from '@/services/BrowserService';
+import {
+  BrowserStatusIndicator,
+  UrlValidator,
+  BrowserValidationUtils,
+} from '../browser/types';
 
-interface UploadedFile {
-  name: string;
-  path: string;
-  size: number;
-}
-
-interface SandboxSession {
-  id: string;
-  name: string;
-  type: 'browser' | 'computer';
-  status: 'starting' | 'running' | 'stopped' | 'error';
-  createdAt: number;
-  lastUsedAt: number;
-  browserInstanceId?: string;
-  metadata?: Record<string, unknown>;
-}
-
-interface BrowserTab {
+// Simple browser state
+interface BrowserTabState {
   id: string;
   url: string;
   title: string;
   loading: boolean;
+  status: 'idle' | 'navigating' | 'loading' | 'error' | 'active';
 }
 
 export function SandboxPanel() {
-  const isOpen = useSandboxStore(state => state.isOpen);
-  const isActive = useSandboxStore(state => state.isActive);
-  const togglePanel = useSandboxStore(state => state.togglePanel);
-  const setIsActive = useSandboxStore(state => state.setIsActive);
-  const setConnectionStatus = useSandboxStore(state => state.setConnectionStatus);
-
-  // Auto-activate browser when panel opens
-  useEffect(() => {
-    if (isOpen && !isActive) {
-      setIsActive(true);
-      setConnectionStatus('connected');
-    }
-  }, [isOpen, isActive, setIsActive, setConnectionStatus]);
-
+  // =========================================================================
+  // STATE MANAGEMENT
+  // =========================================================================
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(600);
   const [isResizing, setIsResizing] = useState(false);
-  const [browserTabs, setBrowserTabs] = useState<BrowserTab[]>([
-    { id: 'tab-1', url: 'https://www.wikipedia.org', title: 'Wikipedia', loading: false }
+  const [urlInput, setUrlInput] = useState('https://www.google.com');
+  const [tabs, setTabs] = useState<BrowserTabState[]>([
+    { id: 'tab-1', url: 'https://www.google.com', title: 'Google', loading: false, status: 'idle' }
   ]);
   const [activeTabId, setActiveTabId] = useState('tab-1');
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [sandboxSessions, setSandboxSessions] = useState<SandboxSession[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const apiBaseUrl = 'http://localhost:3001';
+  const [webviewHeight, setWebviewHeight] = useState(0);
+
+  // =========================================================================
+  // STORE INTEGRATION
+  // =========================================================================
+  const isOpen = useSandboxStore(state => state.isOpen);
+  const isActive = useSandboxStore(state => state.isActive);
+  const togglePanel = useSandboxStore(state => state.togglePanel);
+
+  // =========================================================================
+  // HELPERS
+  // =========================================================================
+  const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
   const webviewRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const activeTab = browserTabs.find(tab => tab.id === activeTabId) || browserTabs[0];
+  // =========================================================================
+  // EFFECTS
+  // =========================================================================
 
+  // Calculate and update webview height
   useEffect(() => {
-    // Force webview to load URL when active tab changes
-    if (isActive && webviewRef.current && activeTab) {
-      webviewRef.current.src = activeTab.url;
-      setTimeout(() => {
-        if (webviewRef.current && webviewRef.current.loadURL) {
-          webviewRef.current.loadURL(activeTab.url);
+    const updateWebviewHeight = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setWebviewHeight(rect.height);
+
+        // Directly set webview dimensions
+        if (webviewRef.current) {
+          webviewRef.current.style.height = `${rect.height}px`;
+          webviewRef.current.style.width = `${rect.width}px`;
+          webviewRef.current.style.position = 'absolute';
+          webviewRef.current.style.top = '0';
+          webviewRef.current.style.left = '0';
+
+          // Try to set the internal iframe height
+          try {
+            const shadowRoot = webviewRef.current.shadowRoot;
+            if (shadowRoot) {
+              const iframe = shadowRoot.querySelector('iframe');
+              if (iframe) {
+                (iframe as HTMLIFrameElement).style.height = `${rect.height}px`;
+                (iframe as HTMLIFrameElement).style.width = `${rect.width}px`;
+                (iframe as HTMLIFrameElement).style.flex = 'none';
+              }
+            }
+          } catch (e) {
+            // Shadow root might not be accessible
+          }
         }
-      }, 100);
-    }
-  }, [isActive, activeTab]);
-
-  const handleAddTab = () => {
-    const newTab: BrowserTab = {
-      id: `tab-${Date.now()}`,
-      url: 'https://www.wikipedia.org',
-      title: 'New Tab',
-      loading: false
+      }
     };
-    setBrowserTabs([...browserTabs, newTab]);
+
+    updateWebviewHeight();
+    window.addEventListener('resize', updateWebviewHeight);
+    const intervalId = setInterval(updateWebviewHeight, 100);
+
+    return () => {
+      window.removeEventListener('resize', updateWebviewHeight);
+      clearInterval(intervalId);
+    };
+  }, [panelWidth, isFullscreen]);
+
+  // BrowserService registration
+  useEffect(() => {
+    if (isActive && webviewRef.current) {
+      browserService.registerWebview(webviewRef.current);
+      browserService.activate();
+
+      return () => {
+        browserService.deactivate();
+      };
+    }
+  }, [isActive]);
+
+  // =========================================================================
+  // EVENT HANDLERS
+  // =========================================================================
+
+  const handleAddTab = useCallback(() => {
+    const newTab: BrowserTabState = {
+      id: `tab-${Date.now()}`,
+      url: 'https://www.google.com',
+      title: 'New Tab',
+      loading: false,
+      status: 'idle'
+    };
+    setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  };
+    setUrlInput('https://www.google.com');
+  }, []);
 
-  const handleCloseTab = (tabId: string) => {
-    if (browserTabs.length === 1) return; // Don't close the last tab
-    const newTabs = browserTabs.filter(tab => tab.id !== tabId);
-    setBrowserTabs(newTabs);
-    if (activeTabId === tabId) {
-      setActiveTabId(newTabs[0].id);
-    }
-  };
+  const handleCloseTab = useCallback((tabId: string) => {
+    if (tabs.length <= 1) return;
 
-  const handleTabChange = (tabId: string) => {
+    setTabs(prev => {
+      const newTabs = prev.filter(t => t.id !== tabId);
+      if (tabId === activeTabId && newTabs.length > 0) {
+        setActiveTabId(newTabs[0].id);
+        setUrlInput(newTabs[0].url);
+      }
+      return newTabs;
+    });
+  }, [tabs.length, activeTabId]);
+
+  const handleTabChange = useCallback((tabId: string) => {
     setActiveTabId(tabId);
-  };
+    const tab = tabs.find(t => t.id === tabId);
+    if (tab) {
+      setUrlInput(tab.url);
+    }
+  }, [tabs]);
 
-  const handleUrlSubmit = (e: React.FormEvent) => {
+  const handleUrlSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    const tab = browserTabs.find(t => t.id === activeTabId);
-    if (!tab) return;
 
-    let url = (e.target as any).elements.url.value.trim();
-    if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    const normalizedUrl = UrlValidator.normalizeUrl(urlInput);
+    const validation = BrowserValidationUtils.validateUrl(normalizedUrl);
+
+    if (!validation.valid) {
+      console.error('[SandboxPanel] Invalid URL:', validation.error);
+      return;
     }
 
-    // Update the active tab
-    setBrowserTabs(browserTabs.map(t =>
-      t.id === activeTabId ? { ...t, url, loading: true } : t
+    setUrlInput(normalizedUrl);
+
+    setTabs(prev => prev.map(tab =>
+      tab.id === activeTabId
+        ? { ...tab, url: normalizedUrl, title: 'New Page', status: 'navigating' as const, loading: true }
+        : tab
     ));
 
-    if (url && window.electronAPI) {
-      window.electronAPI.browserNavigate(url);
+    if (webviewRef.current) {
+      if (webviewRef.current.loadURL) {
+        webviewRef.current.loadURL(normalizedUrl);
+      } else {
+        webviewRef.current.src = normalizedUrl;
+      }
     }
-  };
+  }, [urlInput, activeTabId]);
 
-  const updateTabTitle = (tabId: string, title: string) => {
-    setBrowserTabs(browserTabs.map(tab =>
-      tab.id === tabId ? { ...tab, title, loading: false } : tab
-    ));
-  };
+  const handleRefresh = useCallback(() => {
+    if (webviewRef.current && webviewRef.current.reload) {
+      webviewRef.current.reload();
+    }
+  }, []);
+
+  const handleGoBack = useCallback(() => {
+    if (webviewRef.current && webviewRef.current.goBack) {
+      webviewRef.current.goBack();
+    }
+  }, []);
+
+  const handleGoForward = useCallback(() => {
+    if (webviewRef.current && webviewRef.current.goForward) {
+      webviewRef.current.goForward();
+    }
+  }, []);
+
+  // =========================================================================
+  // RESIZE HANDLING
+  // =========================================================================
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (isFullscreen) return;
@@ -154,95 +234,40 @@ export function SandboxPanel() {
     }
   }, [isResizing, handleMouseMove, handleMouseUp]);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  // =========================================================================
+  // PANEL CONTROLS
+  // =========================================================================
 
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('files', files[i]);
+  const handleClose = useCallback(async () => {
+    if (window.electronAPI) {
+      await window.electronAPI.browserHide();
     }
+    togglePanel();
+  }, [togglePanel]);
 
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/files/upload`, {
-        method: 'POST',
-        body: formData,
-      });
+  // =========================================================================
+  // RENDER HELPERS
+  // =========================================================================
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.uploaded) {
-          setUploadedFiles(prev => [...prev, ...result.uploaded]);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to upload files:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRemoveFile = (fileName: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.name !== fileName));
-  };
-
-  const handleOpenFilePicker = () => {
-    fileInputRef.current?.click();
-  };
-
-  const loadSandboxSessions = async () => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/sandbox/list`);
-      if (response.ok) {
-        const data = await response.json();
-        setSandboxSessions(data.sessions || []);
-      }
-    } catch (error) {
-      console.error('Failed to load sandbox sessions:', error);
-    }
-  };
-
-  useEffect(() => {
-    loadSandboxSessions();
-    const interval = setInterval(loadSandboxSessions, 10000);
-    return () => clearInterval(interval);
+  const getStatusColor = useCallback((status: BrowserTabState['status']) => {
+    return BrowserStatusIndicator.getStatusColor(status);
   }, []);
 
-  const handleStopSandbox = async (sessionId: string) => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/sandbox/stop`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
+  const getStatusMessage = useCallback((status: BrowserTabState['status']) => {
+    return BrowserStatusIndicator.getStatusMessage(status);
+  }, []);
 
-      if (response.ok) {
-        await loadSandboxSessions();
-      }
-    } catch (error) {
-      console.error('Failed to stop sandbox:', error);
-    }
-  };
-
-  const handleRefresh = async () => {
-    if (window.electronAPI) {
-      await window.electronAPI.browserRefresh();
-      // Reload the active tab
-      if (activeTab && webviewRef.current) {
-        webviewRef.current.src = activeTab.url;
-      }
-    }
-  };
+  // =========================================================================
+  // RENDER
+  // =========================================================================
 
   if (!isOpen) {
     return null;
   }
 
-  const hasActiveSessions = sandboxSessions.some(s => s.status === 'running');
-
   return (
     <>
+      {/* Resize Handle */}
       {!isFullscreen && (
         <div
           className={cn(
@@ -257,27 +282,62 @@ export function SandboxPanel() {
           <div className="w-0.5 h-8 rounded-full bg-muted-foreground/30" />
         </div>
       )}
+
+      {/* Main Panel */}
       <div
         className={cn(
-          "flex flex-col shadow-lg transition-all duration-300 border-l border-border pointer-events-auto",
-          isFullscreen ? "fixed inset-0 z-50" : "fixed right-0 top-0 bottom-0 z-50"
+          "flex flex-col shadow-2xl transition-all duration-200 border-l border-border",
+          isFullscreen ? "fixed inset-0 z-50" : "fixed right-0 top-0 bottom-0 z-50",
+          "bg-background"
         )}
         style={{
           width: isFullscreen ? '100%' : panelWidth,
-          backgroundColor: 'transparent',
-          background: 'transparent'
         }}
         role="complementary"
         aria-label="Browser panel"
       >
         {/* Header */}
-        <div className="bg-muted/30 border-b border-border backdrop-blur-sm" style={{ backgroundColor: 'rgba(var(--muted-rgb), 0.3)' }}>
+        <div className="bg-muted/30 border-b border-border backdrop-blur-md">
           <div className="flex items-center justify-between px-3 py-2">
             <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-muted-foreground" />
+              {isActive ? (
+                <Wifi className={cn("w-4 h-4", getStatusColor(activeTab?.status || 'idle'))} />
+              ) : (
+                <WifiOff className="w-4 h-4 text-muted-foreground" />
+              )}
               <span className="text-sm font-medium">Browser</span>
+              {isActive && activeTab && (
+                <span className={cn(
+                  "text-xs px-2 py-0.5 rounded-full",
+                  getStatusColor(activeTab.status)
+                )}>
+                  {getStatusMessage(activeTab.status)}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleGoBack}
+                className="h-7 w-7 p-0"
+                title="Back"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleGoForward}
+                className="h-7 w-7 p-0"
+                title="Forward"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </Button>
               <Button
                 size="sm"
                 variant="ghost"
@@ -285,23 +345,18 @@ export function SandboxPanel() {
                 className="h-7 w-7 p-0"
                 title="Refresh"
               >
-                <RefreshCw className="w-3 h-3" />
+                <RefreshCw className="w-3.5 h-3.5" />
               </Button>
               <button
                 onClick={() => setIsFullscreen(!isFullscreen)}
-                className="p-1.5 hover:bg-muted-foreground/20 rounded transition-all duration-200"
+                className="p-1.5 hover:bg-muted-foreground/20 rounded transition-all"
                 title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
               >
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
               <button
-                onClick={async () => {
-                  if (window.electronAPI) {
-                    await window.electronAPI.browserHide();
-                  }
-                  togglePanel();
-                }}
-                className="p-1.5 hover:bg-destructive/20 hover:text-destructive rounded transition-all duration-200"
+                onClick={handleClose}
+                className="p-1.5 hover:bg-destructive/20 hover:text-destructive rounded transition-all"
                 title="Close browser"
               >
                 <X className="w-4 h-4" />
@@ -311,7 +366,7 @@ export function SandboxPanel() {
 
           {/* Tabs */}
           <div className="flex items-center gap-1 px-2 pt-2 border-b border-border/50">
-            {browserTabs.map((tab) => (
+            {tabs.map((tab: BrowserTabState) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
@@ -325,7 +380,10 @@ export function SandboxPanel() {
               >
                 <Globe className="w-3 h-3" />
                 <span className="max-w-[120px] truncate">{tab.title}</span>
-                {browserTabs.length > 1 && (
+                {tab.loading && (
+                  <Loader2 className="w-2 h-2 border border-current border-t-transparent rounded-full animate-spin" />
+                )}
+                {tabs.length > 1 && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -350,12 +408,12 @@ export function SandboxPanel() {
           {/* URL Bar */}
           <form onSubmit={handleUrlSubmit} className="flex items-center gap-2 px-3 pb-2">
             <div className="flex-1 flex items-center bg-background border border-input rounded-md px-3 py-1.5 shadow-sm">
-              <ExternalLink className="w-3 h-3 text-muted-foreground mr-2" />
+              <ExternalLink className="w-3 h-3 text-muted-foreground mr-2 shrink-0" />
               <input
                 type="text"
-                name="url"
-                defaultValue={activeTab?.url}
-                className="flex-1 bg-transparent text-sm outline-none text-foreground"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                className="flex-1 bg-transparent text-sm outline-none text-foreground min-w-0"
                 placeholder="Enter URL..."
                 aria-label="Browser URL"
               />
@@ -363,152 +421,108 @@ export function SandboxPanel() {
           </form>
         </div>
 
-        {/* Action Buttons */}
-        <div className="border-b border-border bg-muted/20 px-3 py-3 space-y-2 relative z-10 backdrop-blur-sm" style={{ backgroundColor: 'rgba(var(--muted-rgb), 0.2)' }}>
-          <Button
-            variant="outline"
-            onClick={handleOpenFilePicker}
-            disabled={isLoading}
-            className="w-full"
-          >
-            <Upload className="w-4 h-4 mr-2" />
-            Upload Files
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
-
-        {/* Uploaded Files */}
-        {uploadedFiles.length > 0 && (
-          <div className="border-b border-border px-3 py-2 max-h-32 overflow-y-auto relative z-10 backdrop-blur-sm" style={{ backgroundColor: 'rgba(var(--background-rgb), 0.8)' }}>
-            <div className="text-xs font-medium text-muted-foreground mb-2">Uploaded Files</div>
-            <div className="space-y-1">
-              {uploadedFiles.map((file) => (
-                <div
-                  key={file.name}
-                  className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1"
-                >
-                  <FileText className="w-3 h-3 text-muted-foreground" />
-                  <span className="flex-1 truncate">{file.name}</span>
-                  <span className="text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
-                  <button
-                    onClick={() => handleRemoveFile(file.name)}
-                    className="text-muted-foreground hover:text-destructive"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Active Sessions */}
-        {hasActiveSessions && (
-          <div className="border-b border-border px-3 py-2 max-h-32 overflow-y-auto relative z-10 backdrop-blur-sm" style={{ backgroundColor: 'rgba(var(--background-rgb), 0.8)' }}>
-            <div className="text-xs font-medium text-muted-foreground mb-2">Active Sessions</div>
-            <div className="space-y-1">
-              {sandboxSessions
-                .filter(s => s.status === 'running')
-                .map((session) => (
-                  <div
-                    key={session.id}
-                    className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1"
-                  >
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                    <span className="flex-1">{session.name}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleStopSandbox(session.id)}
-                      className="h-5 px-1"
-                    >
-                      <Square className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* Browser View */}
-        <div className="flex-1 relative overflow-hidden" style={{ height: '100%', minHeight: 0 }}>
-          {!isActive && (
+        {/* Webview Display Area */}
+        <div
+          ref={containerRef}
+          className="flex-1 relative overflow-hidden bg-white"
+          style={{ minHeight: '400px' }}
+        >
+          {!isActive ? (
             <div className="flex items-center justify-center h-full bg-background">
               <div className="text-center p-8">
-                <Globe className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground text-sm">Click "Start Browser" to begin</p>
+                <WifiOff className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-sm font-medium mb-2">Browser Not Active</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Open the panel to start browsing
+                </p>
               </div>
             </div>
-          )}
-          <div className="absolute inset-0 w-full h-full">
-            <style>{`
-              #browser-webview {
-                width: 100% !important;
-                height: 100% !important;
-              }
-              #browser-webview iframe {
-                height: 100% !important;
-                flex: none !important;
-              }
-            `}</style>
+          ) : (
             <webview
               id="browser-webview"
-              key={activeTabId}
               ref={(el) => {
                 webviewRef.current = el;
                 if (el) {
+                  el.addEventListener('did-fail-load', (event: any) => {
+                    console.error('[SandboxPanel] Webview failed:', event.errorCode, event.errorDescription);
+                    setTabs(prev => prev.map(tab =>
+                      tab.id === activeTabId
+                        ? { ...tab, loading: false, status: 'error' as const }
+                        : tab
+                    ));
+                  });
                   el.addEventListener('dom-ready', () => {
-                    // Update tab title when page loads
                     const title = el.getTitle();
                     if (title) {
-                      updateTabTitle(activeTabId, title);
+                      setTabs(prev => prev.map(tab =>
+                        tab.id === activeTabId
+                          ? { ...tab, title, status: 'active' as const, loading: false }
+                          : tab
+                      ));
                     }
-                    // Fix iframe height manually
-                    setTimeout(() => {
-                      const iframe = el.shadowRoot?.querySelector('iframe');
-                      if (iframe) {
-                        iframe.style.height = '100%';
-                        iframe.style.flex = 'none';
-                        iframe.style.position = 'absolute';
-                        iframe.style.top = '0';
-                        iframe.style.left = '0';
-                      }
-                    }, 100);
+
+                    // Inject CSS to fix page styling
+                    el.executeJavaScript(`
+                      (function() {
+                        const style = document.createElement('style');
+                        style.textContent = 'html, body { height: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }';
+                        document.head.appendChild(style);
+                      })();
+                    `).catch(err => console.log('CSS injection failed:', err));
                   });
-                  el.addEventListener('page-title-updated', (e: any) => {
-                    if (e.title) {
-                      updateTabTitle(activeTabId, e.title);
-                    }
+                  el.addEventListener('did-start-loading', () => {
+                    setTabs(prev => prev.map(tab =>
+                      tab.id === activeTabId
+                        ? { ...tab, loading: true, status: 'loading' as const }
+                        : tab
+                    ));
+                  });
+                  el.addEventListener('did-stop-loading', () => {
+                    setTabs(prev => prev.map(tab =>
+                      tab.id === activeTabId
+                        ? { ...tab, loading: false, status: 'active' as const }
+                        : tab
+                    ));
                   });
                 }
               }}
-              src={activeTab?.url || 'https://www.wikipedia.org'}
+              src={activeTab?.url || 'https://www.google.com'}
               style={{
-                width: '100%',
-                height: '100%',
+                width: `${panelWidth}px`,
+                height: `${webviewHeight}px`,
                 border: 'none',
                 backgroundColor: 'white',
-                display: 'block'
+                display: 'block',
+                position: 'absolute',
+                top: 0,
+                left: 0
               }}
-              className="w-full h-full"
-              useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0"
               partition="persist:browser-panel"
-              // @ts-ignore - webview attributes
               allowpopups={true}
             />
-          </div>
+          )}
         </div>
 
         {/* Status Bar */}
-        <div className="flex items-center justify-between px-3 py-1 border-t border-border text-xs text-muted-foreground relative z-10 backdrop-blur-sm" style={{ backgroundColor: 'rgba(var(--muted-rgb), 0.3)' }}>
-          <span>{isActive ? 'Connected' : 'Disconnected'}</span>
-          <span>{isActive ? activeTab?.url : 'Electron Browser'}</span>
+        <div className="flex items-center justify-between px-3 py-1.5 border-t border-border text-xs bg-muted/30 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            {isActive ? (
+              <>
+                <Wifi className={cn("w-3 h-3", getStatusColor(activeTab?.status || 'idle'))} />
+                <span className={getStatusColor(activeTab?.status || 'idle')}>
+                  {getStatusMessage(activeTab?.status || 'idle')}
+                </span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3 h-3 text-muted-foreground" />
+                <span className="text-muted-foreground">Disconnected</span>
+              </>
+            )}
+          </div>
+          <span className="text-muted-foreground truncate max-w-[200px]">
+            {isActive && activeTab ? activeTab.url : 'Electron Browser'}
+          </span>
         </div>
       </div>
     </>

@@ -6,6 +6,7 @@ interface ChatState {
   // State
   conversations: Conversation[];
   activeConversationId: string | null;
+  version: number; // Increment to force re-renders
 
   // Computed
   activeConversation: Conversation | null;
@@ -18,7 +19,7 @@ interface ChatState {
   updateConversationTitle: (id: string, title: string) => void;
 
   // Message actions
-  addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => void;
+  addMessage: (conversationId: string, message: Omit<Message, 'id' | 'timestamp'> | Message) => void;
   updateMessage: (conversationId: string, messageId: string, updates: Partial<Message>) => void;
   appendToMessage: (conversationId: string, messageId: string, delta: string) => void;
   setMessageStatus: (conversationId: string, messageId: string, status: MessageStatus) => void;
@@ -41,6 +42,7 @@ export const useChatStore = create<ChatState>()(
       // Initial state
       conversations: [],
       activeConversationId: null,
+      version: 0,
 
       // Computed
       get activeConversation() {
@@ -90,8 +92,8 @@ export const useChatStore = create<ChatState>()(
       addMessage: (conversationId, message) => {
         const newMessage: Message = {
           ...message,
-          id: crypto.randomUUID(),
-          timestamp: new Date(),
+          id: 'id' in message && message.id ? message.id : crypto.randomUUID(),
+          timestamp: 'timestamp' in message && message.timestamp ? message.timestamp : new Date(),
         };
 
         set((state) => ({
@@ -105,6 +107,7 @@ export const useChatStore = create<ChatState>()(
             }
             return c;
           }),
+          version: state.version + 1,
         }));
       },
 
@@ -112,15 +115,18 @@ export const useChatStore = create<ChatState>()(
         set((state) => ({
           conversations: state.conversations.map((c) => {
             if (c.id === conversationId) {
+              const updated = c.messages.map((m) =>
+                m.id === messageId ? { ...m, ...updates } : m
+              );
               return {
                 ...c,
-                messages: c.messages.map((m) =>
-                  m.id === messageId ? { ...m, ...updates } : m
-                ),
+                messages: updated,
+                updatedAt: new Date(),
               };
             }
             return c;
           }),
+          version: state.version + 1,
         }));
       },
 
@@ -139,6 +145,7 @@ export const useChatStore = create<ChatState>()(
             }
             return c;
           }),
+          version: state.version + 1,
         }));
       },
 

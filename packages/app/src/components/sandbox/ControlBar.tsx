@@ -1,5 +1,5 @@
 import { User, Bot, Loader2, Power, PowerOff } from 'lucide-react';
-import { Button } from '@/components/shared/Button';
+import { Button } from '@/elements/actions/Button';
 import type { SandboxType, ControlMode } from '@/stores/useSandboxStore';
 
 interface ControlBarProps {

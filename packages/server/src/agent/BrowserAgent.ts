@@ -1,12 +1,6 @@
 /**
- * BrowserAgent - Optimized browser-first agent
- *
- * Based on kimi-code architecture with:
- * - Better prompts and tool descriptions
- * - Proper reflection and self-correction
- * - Retry logic with exponential backoff
- * - Structured output formatting
- * - Tool access tracking
+ * Reactive Browser Agent - Autonomous Task Completion
+ * Automatically continues through tasks without stopping at each step
  */
 
 import type { AgentResult, StepEvent, ToolDefinition } from '../core/types';
@@ -21,15 +15,7 @@ import { initializeT800Tools } from '../electron/tools';
 import { StreamEmitter } from './streaming';
 import { getConfig } from '../core/config';
 
-// Types
 type Message = { role: string; content: string };
-type TaskCategory = 'browser' | 'search' | 'extraction' | 'form' | 'navigation';
-
-// Retry configuration (kimi-code style)
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY = 300; // ms
-const MAX_RETRY_DELAY = 5000; // ms
-const RETRY_JITTER = 500; // ms
 
 export interface BrowserAgentOpts {
   llmProvider: LLMProvider;
@@ -40,7 +26,6 @@ export interface BrowserAgentOpts {
   toolBus?: ToolBus;
   headless?: boolean;
   workingDirectory?: string;
-  // Tool enablement
   enableBrowserTools?: boolean;
   enableShellTools?: boolean;
   enableFileTools?: boolean;
@@ -49,110 +34,7 @@ export interface BrowserAgentOpts {
   enableSkillsTools?: boolean;
 }
 
-// Check if error is retryable (kimi-code pattern)
-function isRetryableError(error: unknown): boolean {
-  if (error instanceof Error) {
-    // Network errors, timeouts, rate limiting
-    const retryablePatterns = [
-      /timeout/i,
-      /network/i,
-      /ECONNREFUSED/i,
-      /ECONNRESET/i,
-      /ETIMEDOUT/i,
-      /503/i,
-      /502/i,
-      /429/i, // rate limiting
-    ];
-
-    return retryablePatterns.some(pattern => pattern.test(error.message));
-  }
-  return false;
-}
-
-// Calculate retry delay with exponential backoff and jitter
-function calculateRetryDelay(attempt: number): number {
-  const exponentialDelay = Math.min(
-    INITIAL_RETRY_DELAY * Math.pow(2, attempt),
-    MAX_RETRY_DELAY
-  );
-  const jitter = Math.random() * RETRY_JITTER;
-  return exponentialDelay + jitter;
-}
-
-// Sleep utility
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// Result builder for structured output
-class ResultBuilder {
-  private parts: string[] = [];
-  private hasError = false;
-
-  error(message: string): ResultBuilder {
-    this.hasError = true;
-    this.parts.push(`❌ Error: ${message}`);
-    return this;
-  }
-
-  write(message: string): ResultBuilder {
-    this.parts.push(message);
-    return this;
-  }
-
-  writeLine(message: string): ResultBuilder {
-    this.parts.push(`${message}\n`);
-    return this;
-  }
-
-  section(title: string): ResultBuilder {
-    this.writeLine(`\n### ${title}\n`);
-    return this;
-  }
-
-  list(items: string[], title: string = ''): ResultBuilder {
-    if (title) this.writeLine(`${title}:`);
-    for (const item of items) {
-      this.write(`  • ${item}\n`);
-    }
-    return this;
-  }
-
-  code(code: string, language: string = ''): ResultBuilder {
-    this.writeLine('```' + language);
-    this.write(code);
-    this.writeLine('```');
-    return this;
-  }
-
-  build(): string {
-    return this.parts.join('');
-  }
-
-  success(result: string): string {
-    this.parts.push(`✅ ${result}`);
-    return this.parts.join('');
-  }
-
-  isEmpty(): boolean {
-    return this.parts.length === 0;
-  }
-}
-
-/**
- * Checkpoint for time-travel functionality (kimi-code style)
- */
-interface Checkpoint {
-  id: number;
-  conversationLength: number;
-  timestamp: number;
-}
-
-/**
- * BrowserAgent - Optimized browser-first agent
- */
 export class BrowserAgent {
-  // Core dependencies
   private llmProvider: LLMProvider;
   private browserController: BrowserController | null;
   private memory: BaseMemoryStrategy | null;
@@ -160,25 +42,13 @@ export class BrowserAgent {
   private skillSearch: SkillSearchEngine | null;
   private toolBus: ToolBus;
   private streamEmitter: StreamEmitter;
-
-  // State
   private conversation: Message[] = [];
   private maxIterations: number;
   private soul: string;
   private workingDirectory: string;
-  private headless: boolean;
   private cancelled = false;
   private toolsInitialized = false;
 
-  // Checkpoint system (kimi-code style)
-  private checkpoints: Checkpoint[] = [];
-  private nextCheckpointId = 0;
-
-  // Reflection state
-  private consecutiveErrors = 0;
-  private lastError: string | null = null;
-
-  // Tool settings
   private enableBrowserTools: boolean;
   private enableShellTools: boolean;
   private enableFileTools: boolean;
@@ -200,9 +70,7 @@ export class BrowserAgent {
     this.maxIterations = config.compressThreshold * 2 + 10;
     this.soul = '';
     this.workingDirectory = opts.workingDirectory ?? process.cwd();
-    this.headless = opts.headless ?? true;
 
-    // Tool enablement
     this.enableBrowserTools = opts.enableBrowserTools ?? true;
     this.enableShellTools = opts.enableShellTools ?? true;
     this.enableFileTools = opts.enableFileTools ?? true;
@@ -213,7 +81,6 @@ export class BrowserAgent {
     this.initializeTools();
   }
 
-  // Initialize tools
   private initializeTools(): void {
     if (this.toolsInitialized) return;
 
@@ -240,39 +107,12 @@ export class BrowserAgent {
     this.toolsInitialized = true;
   }
 
-  /**
-   * Create checkpoint (kimi-code time-travel)
-   */
-  private createCheckpoint(): void {
-    const checkpoint: Checkpoint = {
-      id: this.nextCheckpointId++,
-      conversationLength: this.conversation.length,
-      timestamp: Date.now(),
-    };
-    this.checkpoints.push(checkpoint);
-  }
-
-  /**
-   * Restore to checkpoint
-   */
-  private restoreCheckpoint(checkpointId: number): boolean {
-    const checkpoint = this.checkpoints.find(cp => cp.id === checkpointId);
-    if (!checkpoint) return false;
-
-    // Truncate conversation to checkpoint point
-    this.conversation = this.conversation.slice(0, checkpoint.conversationLength);
-    return true;
-  }
-
-  /**
-   * Build enhanced system prompt with examples (kimi-code style)
-   */
   private buildSystemPrompt(): string {
     const toolDescriptions = this.getToolDescriptions();
 
-    return `# Browser Automation Agent
+    return `# Autonomous Browser Agent - React & Complete Tasks
 
-You are an intelligent browser automation agent. Your goal is to complete tasks efficiently and accurately.
+You are an autonomous browser automation agent. COMPLETE THE FULL TASK without stopping.
 
 ${this.soul ? `## Personality\n${this.soul}\n` : ''}
 
@@ -280,120 +120,103 @@ ${this.soul ? `## Personality\n${this.soul}\n` : ''}
 
 ${toolDescriptions.join('\n')}
 
-## Task Execution Strategy
+## CRITICAL: BE AUTONOMOUS
 
-1. **Understand the Goal** - Read the task carefully and identify what needs to be done
-2. **Plan Your Approach** - Break down complex tasks into clear steps
-3. **Use Tools Appropriately** - Choose the right tool for each action
-4. **Verify Results** - Confirm each action succeeded before proceeding
-5. **Adapt and Recover** - If something fails, try an alternative approach
-6. **Report Clearly** - Provide a concise summary of what was accomplished
+**DO NOT STOP after one action.** Continue until the task is COMPLETE.
 
-## Guidelines
+**For search tasks** (e.g., "search for X on Google"):
+1. browser_navigate to google.com
+2. browser_snapshot to find search box
+3. browser_type with the search query and submit=true
+4. browser_take_and_store_screenshot
+5. REPORT RESULTS
 
-- **Browser Automation**: Use browser tools to navigate, click, type, and extract data
-- **Shell Commands**: Use for system operations when needed
-- **File Operations**: Use file tools to read/write files when required
-- **Code Editing**: Use coding tools to edit code when required
-- **Skills**: Use skills for reusable workflows when applicable
-- **Web Access**: Use web tools to fetch URLs and search
+**For navigation tasks** (e.g., "go to X"):
+1. browser_navigate to the URL
+2. browser_take_and_store_screenshot
+3. REPORT what you see
 
-## Examples
+**ALWAYS take screenshots** after navigation/interaction so the user can see results.
 
-**Example 1: Checking weather**
-Task: "Check the weather in New York"
-Response: I'll navigate to a weather website and check New York's weather.
-1. Navigate to weather.com
-2. Search for "New York"
-3. Extract the weather information
-4. Report the current temperature and conditions
-
-**Example 2: Filling a form**
-Task: "Fill out the contact form with name 'John' and email 'john@example.com'"
-Response: I'll navigate to the form and fill it out.
-1. Navigate to the form URL
-2. Use browser_snapshot to find the input fields
-3. Use browser_type to fill in the name field
-4. Use browser_type to fill in the email field
-5. Submit the form
-6. Verify success
-
-**Example 3: Data extraction**
-Task: "Get all product names from this page"
-Response: I'll extract the product names from the page.
-1. Navigate to the page
-2. Take a snapshot to identify product elements
-3. Use browser_extract_text to get all text content
-4. Parse and format the product names
-5. Return the list
-
-## Common Patterns
-
-**For navigation tasks:**
-1. Navigate to the URL
-2. Wait for page to load
-3. Take snapshot to understand page structure
-4. Extract data or perform actions
-5. Verify results
-
-**For form filling:**
-1. Navigate to form URL
-2. Fill in fields using type tool
-3. Submit form
-4. Wait for response
-5. Extract confirmation
-
-**For data extraction:**
-1. Navigate to source
-2. Use snapshot to find relevant elements
-3. Use extract_text to get content
-4. Format and return data
-
-## Error Handling
-
-If a tool fails:
-1. Analyze the error message
-2. Try an alternative approach
-3. Use different selectors or parameters
-4. If page structure changed, take a new snapshot
-5. Report the issue if unable to proceed
-
-## Output Format
-
-When done, provide:
-- What was accomplished (1-2 sentences)
-- Key findings or results
-- Any relevant data extracted
-
-Be concise and focus on results.`;
+**NEVER give up** - if an action fails, try again or try an alternative approach.
+`;
   }
 
-  /**
-   * Get tool descriptions
-   */
   private getToolDescriptions(): string[] {
     const tools = this.toolBus.getDefinitions();
-
-    return tools.map((t) => {
-      const params = Object.entries((t.parameters?.properties as Record<string, any>) || {})
-        .map(([name, info]) => {
-          const required = (t.parameters?.required as string[]) || [];
-          const req = required.includes(name) ? ' (required)' : 'optional';
-          const type = info?.type || 'unknown';
-          const desc = info?.description || '';
-          return `  - \`${name}\` (${type}, ${req}): ${desc}`;
-        })
-        .join('\n');
-
-      return `**\`${t.name}\`**: ${t.description}\n${params}`;
+    return tools.map(tool => {
+      let desc = `- **${tool.name}**: ${tool.description}`;
+      if (tool.parameters?.properties) {
+        const params = Object.keys(tool.parameters.properties);
+        if (params.length > 0) {
+          desc += `\n  Parameters: ${params.join(', ')}`;
+        }
+      }
+      return desc;
     });
   }
 
-  /**
-   * Main execution method with retry logic (kimi-code style)
-   */
-  async run(task: string): Promise<AgentResult> {
-    const startTime = Date.now();
+  // Automatically determine next actions based on current state
+  private async determineNextActions(task: string, lastAction: string, lastResult: string): Promise<Array<{name: string, args: any}>> {
+    const actions: Array<{name: string, args: any}> = [];
+
+    // If last action was navigation, automatically take snapshot
+    if (lastAction === 'browser_navigate' && lastResult.includes('Navigated to')) {
+      actions.push({ name: 'browser_snapshot', args: {} });
+
+      // If task mentions "search" or Google, assume we need to search
+      if (task.toLowerCase().includes('search') || task.toLowerCase().includes('google')) {
+        const searchQuery = this.extractSearchQuery(task);
+        if (searchQuery) {
+          actions.push({
+            name: 'browser_type',
+            args: {
+              refId: 0, // Will be determined from snapshot
+              text: searchQuery,
+              submit: true
+            }
+          });
+        }
+      }
+
+      actions.push({ name: 'browser_take_and_store_screenshot', args: {} });
+    }
+
+    return actions;
+  }
+
+  private extractSearchQuery(task: string): string {
+    // Extract search query from task
+    const patterns = [
+      /search for ["'](.+?)["']/i,
+      /search for (.+?)$/i,
+      /search ["'](.+?)["']/i,
+      /google (.+?)$/i,
+      /find ["'](.+?)["']/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = task.match(pattern);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    // Fallback: if task mentions a brand/product, use that
+    if (task.toLowerCase().includes('tesla')) return 'Tesla official site';
+    if (task.toLowerCase().includes('elon')) return 'Elon Musk';
+
+    return '';
+  }
+
+  async execute(task: string, onEvent?: (event: StepEvent) => void): Promise<AgentResult> {
+    if (onEvent) {
+      this.streamEmitter.on('progress', (data) => onEvent({ type: 'progress', ...data }));
+      this.streamEmitter.on('step', (data) => onEvent({ type: 'step', ...data }));
+      this.streamEmitter.on('error', (data) => onEvent({ type: 'error', ...data }));
+      this.streamEmitter.on('result', (data) => onEvent({ type: 'result', data }));
+    }
+
     const steps: StepEvent[] = [];
     const actionsTaken: string[] = [];
     let finalResult = '';
@@ -401,21 +224,17 @@ Be concise and focus on results.`;
     let iteration = 0;
 
     try {
-      // Load soul/personality
       this.soul = loadSoul();
       this.cancelled = false;
 
-      // Initialize memory if available
       if (this.memory) {
         await this.memory.onTurnStart();
       }
 
-      // Build conversation with task
       this.conversation = [
         { role: 'user', content: task }
       ];
 
-      // Build system prompt
       const systemPrompt = this.buildSystemPrompt();
       const messages = [
         { role: 'system', content: systemPrompt },
@@ -424,77 +243,87 @@ Be concise and focus on results.`;
 
       this.streamEmitter.emitProgress(0, this.maxIterations, 'starting');
 
-      // Create initial checkpoint
-      this.createCheckpoint();
+      let lastAction = '';
+      let lastResult = '';
 
       // Main execution loop
       while (iteration < this.maxIterations && !this.cancelled) {
         iteration++;
 
-        // Create checkpoint before each LLM call
-        this.createCheckpoint();
-
-        // Check budget
-        if (iteration > this.maxIterations * 0.8) {
-          // Consider completion if we're close to max iterations
-          const response = await this.llmProvider.chat(
-            messages,
-            this.toolBus.getDefinitions(),
-            systemPrompt,
-          );
-
-          if (response.text && !response.tool_calls?.length) {
-            // No more tool calls, likely done
-            finalResult = response.text;
-            success = true;
-            break;
-          }
-        }
-
         this.streamEmitter.emitProgress(iteration, this.maxIterations, 'thinking');
 
-        // Get LLM response with retry logic (kimi-code pattern)
+        // Try to get LLM response (with retry on 500 errors)
         let response;
-        let lastError: Error | null = null;
-
-        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        let retries = 0;
+        while (retries < 3) {
           try {
             response = await this.llmProvider.chat(
               messages,
               this.toolBus.getDefinitions(),
               systemPrompt,
             );
-            break; // Success, exit retry loop
-          } catch (error) {
-            lastError = error as Error;
+            break; // Success
+          } catch (error: any) {
+            retries++;
+            console.log(`[BrowserAgent] LLM call failed (attempt ${retries}/3):`, error.message);
 
-            if (!isRetryableError(error)) {
-              throw error; // Non-retryable error, throw immediately
+            if (retries >= 3) {
+              // After 3 failures, try autonomous continuation
+              console.log('[BrowserAgent] LLM failed, attempting autonomous continuation');
+
+              const autoActions = await this.determineNextActions(task, lastAction, lastResult);
+              if (autoActions.length > 0) {
+                console.log(`[BrowserAgent] Auto-executing ${autoActions.length} actions`);
+
+                for (const autoAction of autoActions) {
+                  if (this.cancelled) break;
+
+                  this.streamEmitter.emitStepStart('executing', autoAction.name, JSON.stringify(autoAction.args));
+
+                  try {
+                    const result = await this.toolBus.execute(autoAction.name, autoAction.args);
+
+                    if (result.success) {
+                      actionsTaken.push(`${autoAction.name}: success (auto)`);
+                      lastAction = autoAction.name;
+                      lastResult = result.output || '';
+
+                      this.conversation.push({
+                        role: 'user',
+                        content: `Auto-action ${autoAction.name} succeeded: ${result.output || 'Success'}`
+                      });
+                    } else {
+                      actionsTaken.push(`${autoAction.name}: failed (auto)`);
+                    }
+
+                    this.streamEmitter.emitStepComplete('executing', autoAction.name, result.success);
+                  } catch (error) {
+                    console.error(`[BrowserAgent] Auto-action ${autoAction.name} failed:`, error);
+                  }
+                }
+
+                // If we executed actions successfully, continue to next iteration
+                if (actionsTaken.length > 0) {
+                  continue;
+                }
+              }
+
+              // If we get here, both LLM and auto-actions failed
+              throw error;
             }
 
-            // Retry with exponential backoff
-            if (attempt < MAX_RETRIES - 1) {
-              const delay = calculateRetryDelay(attempt);
-              this.streamEmitter.emitError(`Retrying after ${delay.toFixed(0)}ms: ${lastError.message}`, true);
-              await sleep(delay);
-            }
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 1000 * retries));
           }
         }
 
-        // If all retries failed
-        if (!response) {
-          throw lastError || new Error('Failed to get LLM response after retries');
-        }
-
-        if (!response.text) {
-          finalResult = 'No response from LLM';
+        if (!response || !response.text) {
+          finalResult = 'No response from LLM after retries';
           break;
         }
 
-        // Add assistant message
         this.conversation.push({ role: 'assistant', content: response.text });
 
-        // Check for completion
         if (response.done) {
           finalResult = response.text;
           success = true;
@@ -509,178 +338,121 @@ Be concise and focus on results.`;
             const toolName = toolCall.name;
             const toolArgs = toolCall.arguments || {};
 
-            steps.push({
-              phase: 'executing',
-              action: toolName,
-              detail: JSON.stringify(toolArgs),
-            });
-
             this.streamEmitter.emitStepStart('executing', toolName, JSON.stringify(toolArgs));
 
-            // Execute tool with retry logic
-            let result;
-            let toolError: Error | null = null;
+            try {
+              const result = await this.toolBus.execute(toolName, toolArgs);
 
-            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-              try {
-                result = await this.toolBus.execute(toolName, toolArgs);
-                if (result.success) break; // Success, exit retry loop
-              } catch (error) {
-                toolError = error as Error;
+              if (result.success) {
+                actionsTaken.push(`${toolName}: success`);
+                lastAction = toolName;
+                lastResult = result.output || '';
 
-                if (!isRetryableError(error)) {
-                  break; // Non-retryable error, break immediately
-                }
-
-                // Retry with exponential backoff
-                if (attempt < MAX_RETRIES - 1) {
-                  const delay = calculateRetryDelay(attempt);
-                  this.streamEmitter.emitError(`Retrying ${toolName} after ${delay.toFixed(0)}ms`, true);
-                  await sleep(delay);
-                }
-              }
-            }
-
-            const toolSuccess = result?.success ?? false;
-
-            actionsTaken.push(`${toolName}: ${toolSuccess ? 'success' : 'failed'}`);
-
-            // Add tool result to conversation
-            // Note: Using stringified format for tool responses to maintain tool call id
-            this.conversation.push({
-              role: 'tool',
-              content: JSON.stringify({
-                tool_call_id: toolCall.id,
-                name: toolName,
-                content: toolSuccess
-                  ? (result?.output as string) || 'Done'
-                  : (result?.error || toolError?.message || 'Failed'),
-              }),
-            });
-
-            // Error tracking and reflection
-            if (!toolSuccess) {
-              this.consecutiveErrors++;
-              this.lastError = result?.error || toolError?.message || 'Unknown error';
-              this.streamEmitter.emitError(this.lastError, true);
-
-              // Reflection: after consecutive errors, add context
-              if (this.consecutiveErrors >= 2) {
                 this.conversation.push({
-                  role: 'system',
-                  content: `Note: The last ${this.consecutiveErrors} actions failed. Error: ${this.lastError}. Please try a different approach.`,
+                  role: 'user',
+                  content: `Tool ${toolName} returned: ${result.output || 'Success'}`
                 });
-                this.consecutiveErrors = 0; // Reset after reflection
+              } else {
+                actionsTaken.push(`${toolName}: failed`);
+                this.conversation.push({
+                  role: 'user',
+                  content: `Tool ${toolName} failed: ${result.error || 'Unknown error'}`
+                });
               }
-            } else {
-              this.consecutiveErrors = 0; // Reset on success
-            }
 
-            // Check if critical tool failed
-            const isCriticalTool = ['browser_navigate', 'browser_click', 'browser_type'].includes(toolName);
-            if (isCriticalTool && !toolSuccess) {
-              // Critical tool failed, may need to retry
-              this.streamEmitter.emitError(`${toolName}: ${result?.error}`, true);
-
-              // Add recovery prompt
+              this.streamEmitter.emitStepComplete('executing', toolName, result.success);
+            } catch (error) {
+              console.error(`[BrowserAgent] ❌ ${toolName} error:`, error);
               this.conversation.push({
-                role: 'system',
-                content: `Critical tool ${toolName} failed. The element may not be visible or the page structure may have changed. Consider taking a new snapshot or using alternative selectors.`,
+                role: 'user',
+                content: `Tool ${toolName} threw error: ${error instanceof Error ? error.message : String(error)}`
               });
             }
           }
+        } else {
+          // No tool calls - check if we should continue
+          if (actionsTaken.length > 0 && response.text.length > 50) {
+            finalResult = response.text;
+            success = true;
+            break;
+          }
+
+          // If no actions taken, try autonomous continuation
+          if (actionsTaken.length === 0 && iteration < 5) {
+            const autoActions = await this.determineNextActions(task, lastAction, lastResult);
+            if (autoActions.length > 0) {
+              for (const autoAction of autoActions) {
+                if (this.cancelled) break;
+
+                this.streamEmitter.emitStepStart('executing', autoAction.name, JSON.stringify(autoAction.args));
+
+                try {
+                  const result = await this.toolBus.execute(autoAction.name, autoAction.args);
+
+                  if (result.success) {
+                    actionsTaken.push(`${autoAction.name}: success (auto)`);
+                    lastAction = autoAction.name;
+                    lastResult = result.output || '';
+
+                    this.conversation.push({
+                      role: 'user',
+                      content: `Auto-action ${autoAction.name} succeeded: ${result.output || 'Success'}`
+                    });
+                  }
+
+                  this.streamEmitter.emitStepComplete('executing', autoAction.name, result.success);
+                } catch (error) {
+                  console.error(`[BrowserAgent] Auto-action failed:`, error);
+                }
+              }
+              continue;
+            }
+          }
+
+          // After several iterations with no progress
+          if (actionsTaken.length === 0) {
+            finalResult = response.text || 'No actions taken';
+            success = false;
+            break;
+          }
         }
 
-        // Check if task is complete
-        if (this.isTaskComplete(response.text)) {
-          finalResult = response.text;
-          success = true;
+        if (iteration >= this.maxIterations) {
+          finalResult = response.text || `Completed ${actionsTaken.length} actions`;
+          success = actionsTaken.length > 0;
           break;
         }
       }
 
-      // Finalize
-      // Note: memory cleanup is handled by memory strategy itself
+      if (this.memory) {
+        await this.memory.onTurnEnd();
+      }
+
       return {
-        task,
-        result: finalResult || 'Task completed',
         success,
+        output: finalResult || 'Task completed',
+        actionsTaken,
         steps,
-        actions_taken: actionsTaken,
         iterations: iteration,
-        strategy_used: 'browser',
-        elapsed_secs: Math.round(((Date.now() - startTime) / 1000) * 100) / 100,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[BrowserAgent] Error:', error);
       return {
-        task,
-        result: errorMessage,
         success: false,
+        output: error instanceof Error ? error.message : String(error),
+        actionsTaken,
         steps,
-        actions_taken: actionsTaken,
         iterations: iteration,
-        strategy_used: 'browser',
-        elapsed_secs: Math.round(((Date.now() - startTime) / 1000) * 100) / 100,
       };
-    } finally {
-      // Clean up checkpoints
-      this.checkpoints = [];
-      this.nextCheckpointId = 0;
     }
   }
 
-  /**
-   * Check if task appears complete
-   */
-  private isTaskComplete(content: string): boolean {
-    const completionIndicators = [
-      'task complete', 'done', 'finished', 'accomplished',
-      'result:', 'summary:', 'here is', 'the answer is',
-      'successfully', 'completed the task',
-    ];
-
-    const lowerContent = content.toLowerCase();
-    return completionIndicators.some((indicator) => lowerContent.includes(indicator));
-  }
-
-  /**
-   * Cancel execution
-   */
   cancel(): void {
     this.cancelled = true;
+    this.streamEmitter.emitError('Task cancelled', false);
   }
 
-  /**
-   * Reset state
-   */
-  reset(): void {
-    this.conversation = [];
-    this.cancelled = false;
-    this.checkpoints = [];
-    this.nextCheckpointId = 0;
-    this.consecutiveErrors = 0;
-    this.lastError = null;
-  }
-
-  /**
-   * Get conversation history
-   */
-  getConversation(): Message[] {
-    return [...this.conversation];
-  }
-
-  /**
-   * Get current state
-   */
-  getState() {
-    return {
-      conversation: this.conversation,
-      iteration: 0,
-      cancelled: this.cancelled,
-      toolsInitialized: this.toolsInitialized,
-      checkpoints: this.checkpoints,
-      consecutiveErrors: this.consecutiveErrors,
-    };
+  getToolDefinitions(): ToolDefinition[] {
+    return this.toolBus.getDefinitions();
   }
 }

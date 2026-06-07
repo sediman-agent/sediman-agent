@@ -4,6 +4,7 @@ import { useChatStore } from '@/stores/useChatStore';
 
 const pages = [
   'agent',
+  'projects',
   'models',
   'provider',
   'memory',
@@ -38,7 +39,7 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      if (mod && e.key >= '1' && e.key <= '8') {
+      if (mod && e.key >= '1' && e.key <= '9') {
         e.preventDefault();
         const idx = parseInt(e.key) - 1;
         if (idx < pages.length) {

@@ -412,3 +412,28 @@
 }
 
 .animate-spin { animation: spin 1s linear infinite; }
+
+/* Codex-level scrollbar styling */
+.codex-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
+.codex-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.codex-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.codex-scrollbar::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.codex-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.4);
+}

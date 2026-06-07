@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { sseHeaders, sseEvent } from "../sse";
 import type { AgentLoop } from "../../agent/loop";
 import type { LLMProvider } from "../../llm/provider";
+import { getKey } from "../../core/auth";
+import { createProvider, PROVIDERS } from "../../llm/provider";
 
 export function createAgentRoutes(deps: {
   agentLoop: AgentLoop;
@@ -10,7 +12,7 @@ export function createAgentRoutes(deps: {
   const router = new Hono();
 
   router.post("/run", async (c) => {
-    const body = await c.req.json<{ task: string; mode?: string }>();
+    const body = await c.req.json<{ task: string; mode?: string; model?: string; provider?: string }>();
     if (!body.task?.trim()) {
       return c.json(
         { error: "VALIDATION_ERROR", message: "task is required" },
@@ -18,18 +20,52 @@ export function createAgentRoutes(deps: {
       );
     }
 
+    // Update provider if specified in request
+    if (body.provider || body.model) {
+      const providerName = body.provider || deps.llmProvider.name;
+      const preset = PROVIDERS[providerName];
+
+      let apiKey;
+      if (preset?.api_key_env) {
+        // Try to get saved key first
+        const savedKey = await getKey(providerName);
+        apiKey = savedKey || process.env[preset.api_key_env];
+      }
+
+      const newProvider = createProvider(
+        providerName,
+        body.model,
+        undefined,
+        apiKey
+      );
+      deps.llmProvider = newProvider;
+      deps.agentLoop.setLLMProvider(newProvider);
+    }
+
     const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
       async start(controller) {
         const enqueue = (event: string, data: unknown) => {
-          controller.enqueue(encoder.encode(sseEvent(event, data)));
+          try {
+            controller.enqueue(encoder.encode(sseEvent(event, data)));
+          } catch (err) {
+            // Ignore errors if controller is closed
+            if ((err as Error).message?.includes('closed')) {
+              return;
+            }
+            console.error('[API Agent] Error enqueuing event:', err);
+          }
         };
 
         // Subscribe to agent loop streaming events
         const unsubscribe = deps.agentLoop.onStreamEvent((streamEvent) => {
+          // Debug logging
+          console.log('[API Agent] Stream event received:', streamEvent.type, streamEvent);
+
           switch (streamEvent.type) {
             case 'step_start':
+              console.log('[API Agent] step_start event - emitting progress with action:', streamEvent.action);
               enqueue("progress", {
                 phase: streamEvent.phase,
                 action: streamEvent.action,
@@ -38,6 +74,7 @@ export function createAgentRoutes(deps: {
               });
               break;
             case 'step_complete':
+              console.log('[API Agent] step_complete event - emitting progress');
               enqueue("progress", {
                 phase: streamEvent.phase,
                 action: streamEvent.action,
