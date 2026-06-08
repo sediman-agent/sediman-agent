@@ -90,6 +90,7 @@ function createAgentWithStreaming(
   // All modes now use BrowserAgent
   const agent = createBrowserAgent({
     llmProvider: deps.llmProvider,
+    browserController: deps.browserController,
     memory: deps.memory,
     skillEngine: deps.skillEngine,
     skillSearch: deps.skillSearch,
@@ -101,6 +102,7 @@ function createAgentWithStreaming(
     enableCodingTools: true,
     enableWebTools: true,
     enableSkillsTools: true,
+    useVision: deps.headless !== true,
   });
 
   // BrowserAgent doesn't have onStreamEvent yet, but we can add it later

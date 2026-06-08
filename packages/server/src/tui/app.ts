@@ -1,7 +1,7 @@
 import type { ThemeTokens } from "./theme.js";
 import { getTheme } from "./theme.js";
 
-export type AgentMode = "T-800" | "Terminator";
+export type AgentMode = "Browser" | "Terminator";
 
 export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -15,9 +15,9 @@ export interface AgentModeEntry {
 
 export const DEFAULT_MODES: AgentModeEntry[] = [
   {
-    mode: "t800",
-    label: "T-800",
-    runner: "t800",
+    mode: "browser",
+    label: "Browser",
+    runner: "browser",
     description: "Direct execution agent with all tools",
     capabilities: ["fileops", "terminal", "browser", "web", "skills", "coding", "documents"]
   },
@@ -36,7 +36,7 @@ export const COMMANDS: Array<{ name: string; aliases?: string[]; description: st
   { name: "/clear", aliases: ["/cls"], description: "Clear messages", category: "General" },
   { name: "/reset", description: "Full reset", category: "General" },
   { name: "/status", description: "Show status", category: "General" },
-  { name: "/mode", aliases: ["/m"], description: "Switch agent mode (T-800/Terminator)", category: "Agent" },
+  { name: "/mode", aliases: ["/m"], description: "Switch agent mode (Browser/Terminator)", category: "Agent" },
   { name: "/models", aliases: ["/model"], description: "Switch model", category: "Agent" },
   { name: "/provider", aliases: ["/providers"], description: "Switch provider", category: "Agent" },
   { name: "/soul", description: "Edit personality", category: "Agent" },
@@ -161,7 +161,7 @@ export class App {
   agent = {
     running: false,
     startTime: 0,
-    mode: "T-800" as AgentMode,
+    mode: "Browser" as AgentMode,
     modes: [...DEFAULT_MODES],
     currentModeIndex: 0,
     spinnerFrame: 0,
@@ -284,7 +284,7 @@ export class App {
   cycleAgentMode(): void {
     this.agent.currentModeIndex = (this.agent.currentModeIndex + 1) % this.agent.modes.length;
     const entry = this.agent.modes[this.agent.currentModeIndex];
-    this.agent.mode = (entry.mode === "t800" ? "T-800" : entry.mode === "terminator" ? "Terminator" : "T-800") as AgentMode;
+    this.agent.mode = (entry.mode === "browser" ? "Browser" : entry.mode === "terminator" ? "Terminator" : "Browser") as AgentMode;
   }
 
   currentModeLabel(): string {

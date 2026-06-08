@@ -7,15 +7,15 @@
   ],
   "scripts": {
     "backend": "bun run packages/server/src/index.ts --mode api",
-    "desktop": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm start",
+    "desktop": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm run build && npm start",
     "app": "cd packages/app && npm start",
     "stop": "pkill -f 'packages/server/src/index.ts' 2>/dev/null; sleep 0.3; rm -f /tmp/sediman-python.sock /tmp/sediman.sock; echo 'Stopped.'",
     "start": "bun run stop && sleep 0.5 && bun run backend & sleep 1 && echo 'API server running'",
     "restart": "bun run stop && sleep 0.5 && bun run backend & sleep 1 && echo 'API server running'",
     "install-local": "./scripts/install.sh",
     "test": "bun test packages/server/tests",
-    "electron": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm start",
-    "electron:dev": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm start"
+    "electron": "lsof -ti:3001 | xargs kill -9 2>/dev/null; sleep 0.5; bun run packages/server/src/index.ts --mode api & sleep 2; cd packages/app && npm run build && npm start",
+    "electron:dev": "lsof -ti:3001 | xargs kill -9 2>/dev/null; sleep 0.5; bun run packages/server/src/index.ts --mode api & sleep 2; cd packages/app && npm start"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

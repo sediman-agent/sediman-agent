@@ -27,11 +27,13 @@ import type { BrowserAgentOpts } from "../agent/BrowserAgent";
  */
 export interface CreateBrowserAgentConfig extends Omit<BrowserAgentOpts, 'llmProvider'> {
   llmProvider: import("../llm/provider").LLMProvider;
+  useVision?: boolean;
 }
 
 export function createBrowserAgent(config: CreateBrowserAgentConfig): BrowserAgent {
   return new BrowserAgent({
     llmProvider: config.llmProvider,
+    browserController: config.browserController,
     memory: config.memory,
     skillEngine: config.skillEngine,
     skillSearch: config.skillSearch,
@@ -44,7 +46,7 @@ export function createBrowserAgent(config: CreateBrowserAgentConfig): BrowserAge
     enableCodingTools: config.enableCodingTools ?? true,
     enableWebTools: config.enableWebTools ?? true,
     enableSkillsTools: config.enableSkillsTools ?? true,
-    // enableDocumentTools: config.enableDocumentTools ?? true, // Not supported in BrowserAgentOpts
+    useVision: config.useVision ?? true,
   });
 }
 

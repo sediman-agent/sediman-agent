@@ -63,6 +63,9 @@ export function AgentPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Tool call history for better visibility
+  const [toolCallHistory, setToolCallHistory] = useState<Array<{ action: string; detail: string; status: 'pending' | 'success' | 'error', timestamp: number }>>([]);
+
   // Use messages directly from store - no local state duplication
   const activeConversation = conversations.find(c => c.id === conversationId);
   const messages = activeConversation?.messages || [];
@@ -155,6 +158,7 @@ export function AgentPage() {
     setIsStreaming(true);
     setStreamingPhase('thinking');
     setRetryProgress(null);
+    setToolCallHistory([]);
 
     try {
       const chatService = getChatService();
@@ -180,13 +184,44 @@ export function AgentPage() {
             appendToMessage(conversationId, assistantMsgId, delta);
           }
         },
-        onProgress: (progress: { phase: string; detail?: string; action?: string; url?: string }) => {
+        onProgress: (progress: { phase: string; detail?: string; action?: string; url?: string; observation?: string; success?: boolean }) => {
           // Debug logging - show full object structure
           console.log('[AgentPage] Progress event:', JSON.stringify(progress, null, 2));
 
           // Update current action and detail for StreamingIndicator
           setCurrentAction(progress.action);
-          setCurrentDetail(progress.detail);
+          setCurrentDetail(progress.detail || progress.observation);
+
+          // Track tool calls in history
+          if (progress.action && progress.phase === 'executing') {
+            const existingToolCall = toolCallHistory.find(
+              tc => tc.action === progress.action && Math.abs(Date.now() - tc.timestamp) < 5000
+            );
+
+            if (!existingToolCall) {
+              // Add new tool call to history
+              setToolCallHistory(prev => [...prev, {
+                action: progress.action || 'unknown',
+                detail: progress.detail || '',
+                status: 'pending' as const,
+                timestamp: Date.now()
+              }]);
+            }
+
+            // When tool completes successfully, update its status
+            if (progress.success !== undefined) {
+              setToolCallHistory(prev => prev.map(tc => {
+                if (tc.action === progress.action && tc.status === 'pending') {
+                  return {
+                    ...tc,
+                    status: progress.success ? 'success' : 'error',
+                    detail: progress.observation || progress.detail || ''
+                  };
+                }
+                return tc;
+              }));
+            }
+          }
 
           // Auto-open browser panel when agent uses browser tools
           if (progress.phase === 'planning' || progress.phase === 'executing') {
@@ -367,6 +402,16 @@ export function AgentPage() {
             <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {messages.map((message) => {
                 const isUser = message.role === 'user';
+                
+                // Parse thinking content from message (works during streaming too)
+                const parsedThinking = thinkTagParser.parse(message.content);
+                const displayContent = parsedThinking.visible;
+                const displayThinking = message.thinking || parsedThinking.thinking;
+                
+                // For streaming, only show partial think content
+                const effectiveThinking = message.status === 'streaming' 
+                  ? (parsedThinking.thinking || null)
+                  : displayThinking;
 
                 return (
                   <div key={message.id} className="p-8">
@@ -380,8 +425,8 @@ export function AgentPage() {
 
                     <div className="text-gray-900 dark:text-white leading-relaxed">
                       {/* Thinking section - collapsible */}
-                      {message.thinking && (
-                        <div className="mb-4 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                      {effectiveThinking && (
+                        <div className="mb-4 border border-amber-200 dark:border-amber-800 rounded-lg overflow-hidden">
                           <button
                             onClick={() => {
                               setExpandedThinkingMessages(prev => {
@@ -394,22 +439,22 @@ export function AgentPage() {
                                 return newSet;
                               });
                             }}
-                            className="w-full px-4 py-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                            className="w-full px-4 py-2 flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950 transition-colors"
                           >
                             {expandedThinkingMessages.has(message.id) ? (
                               <ChevronDown className="w-4 h-4" />
                             ) : (
                               <ChevronRight className="w-4 h-4" />
                             )}
-                            <span className="font-medium">Thinking</span>
-                            <span className="text-xs text-gray-400">
-                              ({message.thinking.length} chars)
+                            <span className="font-medium">Reasoning</span>
+                            <span className="text-xs text-amber-500">
+                              ({effectiveThinking.length} chars)
                             </span>
                           </button>
                           {expandedThinkingMessages.has(message.id) && (
-                            <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
-                              <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-mono">
-                                {message.thinking}
+                            <div className="px-4 py-3 bg-amber-50 dark:bg-amber-950 border-t border-amber-200 dark:border-amber-800">
+                              <pre className="whitespace-pre-wrap text-sm text-amber-800 dark:text-amber-300 font-mono">
+                                {effectiveThinking}
                               </pre>
                             </div>
                           )}
@@ -417,10 +462,10 @@ export function AgentPage() {
                       )}
 
                       {/* Main content */}
-                      {message.content ? (
+                      {displayContent ? (
                         <div className="prose prose-gray dark:prose-invert max-w-none">
                           <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                            {message.content}
+                            {displayContent}
                           </ReactMarkdown>
                         </div>
                       ) : message.status === 'streaming' ? (
@@ -435,9 +480,9 @@ export function AgentPage() {
                       ) : null}
                     </div>
 
-                    {message.content && (
+                    {displayContent && (
                       <button
-                        onClick={() => navigator.clipboard.writeText(message.content)}
+                        onClick={() => navigator.clipboard.writeText(displayContent)}
                         className="mt-3 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 uppercase tracking-wide"
                       >
                         Copy
@@ -462,7 +507,7 @@ export function AgentPage() {
       )}
 
       {/* Streaming Indicator */}
-      {isStreaming && <StreamingIndicator phase={streamingPhase} retryProgress={retryProgress} action={currentAction} detail={currentDetail} />}
+      {isStreaming && <StreamingIndicator phase={streamingPhase} retryProgress={retryProgress} action={currentAction} detail={currentDetail} toolCallHistory={toolCallHistory} />}
 
       {/* Input Area */}
       <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-black">

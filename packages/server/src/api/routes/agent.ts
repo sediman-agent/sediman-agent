@@ -22,7 +22,7 @@ export function createAgentRoutes(deps: {
 
     // Update provider if specified in request
     if (body.provider || body.model) {
-      const providerName = body.provider || deps.llmProvider.name;
+      const providerName = body.provider || (deps.llmProvider as any).name || 'openai';
       const preset = PROVIDERS[providerName];
 
       let apiKey;

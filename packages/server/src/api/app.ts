@@ -53,7 +53,7 @@ export function createApiApp(deps: ApiDeps): Hono {
   app.route("/api/files", createFileRoutes(deps));
   app.route("/api/logs", createLogsRoutes(deps));
   app.route("/api/projects", createProjectRoutes(deps));
-  app.route("/api/browser", createBrowserRoutes());
+  app.route("/api/browser", createBrowserRoutes(deps.browserSession));
 
   app.get("/api/health", (c) => c.json({ status: "ok" }));
 

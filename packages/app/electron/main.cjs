@@ -1,11 +1,17 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const http = require('http');
 
 let mainWindow;
 
 // Check for --showcase flag
 const args = process.argv.slice(1);
 const isShowcase = args.includes('--showcase');
+
+// Enable remote debugging for CDP webview sharing
+const DEBUG_PORT = 9222;
+app.commandLine.appendSwitch('remote-debugging-port', String(DEBUG_PORT));
+console.log(`CDP debugging enabled on port ${DEBUG_PORT}`);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -17,7 +23,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      webviewTag: true, // Enable webview tag
+      webviewTag: true,
       additionalArguments: isShowcase ? ['--showcase'] : [],
     },
     show: false,
@@ -124,6 +130,63 @@ function setupBrowserHandlers() {
   // Get version
   ipcMain.handle('app:getVersion', async () => {
     return app.getVersion();
+  });
+
+  // CDP Shared Browser: discover webview target for Playwright connection
+  ipcMain.handle('browser:get-cdp-target', async (event, webContentsId) => {
+    try {
+      console.log('[CDP] Discovering browser CDP endpoint on port', DEBUG_PORT);
+
+      // Get browser-level WebSocket URL (Playwright needs this, not page-level)
+      const versionData = await new Promise((resolve, reject) => {
+        http.get(`http://127.0.0.1:${DEBUG_PORT}/json/version`, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            try { resolve(JSON.parse(data)); }
+            catch (e) { reject(e); }
+          });
+        }).on('error', reject);
+      });
+
+      const browserWsUrl = versionData.webSocketDebuggerUrl;
+      if (!browserWsUrl) {
+        return { success: false, error: 'No browser WebSocket URL found' };
+      }
+
+      console.log('[CDP] Browser CDP endpoint:', browserWsUrl.substring(0, 60) + '...');
+
+      // Also get the webview page info for the URL
+      const targets = await new Promise((resolve, reject) => {
+        http.get(`http://127.0.0.1:${DEBUG_PORT}/json`, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            try { resolve(JSON.parse(data)); }
+            catch (e) { reject(e); }
+          });
+        }).on('error', reject);
+      });
+
+      targets.forEach((t, i) => console.log(`[CDP]   [${i}] id=${t.id} type=${t.type} url=${t.url} title="${t.title}"`));
+
+      // Find the webview for URL info
+      const webviewTarget = targets.find(t =>
+        (t.type === 'webview' || t.type === 'page') &&
+        !t.url?.startsWith('file://') &&
+        !t.url?.startsWith('devtools://')
+      );
+
+      return {
+        success: true,
+        webSocketDebuggerUrl: browserWsUrl, // Browser-level URL for Playwright
+        url: webviewTarget?.url || 'about:blank',
+        title: webviewTarget?.title || '',
+      };
+    } catch (err) {
+      console.error('[CDP] Failed:', err.message);
+      return { success: false, error: err.message };
+    }
   });
 }
 

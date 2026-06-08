@@ -25,7 +25,7 @@ export class AgentStateManager {
   private state: AgentState = {
     running: false,
     startTime: 0,
-    mode: "T-800",
+    mode: "Browser",
     currentModeIndex: 0,
     spinnerFrame: 0,
     streamingPhase: "",
@@ -187,7 +187,7 @@ export class AgentStateManager {
     this.state = {
       running: false,
       startTime: 0,
-      mode: "T-800",
+      mode: "Browser",
       currentModeIndex: 0,
       spinnerFrame: 0,
       streamingPhase: "",

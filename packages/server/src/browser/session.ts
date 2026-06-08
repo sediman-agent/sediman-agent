@@ -95,6 +95,33 @@ export class BrowserSession {
     logger.info("browser session started (stealth=%s)", this.stealth);
   }
 
+  /**
+   * Connect Playwright to an existing Electron webview via CDP.
+   * The shared browser — agent and user see the same page.
+   */
+  async connectViaCDP(wsUrl: string): Promise<void> {
+    if (this._started) {
+      await this.stop();
+    }
+
+    const { chromium } = await import("playwright");
+
+    logger.info("connecting to CDP: %s", wsUrl.substring(0, 60) + "...");
+
+    const browser = await chromium.connectOverCDP(wsUrl);
+
+    const defaultContext = browser.contexts()[0];
+    if (!defaultContext) {
+      throw new Error("no browser context found at CDP endpoint");
+    }
+
+    this._browser = browser;
+    this._context = defaultContext;
+    this._started = true;
+
+    logger.info("CDP connected (pages=%d)", defaultContext.pages().length);
+  }
+
   async stop(): Promise<void> {
     if (!this._started) return;
     try {

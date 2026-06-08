@@ -6,7 +6,6 @@ import logger from "../core/logging";
 import { BrowserSession } from "./session";
 import { DISMISS_OVERLAYS_JS } from "./scripts/dismiss-overlays";
 import { SNAPSHOT_JS } from "./scripts/snapshot";
-import { EventEmitter } from "../core/events";
 
 // Types
 export interface ElementInfo {
@@ -22,7 +21,8 @@ export interface ElementInfo {
   value: string;
   ariaLabel: string;
   title: string;
-  isVisible: boolean;
+  name: string;
+  isNew?: boolean;
   boundingBox?: {
     x: number;
     y: number;
@@ -36,7 +36,21 @@ export interface PageSnapshot {
   title: string;
   elements: ElementInfo[];
   textPreview: string;
+  /** Tree-style indented representation of interactive elements */
+  output: string;
   scrollPosition?: { x: number; y: number };
+  viewport?: { width: number; height: number };
+  pageSize?: { width: number; height: number };
+  stats?: {
+    links: number;
+    interactive: number;
+    iframes: number;
+    images: number;
+    total: number;
+    textChars: number;
+  };
+  pagesAbove?: number;
+  pagesBelow?: number;
 }
 
 export interface BrowserActionResult {
@@ -308,23 +322,20 @@ export class BrowserController {
     // Take snapshot
     const result = (await page.evaluate(SNAPSHOT_JS)) as {
       elements: ElementInfo[];
+      output: string;
+      textPreview: string;
       scrollPosition: { x: number; y: number };
+      viewport: { width: number; height: number };
+      pageSize: { width: number; height: number };
+      url: string;
+      title: string;
+      stats: { links: number; interactive: number; iframes: number; images: number; total: number; textChars: number };
+      pagesAbove: number;
+      pagesBelow: number;
     };
 
-    const url = page.url();
-    const title = await page.title();
-
-    // Get text preview
-    let textPreview = "";
-    try {
-      textPreview = await page.evaluate(() => {
-        const body = document.body;
-        if (!body) return "";
-        const clone = body.cloneNode(true) as HTMLElement;
-        clone.querySelectorAll("script, style, noscript, svg, path").forEach((el) => el.remove());
-        return (clone.innerText || "").replace(/\s+/g, " ").trim().slice(0, 3000);
-      });
-    } catch {}
+    const url = result.url || page.url();
+    const title = result.title || await page.title();
 
     this.emit("snapshot", `${result.elements.length} elements`);
 
@@ -332,8 +343,14 @@ export class BrowserController {
       url,
       title,
       elements: result.elements,
-      textPreview,
+      textPreview: result.textPreview || "",
+      output: result.output || "",
       scrollPosition: result.scrollPosition,
+      viewport: result.viewport,
+      pageSize: result.pageSize,
+      stats: result.stats,
+      pagesAbove: result.pagesAbove,
+      pagesBelow: result.pagesBelow,
     };
   }
 
@@ -380,6 +397,70 @@ export class BrowserController {
 
   async screenshot(): Promise<string | null> {
     return this.session.takeScreenshot();
+  }
+
+  // === CDP Screencast — real-time frame streaming for browser display ===
+  private _screencastActive = false;
+  private _screencastFrame: string | null = null;
+
+  get screencastActive(): boolean { return this._screencastActive; }
+  get screencastFrame(): string | null { return this._screencastFrame; }
+
+  async startScreencast(): Promise<void> {
+    if (this._screencastActive) return;
+    const page = this.page();
+    try {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Page.startScreencast', {
+        format: 'jpeg',
+        quality: 60,
+        maxWidth: 1280,
+        maxHeight: 800,
+        everyNthFrame: 1,
+      });
+      cdp.on('Page.screencastFrame', async ({ data, sessionId }: any) => {
+        this._screencastFrame = data;
+        await cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
+      });
+      this._screencastActive = true;
+    } catch (err) {
+      console.error('[Screencast] Start failed:', err);
+    }
+  }
+
+  async stopScreencast(): Promise<void> {
+    if (!this._screencastActive) return;
+    try {
+      const page = this.page();
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Page.stopScreencast');
+    } catch {}
+    this._screencastActive = false;
+    this._screencastFrame = null;
+  }
+
+  async dispatchMouse(type: string, x: number, y: number, button: string = 'left', buttons: number = 1): Promise<void> {
+    const page = this.page();
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchMouseEvent', {
+      type,
+      x,
+      y,
+      button: type === 'mouseMoved' ? 'none' : button,
+      buttons: type === 'mouseReleased' ? 0 : buttons,
+      clickCount: 1,
+    } as any);
+  }
+
+  async dispatchKey(type: string, key: string, _code?: string, _text?: string): Promise<void> {
+    const page = this.page();
+    // Use Playwright's keyboard API for reliable text input
+    // CDP Input.dispatchKeyEvent is notoriously unreliable for text
+    if (type === 'keyDown') {
+      await page.keyboard.down(key as any);
+    } else if (type === 'keyUp') {
+      await page.keyboard.up(key as any);
+    }
   }
 
   async saveCheckpoint(): Promise<number> {

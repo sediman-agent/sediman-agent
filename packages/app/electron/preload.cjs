@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
   getPlatform: () => process.platform,
 
+  // CDP Shared Browser
+  browser: {
+    getCdpTarget: (webContentsId) => ipcRenderer.invoke('browser:get-cdp-target', webContentsId),
+  },
+
   // Events
   onMessage: (callback) => {
     const subscription = (event, message) => callback(message);
