@@ -1,12 +1,6 @@
-/**
- * SandboxPanel — Real embedded Chromium browser via Electron <webview>.
- * The user interacts with a REAL browser — native cursor, typing, scrolling, selection.
- * Agent syncs URLs from its Playwright session. Same feel as Cursor.
- */
-
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
-  X, Maximize2, Minimize2, RefreshCw, Globe, Loader2, Monitor, Wifi
+  X, Maximize2, Minimize2, RefreshCw, Globe, Loader2, Monitor, Wifi, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/elements/actions/Button';
 import { useSandboxStore } from '@/stores/useSandboxStore';
@@ -20,49 +14,64 @@ export function SandboxPanel() {
   const [isResizing, setIsResizing] = useState(false);
   const [browserUrl, setBrowserUrl] = useState('');
   const [inputUrl, setInputUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [intervention, setIntervention] = useState<{ active: boolean; message: string; id: number } | null>(null);
-  const [interventionLoading, setInterventionLoading] = useState(false);
+  const [screenshotSrc, setScreenshotSrc] = useState<string>('');
+  const [screenshotError, setScreenshotError] = useState(false);
 
   const isOpen = useSandboxStore(state => state.isOpen);
   const isActive = useSandboxStore(state => state.isActive);
   const togglePanel = useSandboxStore(state => state.togglePanel);
 
-  const webviewRef = useRef<any>(null);
+  // Poll agent browser screenshots — shows exactly what the agent sees
+  useEffect(() => {
+    if (!isActive || !isOpen) return;
+    let active = true;
+    let consecutiveErrors = 0;
 
-  // Set up webview event listeners once it mounts
-  const webviewCallbackRef = useCallback((node: any) => {
-    if (!node) return;
-    webviewRef.current = node;
-
-    node.addEventListener('did-navigate', (e: any) => {
-      setBrowserUrl(e.url);
-      setInputUrl(e.url);
-      setIsLoading(false);
-    });
-    node.addEventListener('did-navigate-in-page', (e: any) => {
-      if (e.url) {
-        setBrowserUrl(e.url);
-        setInputUrl(e.url);
+    const poll = async () => {
+      if (!active) return;
+      try {
+        const resp = await fetch(`${API_BASE}/api/browser/screencast-frame`);
+        if (!active) return;
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.frame) {
+            setScreenshotSrc(`data:image/jpeg;base64,${data.frame}`);
+            setBrowserUrl(data.url || '');
+            setInputUrl(data.url || '');
+            setScreenshotError(false);
+            consecutiveErrors = 0;
+          }
+        } else {
+          consecutiveErrors++;
+        }
+      } catch {
+        consecutiveErrors++;
       }
-    });
-    node.addEventListener('did-start-loading', () => setIsLoading(true));
-    node.addEventListener('did-stop-loading', () => setIsLoading(false));
-    node.addEventListener('page-title-updated', () => {
-    });
-  }, []);
+      if (consecutiveErrors > 5) {
+        setScreenshotError(true);
+      }
+    };
 
-  // URL navigation
-  const navigateTo = useCallback((url: string) => {
+    poll();
+    const interval = setInterval(poll, 500);
+    return () => { active = false; clearInterval(interval); };
+  }, [isActive, isOpen]);
+
+  // URL navigation — tells the agent's browser to navigate
+  const navigateTo = useCallback(async (url: string) => {
     let target = url.trim();
     if (!target) return;
     if (!/^https?:\/\//i.test(target)) {
       target = 'https://' + target;
     }
     setInputUrl(target);
-    if (webviewRef.current) {
-      webviewRef.current.loadURL(target);
-    }
+    try {
+      await fetch(`${API_BASE}/api/browser/navigate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: target }),
+      });
+    } catch {}
   }, []);
 
   const handleUrlKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -72,81 +81,28 @@ export function SandboxPanel() {
     }
   }, [navigateTo]);
 
-  const handleRefresh = useCallback(() => {
-    if (webviewRef.current) {
-      webviewRef.current.reload();
-    }
+  const handleRefresh = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE}/api/browser/screencast/input`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: { type: 'keyDown', key: 'F5' } }),
+      });
+    } catch {}
   }, []);
 
-  const handleBack = useCallback(() => {
-    if (webviewRef.current) {
-      webviewRef.current.goBack();
-    }
-  }, []);
-
-  const handleForward = useCallback(() => {
-    if (webviewRef.current) {
-      webviewRef.current.goForward();
-    }
+  const handleBack = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE}/api/browser/navigate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'goBack' }),
+      });
+    } catch {}
   }, []);
 
   const handleClose = useCallback(() => togglePanel(), [togglePanel]);
 
-  // Sync agent navigation to webview — when the agent navigates via Playwright,
-  // the frontend receives the URL from the progress stream and we load it here.
-  // The store could be updated from AgentPage's onProgress handler.
-  // For now, poll the server for the agent's current URL.
-  useEffect(() => {
-    if (!isActive || !isOpen) return;
-    let active = true;
-    const poll = async () => {
-      if (!active) return;
-      try {
-        const resp = await fetch(`${API_BASE}/api/browser/screencast-frame`);
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.url && data.url !== 'about:blank' && data.url !== browserUrl) {
-            // Agent navigated to a new URL — sync webview
-            if (webviewRef.current && webviewRef.current.getURL() !== data.url) {
-              webviewRef.current.loadURL(data.url);
-            }
-          }
-        }
-      } catch {}
-    };
-    const interval = setInterval(poll, 1000);
-    return () => { active = false; clearInterval(interval); };
-  }, [isActive, isOpen, browserUrl]);
-
-  // Human intervention polling
-  useEffect(() => {
-    if (!isActive) return;
-    const check = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/browser/intervention`);
-        const data = await res.json();
-        setIntervention(data.active ? data : null);
-      } catch {}
-    };
-    check();
-    const interval = setInterval(check, 2000);
-    return () => clearInterval(interval);
-  }, [isActive]);
-
-  const handleInterventionDone = useCallback(async () => {
-    setInterventionLoading(true);
-    try {
-      await fetch(`${API_BASE}/api/browser/intervention-done`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'User completed the task' }),
-      });
-      setIntervention(null);
-    } catch {}
-    setInterventionLoading(false);
-  }, []);
-
-  // Resize logic
   const resizeHandlers = useMemo(() => ({
     down: (e: React.MouseEvent) => { if (isFullscreen) return; setIsResizing(true); e.preventDefault(); },
     move: (e: MouseEvent) => { if (!isResizing) return; const w = window.innerWidth - e.clientX; if (w >= 400 && w <= window.innerWidth - 100) setPanelWidth(w); },
@@ -168,6 +124,8 @@ export function SandboxPanel() {
   }, [isResizing, resizeHandlers.move, resizeHandlers.up]);
 
   if (!isOpen) return null;
+
+  const isLive = screenshotSrc && browserUrl && browserUrl !== 'about:blank';
 
   return (
     <>
@@ -192,24 +150,19 @@ export function SandboxPanel() {
         <div className="bg-muted/30 border-b border-border backdrop-blur-md">
           <div className="flex items-center justify-between px-3 py-2">
             <div className="flex items-center gap-2">
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-yellow-500" />
-              ) : browserUrl && browserUrl !== 'about:blank' ? (
+              {isLive ? (
                 <Wifi className="w-4 h-4 text-green-500" />
               ) : (
                 <Globe className="w-4 h-4 text-muted-foreground" />
               )}
               <span className="text-sm font-medium">Browser</span>
-              {browserUrl && browserUrl !== 'about:blank' && !isLoading && (
+              {isLive && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">Live</span>
               )}
             </div>
             <div className="flex items-center gap-1">
               <Button size="sm" variant="ghost" onClick={handleBack} className="h-7 w-7 p-0" title="Back">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-              </Button>
-              <Button size="sm" variant="ghost" onClick={handleForward} className="h-7 w-7 p-0" title="Forward">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
               </Button>
               <Button size="sm" variant="ghost" onClick={handleRefresh} className="h-7 w-7 p-0" title="Refresh">
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -232,7 +185,7 @@ export function SandboxPanel() {
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
                 onKeyDown={handleUrlKeyDown}
-                placeholder="Search or enter URL..."
+                placeholder="Enter URL and press Enter..."
                 className="flex-1 bg-transparent text-sm outline-none text-foreground min-w-0"
                 spellCheck={false}
               />
@@ -240,34 +193,25 @@ export function SandboxPanel() {
           </div>
         </div>
 
-        {/* Human Intervention Banner */}
-        {intervention?.active && (
-          <div className="mx-3 mb-2 p-3 rounded-lg bg-amber-50 border border-amber-300 dark:bg-amber-950 dark:border-amber-700 flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-amber-600 text-sm">&#x1F6A8;</span>
-                <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Agent Needs Your Help</span>
+        {/* Screenshot View — shows exactly what the agent's browser sees */}
+        <div className="flex-1 relative overflow-hidden bg-neutral-100 dark:bg-neutral-900">
+          {screenshotSrc ? (
+            <img
+              src={screenshotSrc}
+              alt="Browser"
+              className="w-full h-full object-contain"
+              style={{ imageRendering: 'auto' }}
+              onError={() => setScreenshotError(true)}
+            />
+          ) : isActive ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center p-8">
+                <Loader2 className="w-8 h-8 text-muted-foreground mx-auto mb-3 animate-spin" />
+                <h3 className="text-sm font-medium mb-1">Starting Browser</h3>
+                <p className="text-muted-foreground text-xs">Waiting for agent to begin...</p>
               </div>
-              <p className="text-xs text-amber-700 dark:text-amber-400">{intervention.message}</p>
             </div>
-            <button onClick={handleInterventionDone} disabled={interventionLoading}
-              className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded text-sm font-medium shrink-0 transition-colors">
-              {interventionLoading ? '...' : 'Done'}
-            </button>
-          </div>
-        )}
-
-        {/* Real Chromium Browser — Electron <webview> */}
-        <div className="flex-1 relative overflow-hidden bg-white">
-          <webview
-            ref={webviewCallbackRef}
-            src="about:blank"
-            className="absolute inset-0 w-full h-full"
-            allowpopups
-            useragent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          />
-
-          {!isActive && (
+          ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
               <div className="text-center p-8">
                 <Monitor className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -276,14 +220,22 @@ export function SandboxPanel() {
               </div>
             </div>
           )}
+
+          {screenshotError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-20">
+              <div className="text-center p-8">
+                <AlertCircle className="w-8 h-8 text-yellow-500 mx-auto mb-3" />
+                <h3 className="text-sm font-medium mb-1">Connection Lost</h3>
+                <p className="text-muted-foreground text-xs">Browser stream disconnected</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Status Bar */}
         <div className="flex items-center justify-between px-3 py-1.5 border-t border-border text-xs bg-muted/30 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            {isLoading ? (
-              <><Loader2 className="w-3 h-3 animate-spin text-yellow-500" /><span className="text-yellow-600">Loading...</span></>
-            ) : browserUrl && browserUrl !== 'about:blank' ? (
+            {isLive ? (
               <><Wifi className="w-3 h-3 text-green-500" /><span className="text-green-600">Connected</span></>
             ) : (
               <span className="text-muted-foreground">Ready</span>
