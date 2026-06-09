@@ -55,7 +55,7 @@ describe("App", () => {
   });
 
   test("currentModeLabel returns label", () => {
-    expect(app.currentModeLabel()).toBe("T-800");
+    expect(app.currentModeLabel()).toBe("Browser");
     app.cycleAgentMode();
     expect(app.currentModeLabel()).toBe("Term");
   });

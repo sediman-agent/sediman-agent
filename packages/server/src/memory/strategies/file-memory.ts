@@ -95,12 +95,8 @@ export class FileMemoryStrategy extends BaseMemoryStrategy {
       const fp = this.filePath(target);
       const line = `- ${content.trim()}\n`;
       const tmp = `${fp}.${randomUUID()}.tmp`;
-      writeFileSync(tmp, line, { flag: "a" });
-      renameSync(tmp, tmp.replace(".tmp", ""));
-      if (!existsSync(fp)) {
-        writeFileSync(tmp, line);
-        renameSync(tmp, fp);
-      }
+      writeFileSync(tmp, line);
+      renameSync(tmp, fp);
       return true;
     } catch (err) {
       logger.error({ err, target }, "file memory write failed");

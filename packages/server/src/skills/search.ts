@@ -86,7 +86,8 @@ export class SkillSearchEngine {
         category: s.category as string | undefined,
         source: "hub",
       }));
-    } catch {
+    } catch (error) {
+      // Silently fail - hub may not be available
       return [];
     }
   }

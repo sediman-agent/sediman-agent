@@ -1,8 +1,14 @@
 @layer components {
-  .textarea-autoresize {
-    field-sizing: content;
-    min-height: 3.5rem;
-    max-height: 12.5rem;
+  /* Shake animation for errors - Google-inspired timing */
+  .animate-shake {
+    animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  @keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
   }
 
   .focus-ring {
@@ -11,5 +17,146 @@
 
   .interactive {
     @apply transition-colors duration-200;
+  }
+
+  /* Elegant collapsed sidebar button */
+  .sidebar-icon-btn {
+    @apply relative;
+    @apply flex items-center justify-center;
+    @apply w-12 h-12;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:scale-105;
+    @apply rounded-2xl;
+  }
+
+  /* Sidebar icon button - default state */
+  .sidebar-icon-btn:not(.active) {
+    @apply text-muted-foreground/70 hover:text-foreground;
+    @apply hover:bg-muted/30;
+    @apply hover:shadow-sm;
+  }
+
+  /* Sidebar icon button - active state */
+  .sidebar-icon-btn.active {
+    @apply bg-foreground/10 text-foreground;
+    @apply border border-border/50;
+    @apply shadow-sm;
+  }
+
+  /* Active state hover - smooth transition */
+  .sidebar-icon-btn.active:hover {
+    @apply bg-foreground/15;
+    @apply shadow-md;
+  }
+
+  /* Sidebar icon button - focus state */
+  .sidebar-icon-btn:focus-visible {
+    @apply ring-2 ring-ring/50;
+    @apply outline-none;
+  }
+
+  /* Elegant tooltip - subtle fade-in */
+  .sidebar-tooltip {
+    @apply absolute left-full ml-4 top-1/2 -translate-y-1/2;
+    @apply px-3 py-1.5;
+    @apply bg-popover text-popover-foreground;
+    @apply text-xs font-medium rounded-md;
+    @apply border border-border/30;
+    @apply shadow-md;
+    @apply opacity-0 invisible group-hover:opacity-100 group-hover:visible;
+    @apply transition-all duration-200 ease-out;
+    @apply translate-x-1;
+    @apply group-hover:translate-x-0;
+    @apply pointer-events-none;
+    @apply z-50;
+  }
+
+  /* Tooltip label */
+  .tooltip-label {
+    @apply whitespace-nowrap;
+  }
+
+  /* Apple-level animations for premium feel */
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-subtle {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  /* Smooth slide-down animation for error messages */
+  .animate-slideDown {
+    animation: slide-down 0.3s ease-out;
+  }
+
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Typing cursor animation for streaming messages */
+  .typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: currentColor;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+    vertical-align: text-bottom;
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* Smooth fade-in with slide for messages */
+  .animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out;
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Premium glow effect for focused elements */
+  .glow-effect {
+    box-shadow:
+      0 0 0 1px rgba(139, 92, 246, 0.1),
+      0 0 20px rgba(139, 92, 246, 0.15),
+      0 0 40px rgba(139, 92, 246, 0.1);
+  }
+
+  /* Smooth scale animation for buttons */
+  .btn-scale {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-scale:hover {
+    transform: scale(1.05);
+  }
+
+  .btn-scale:active {
+    transform: scale(0.95);
   }
 }

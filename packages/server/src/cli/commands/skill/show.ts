@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import { SkillEngine } from "../../../skills/engine.js";
-import { skillToSkillMd } from "../../../skills/format.js";
 
 export async function registerSkillShow(name: string): Promise<void> {
   try {

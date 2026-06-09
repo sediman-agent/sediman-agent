@@ -149,6 +149,7 @@ const [
   { BrowserController },
   { createProvider },
   { AgentLoop },
+  { ProjectManager },
 ] = await Promise.all([
   import("./core/config.js"),
   import("./memory/strategies/file-memory.js"),
@@ -162,7 +163,11 @@ const [
   import("./browser/controller.js"),
   import("./llm/provider.js"),
   import("./agent/loop.js"),
+  import("./project/manager.js"),
 ]);
+
+const { setProjectManager } = await import("./agent/tools/browser-tools.js");
+const { sandboxSessionManager } = await import("./sandbox/SessionManager.js");
 
 const config = getConfig();
 const headless = (process.env.SEDIMAN_HEADLESS ?? "true") === "true";
@@ -174,6 +179,18 @@ const llmProvider = createProvider(
   process.env.SEDIMAN_BASE_URL,
   process.env.SEDIMAN_API_KEY,
 );
+
+const projectManager = new ProjectManager({
+  llmProvider,
+  memory,
+  skillEngine,
+  headless,
+  terminalAllowed: false,
+});
+await projectManager.ensureDefaultProject();
+setProjectManager(projectManager);
+sandboxSessionManager.setProjectManager(projectManager);
+
 const browserSession = new BrowserSession({
   headless,
   stealth: config.stealthEnabled,
@@ -185,7 +202,11 @@ const agentLoop = new AgentLoop({ llmProvider, browserSession, memory, skillEngi
 const deps = {
   llmProvider,
   browserSession,
-  browserController: new BrowserController(browserSession),
+  browserController: new BrowserController({
+    headless,
+    userDataDir: config.browserProfileDir,
+  }),
+  projectManager,
   memory,
   skillEngine,
   agentLoop,
@@ -204,7 +225,6 @@ const deps = {
 
 const handlerMods = await Promise.all([
   import("./rpc/handlers/system.js"),
-  import("./rpc/handlers/agent.js"),
   import("./rpc/handlers/browser.js"),
   import("./rpc/handlers/skills.js"),
   import("./rpc/handlers/hub.js"),
@@ -213,11 +233,12 @@ const handlerMods = await Promise.all([
   import("./rpc/handlers/schedule.js"),
   import("./rpc/handlers/model.js"),
   import("./rpc/handlers/auth.js"),
-  import("./rpc/handlers/terminal.js"),
+  // import("./rpc/handlers/terminal.js"), // Terminal handler removed
   import("./rpc/handlers/record.js"),
-  import("./rpc/handlers/integration.js"),
+  // import("./rpc/handlers/integration.js"), // Integration handler removed
   import("./rpc/handlers/checkpoint.js"),
   import("./rpc/handlers/sandbox.js"),
+  import("./rpc/handlers/project.js"),
 ]);
 
 for (const mod of handlerMods) {

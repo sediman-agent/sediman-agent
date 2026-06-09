@@ -9,6 +9,7 @@ import type { CronManager } from "../scheduler/cron";
 import type { HubClient, GitHubInstaller } from "../skills/hub";
 import type { SkillSearchEngine } from "../skills/search";
 import type { Changelog } from "../memory/utils/changelog";
+import type { ProjectManager } from "../project/manager";
 
 export interface RPCHandlerDeps {
   llmProvider: LLMProvider;
@@ -17,6 +18,7 @@ export interface RPCHandlerDeps {
   memory: BaseMemoryStrategy;
   skillEngine: SkillEngine;
   agentLoop: AgentLoop;
+  projectManager: ProjectManager;
   checkpointManager: CheckpointManager;
   cronManager: CronManager;
   hubClient: HubClient;

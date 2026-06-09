@@ -1,0 +1,370 @@
+/**
+ * LLM Provider - Core Infrastructure for LLM Interactions
+ * Refactored to use modular components for better maintainability
+ */
+
+import type { ToolCall, LLMResponse, ToolDefinition, ProviderInfo, ModelInfo } from "../core/types";
+import { LLMError, AuthError, RateLimitError } from "../core/errors";
+import type { ProviderPreset } from "./provider-loader";
+import OpenAI from "openai";
+
+// Import from refactored modules
+export {
+  getProviders,
+  createProvider,
+  listProviders,
+  PROVIDERS
+} from './provider-factory';
+
+export {
+  retryWithBackoff,
+  isRetryable
+} from './retry-handler';
+
+export {
+  buildMessages,
+  toOpenAITools
+} from './message-builder';
+
+export {
+  processOpenAIStream,
+  ToolCallAccumulator
+} from './streaming-handler';
+
+export {
+  FailoverTracker,
+  executeWithFailover
+} from './failover';
+
+export { type ProviderPreset } from "./provider-loader";
+
+export type Message = Record<string, any>;
+
+// ============================================================================
+// Abstract LLM Provider
+// ============================================================================
+
+export abstract class LLMProvider {
+  protected _tokenCallback: ((tokens: number) => void) | null = null;
+  protected failoverTracker: FailoverTracker = new FailoverTracker();
+
+  setTokenCallback(cb: (tokens: number) => void): void {
+    this._tokenCallback = cb;
+  }
+
+  abstract chat(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+  ): Promise<LLMResponse>;
+
+  abstract chatStream(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+  ): AsyncGenerator<string>;
+
+  abstract chatStreamWithTools(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+    onToken?: (t: string) => void,
+  ): Promise<LLMResponse>;
+
+  /**
+   * Chat with smart automatic failover
+   */
+  async chatWithSmartFailover(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+    options?: {
+      fallbackProvider?: LLMProvider;
+      maxConsecutiveFailures?: number;
+    }
+  ): Promise<LLMResponse> {
+    try {
+      const response = await this.chat(messages, tools, system);
+
+      // Clear failure tracking on success
+      if (this.failoverTracker.hasRecentFailures()) {
+        this.failoverTracker.reset();
+      }
+
+      return response;
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+
+      // Check if we should trigger failover
+      if (this.failoverTracker.shouldTriggerFailover(err)) {
+        if (!options?.fallbackProvider) {
+          throw new Error('Primary provider failed but no fallback available');
+        }
+
+        console.warn('[LLMProvider] Triggering failover after', this.failoverTracker.getFailureCount(), 'failures');
+
+        try {
+          const fallbackResponse = await options.fallbackProvider.chat(messages, tools, system);
+          this.failoverTracker.reset();
+          console.info('[LLMProvider] Fallback succeeded');
+          return fallbackResponse;
+        } catch (fallbackError) {
+          const fbErr = fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError));
+          throw new Error(
+            `Both primary and fallback providers failed. Primary: ${err.message}, Fallback: ${fbErr.message}`
+          );
+        }
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Get provider info
+   */
+  getInfo(): ProviderInfo {
+    return {
+      name: this.constructor.name,
+      label: this.constructor.name,
+      models: [],
+      defaultModel: ''
+    };
+  }
+}
+
+// ============================================================================
+// OpenAI-Compatible Provider
+// ============================================================================
+
+export class OpenAICompatibleProvider extends LLMProvider {
+  protected client: OpenAI;
+  protected model: string;
+  protected baseUrl?: string;
+
+  constructor(model: string, apiKey?: string, baseUrl?: string) {
+    super();
+    this.model = model;
+    this.baseUrl = baseUrl;
+    this.client = new OpenAI({
+      apiKey: apiKey ?? "unused",
+      baseURL: baseUrl ?? undefined,
+    });
+  }
+
+  /**
+   * Check if this is a MiniMax provider
+   */
+  protected isMiniMax(): boolean {
+    return this.model.startsWith('MiniMax-') ||
+           this.baseUrl?.includes('minimax') ||
+           this.baseUrl?.includes('minimaxi');
+  }
+
+  /**
+   * Build OpenAI-compatible messages
+   */
+  protected buildOpenAIMessages(
+    messages: Message[],
+    system?: string
+  ): OpenAI.Chat.ChatCompletionMessageParam[] {
+    const out: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+
+    if (system) {
+      out.push({ role: "system", content: system });
+    }
+
+    for (const m of messages) {
+      out.push(m as OpenAI.Chat.ChatCompletionMessageParam);
+    }
+
+    return out;
+  }
+
+  async chat(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+  ): Promise<LLMResponse> {
+    const openaiMsgs = this.buildOpenAIMessages(messages, system);
+    const openaiTools = toOpenAITools(tools);
+
+    const response = await retryWithBackoff(async () => {
+      return await this.client.chat.completions.create({
+        model: this.model,
+        messages: openaiMsgs,
+        tools: openaiTools,
+      });
+    }, {
+      maxRetries: 3,
+      baseDelay: 1000,
+      customDelay: (attempt, error) => {
+        // Use longer delays for MiniMax unknown errors
+        if (this.isMiniMax() && error?.message?.includes('unknown error (1000)')) {
+          return 10000 + (attempt * 5000);
+        }
+        return undefined;
+      }
+    });
+
+    return this.parseResponse(response);
+  }
+
+  async *chatStream(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+  ): AsyncGenerator<string> {
+    const openaiMsgs = this.buildOpenAIMessages(messages, system);
+    const openaiTools = toOpenAITools(tools);
+
+    const stream = await this.client.chat.completions.create({
+      model: this.model,
+      messages: openaiMsgs,
+      tools: openaiTools,
+      stream: true,
+    });
+
+    yield* processOpenAIStream(stream);
+  }
+
+  async chatStreamWithTools(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+    onToken?: (t: string) => void,
+  ): Promise<LLMResponse> {
+    const openaiMsgs = this.buildOpenAIMessages(messages, system);
+    const openaiTools = toOpenAITools(tools);
+
+    const accumulator = new ToolCallAccumulator();
+    let fullContent = '';
+
+    const stream = await this.client.chat.completions.create({
+      model: this.model,
+      messages: openaiMsgs,
+      tools: openaiTools,
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      if (chunk.choices && chunk.choices[0]) {
+        const choice = chunk.choices[0];
+
+        // Handle content
+        if (choice.delta?.content) {
+          const content = choice.delta.content;
+          fullContent += content;
+          if (onToken) onToken(content);
+        }
+
+        // Handle tool calls
+        if (choice.delta?.tool_calls) {
+          for (const tc of choice.delta.tool_calls) {
+            accumulator.processDelta(tc);
+          }
+        }
+
+        // Check if complete
+        if (choice.finish_reason) {
+          break;
+        }
+      }
+    }
+
+    return {
+      text: fullContent,
+      toolCalls: accumulator.getToolCalls(),
+      usage: null // TODO: Extract from response if available
+    };
+  }
+
+  /**
+   * Parse OpenAI response to LLMResponse format
+   */
+  protected parseResponse(response: any): LLMResponse {
+    if (!response.choices || response.choices.length === 0) {
+      throw new LLMError('No response choices returned');
+    }
+
+    const choice = response.choices[0];
+    const content = choice.message?.content || '';
+
+    // Extract tool calls
+    const toolCalls: ToolCall[] = [];
+    if (choice.message?.tool_calls) {
+      for (const tc of choice.message.tool_calls) {
+        toolCalls.push({
+          id: tc.id,
+          name: tc.function.name,
+          arguments: tc.function.arguments
+        });
+      }
+    }
+
+    return {
+      text: content,
+      toolCalls,
+      usage: {
+        promptTokens: response.usage?.prompt_tokens || 0,
+        completionTokens: response.usage?.completion_tokens || 0,
+        totalTokens: response.usage?.total_tokens || 0
+      }
+    };
+  }
+
+  /**
+   * Get provider info
+   */
+  getInfo(): ProviderInfo {
+    return {
+      name: 'OpenAI-Compatible',
+      label: 'OpenAI-Compatible Provider',
+      models: [this.model],
+      defaultModel: this.model
+    };
+  }
+}
+
+// ============================================================================
+// Legacy Provider Factory (deprecated, use provider-factory.ts)
+// ============================================================================
+
+import { hasKey } from "../core/auth";
+import { loadProviders } from "./provider-loader";
+
+let _providersLegacy: Record<string, ProviderPreset> | null = null;
+
+export function getProvidersLegacy(): Record<string, ProviderPreset> {
+  if (!_providersLegacy) _providersLegacy = loadProviders();
+  return _providersLegacy;
+}
+
+export function listProvidersLegacy(): ProviderInfo[] {
+  const providers = getProvidersLegacy();
+  const result: ProviderInfo[] = [];
+
+  for (const [name, preset] of Object.entries(providers)) {
+    result.push({
+      name,
+      default_model: preset.model,
+      default_base_url: preset.base_url,
+      category: preset.category,
+      needs_api_key: !!preset.api_key_env,
+      has_key: false,
+      auto_detect: preset.auto_detect,
+    });
+  }
+
+  return result;
+}
+
+export async function listProvidersWithAuth(): Promise<ProviderInfo[]> {
+  const providers = listProvidersLegacy();
+  for (const p of providers) {
+    if (p.needs_api_key) {
+      p.has_key = await hasKey(p.name);
+    }
+  }
+  return providers;
+}

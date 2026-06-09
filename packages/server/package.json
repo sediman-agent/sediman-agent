@@ -23,6 +23,7 @@
     "@slack/web-api": "^7.9.1",
     "cac": "^6.7.14",
     "chalk": "^5.4.1",
+    "cloakbrowser": "^0.3.31",
     "discord.js": "^14.18.0",
     "grammy": "^1.36.3",
     "hono": "^4.7.11",

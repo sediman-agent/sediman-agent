@@ -18,12 +18,20 @@ import { ToolAccesses } from './tool-access';
 import { ToolResultBuilder } from './result-builder';
 import { zodToJsonSchema, createOneOfSchema } from './schema-utils';
 
+// Import from refactored modules
+import type { Result } from './memoization';
+import { isSuccess, isFailure, unwrap, unwrapOr, failure, success, tryResult } from './memoization';
+import { memoize, MemoCache, registerCache } from './memoization';
+import type { ExecutionStrategy } from './execution-strategy';
+import { DefaultStrategy } from './execution-strategy';
+import type { ActionMiddleware } from './action-middleware';
+import { chainMiddleware } from './action-middleware';
+import { schemaCache, descriptionCache, generateCacheKey } from './cache-manager';
+
 /**
- * Result type for better error handling (Functional programming pattern)
+ * Result type re-export for convenience
  */
-export type Result<T, E = Error> =
-  | { success: true; value: T }
-  | { success: false; error: E };
+export type { Result };
 
 /**
  * Context passed to action handlers (immutable)
@@ -41,13 +49,9 @@ export interface ReadonlyActionContext {
 export type ActionContext = ReadonlyActionContext;
 
 /**
- * Strategy interface for custom execution behaviors
+ * Strategy interface re-export for convenience
  */
-export interface ExecutionStrategy {
-  shouldExecute(actionName: string): boolean;
-  onBeforeExecute?(actionName: string): void | Promise<void>;
-  onAfterExecute?(actionName: string, result: ExecutableToolResult): void | Promise<void>;
-}
+export type { ExecutionStrategy };
 
 /**
  * Definition of a single action within a tool
@@ -63,12 +67,9 @@ export interface ActionDef<TInput = unknown> {
 }
 
 /**
- * Middleware for action execution
+ * Middleware interface re-export for convenience
  */
-export interface ActionMiddleware<TInput = unknown> {
-  before?: (input: TInput, ctx: ReadonlyActionContext) => Result<TInput> | Promise<Result<TInput>>;
-  after?: (result: ExecutableToolResult, input: TInput, ctx: ReadonlyActionContext) => ExecutableToolResult | Promise<ExecutableToolResult>;
-}
+export type { ActionMiddleware };
 
 /**
  * Options for creating an ActionBasedTool
@@ -78,29 +79,6 @@ export interface ActionBasedToolOptions {
   readonly strategy?: ExecutionStrategy;
   readonly lazy?: boolean;
   readonly cacheSchema?: boolean;
-}
-
-// Global caches with cleanup support
-const schemaCache = new WeakMap<z.ZodSchema, Record<string, unknown>>();
-const descriptionCache = new WeakMap<readonly ActionDef[], string>();
-
-/**
- * Memoization decorator for expensive operations
- */
-function memoize<Args extends readonly unknown[], Return>(
-  fn: (...args: Args) => Return,
-  keyGenerator: (...args: Args) => string
-): (...args: Args) => Return {
-  const cache = new Map<string, Return>();
-  return (...args: Args) => {
-    const key = keyGenerator(...args);
-    if (cache.has(key)) {
-      return cache.get(key) as Return;
-    }
-    const result = fn(...args);
-    cache.set(key, result);
-    return result;
-  };
 }
 
 /**
@@ -155,15 +133,8 @@ export class ActionBasedTool<TInput = unknown> implements BuiltinTool<TInput> {
    * Memoized description builder
    */
   private buildDescription(actions: readonly ActionDef[]): string {
-    if (descriptionCache.has(actions)) {
-      return descriptionCache.get(actions)!;
-    }
-
-    const parts = actions.map(a => `**${a.name}**: ${a.description}`);
-    const result = parts.join('\n');
-
-    descriptionCache.set(actions, result);
-    return result;
+    const key = generateCacheKey('desc', ...actions.map(a => a.name));
+    return descriptionCache.get(actions, key);
   }
 
   /**
@@ -180,12 +151,9 @@ export class ActionBasedTool<TInput = unknown> implements BuiltinTool<TInput> {
     for (let i = 0; i < actions.length; i++) {
       const action = actions[i];
 
-      // Check cache
-      let jsonSchema = schemaCache.get(action.schema);
-      if (!jsonSchema) {
-        jsonSchema = zodToJsonSchema(action.schema);
-        schemaCache.set(action.schema, jsonSchema);
-      }
+      // Get schema from cache
+      const key = generateCacheKey('schema', action.name);
+      const jsonSchema = schemaCache.get(action.schema, key);
 
       variants[i] = Object.freeze({
         description: action.description,
@@ -217,10 +185,10 @@ export class ActionBasedTool<TInput = unknown> implements BuiltinTool<TInput> {
 
     // Validate input
     const validationResult = this.validateInput(input);
-    if (!validationResult.success) {
+    if (isFailure(validationResult)) {
       return {
         isError: true,
-        output: validationResult.error instanceof Error ? validationResult.error.message : (validationResult.error ?? 'Validation failed'),
+        output: unwrapOr(validationResult, 'Validation failed'),
       };
     }
 
@@ -228,10 +196,10 @@ export class ActionBasedTool<TInput = unknown> implements BuiltinTool<TInput> {
 
     // Get action
     const actionResult = this.getAction(actionName);
-    if (!actionResult.success) {
+    if (isFailure(actionResult)) {
       return {
         isError: true,
-        output: actionResult.error instanceof Error ? actionResult.error.message : (actionResult.error ?? 'Action not found'),
+        output: unwrapOr(actionResult, 'Action not found'),
       };
     }
 
@@ -239,10 +207,10 @@ export class ActionBasedTool<TInput = unknown> implements BuiltinTool<TInput> {
 
     // Execute middleware if present
     const middlewareResult = await this.executeMiddleware(action, data);
-    if (!middlewareResult.success) {
+    if (isFailure(middlewareResult)) {
       return {
         isError: true,
-        output: middlewareResult.error instanceof Error ? middlewareResult.error.message : (middlewareResult.error ?? 'Middleware execution failed'),
+        output: unwrapOr(middlewareResult, 'Middleware execution failed'),
       };
     }
 
@@ -324,9 +292,12 @@ export class ActionBasedTool<TInput = unknown> implements BuiltinTool<TInput> {
 
     try {
       const result = await action.middleware.before!(input, this.createContext());
-      return result.success
-        ? result
-        : { success: false, error: result.error instanceof Error ? result.error : new Error(String(result.error)) };
+      if (isSuccess(result)) {
+        return result;
+      }
+      // Handle error case
+      const error = isFailure(result) ? result.error : new Error(String(result));
+      return { success: false, error: error instanceof Error ? error : new Error(String(error)) };
     } catch (e) {
       return {
         success: false,

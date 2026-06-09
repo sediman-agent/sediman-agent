@@ -1,16 +1,12 @@
 import { readFile, writeFile, chmod, mkdir, rename } from "node:fs/promises";
 import { getConfig } from "./config";
+import logger from "./logging";
 
 export interface AuthEntry {
   type: string;
   key: string;
   added_at: string;
 }
-
-const log = {
-  info: (...a: unknown[]) => {},
-  error: (...a: unknown[]) => {},
-};
 
 function authFilePath(): string {
   return getConfig().authFile ?? `${process.env.HOME ?? "~"}/.terminator/auth.json`;
@@ -41,18 +37,18 @@ export async function readStore(): Promise<Record<string, AuthEntry>> {
     return JSON.parse(raw) as Record<string, AuthEntry>;
   } catch (err: any) {
     if (err instanceof SyntaxError) {
-      log.error("auth_store_corrupted", authFilePath());
+      logger.error({ path: authFilePath() }, "auth_store_corrupted");
       const ts = Math.floor(Date.now() / 1000);
       const backup = `${authFilePath()}.corrupted.${ts}`;
       try {
         await rename(authFilePath(), backup);
-        log.info("auth_store_backed_up", backup);
+        logger.info({ backup }, "auth_store_backed_up");
       } catch (e) {
-        log.error("auth_store_backup_failed", e);
+        logger.error({ err: e }, "auth_store_backup_failed");
       }
       return {};
     }
-    log.error("auth_store_read_error", authFilePath(), err);
+    logger.error({ path: authFilePath(), err }, "auth_store_read_error");
     return {};
   }
 }
@@ -81,7 +77,7 @@ export async function setKey(provider: string, key: string): Promise<void> {
     added_at: new Date().toISOString(),
   };
   await writeStore(data);
-  log.info("auth_key_saved", provider);
+  logger.info({ provider }, "auth_key_saved");
 }
 
 export async function removeKey(provider: string): Promise<boolean> {
@@ -89,7 +85,7 @@ export async function removeKey(provider: string): Promise<boolean> {
   if (provider in data) {
     delete data[provider];
     await writeStore(data);
-    log.info("auth_key_removed", provider);
+    logger.info({ provider }, "auth_key_removed");
     return true;
   }
   return false;

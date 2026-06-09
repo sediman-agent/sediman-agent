@@ -1,10 +1,10 @@
+/**
+ * VS Code-Style SkillsPage
+ * Skills management with VS Code design system
+ */
+
 import { useState, useEffect, useMemo } from 'react';
-import { Trash2, Search, Package, Code, X, Folder, ExternalLink, Circle, Square } from 'lucide-react';
-import { PageHeader } from '@/components/shared/PageHeader';
-import { Button } from '@/components/shared/Button';
-import { Input } from '@/components/shared/Input';
-import { ScrollArea } from '@/components/shared/ScrollArea';
-import { Badge } from '@/components/shared/Badge';
+import { Trash2, Search, Package, Code, X, Folder, ExternalLink, Circle, Square, Download } from 'lucide-react';
 import { type Skill } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +35,7 @@ export function SkillsPage() {
     frameCount: 0,
   });
   const [activeSessions, setActiveSessions] = useState<ServerRecordingSession[]>([]);
+  const [installing, setInstalling] = useState<Set<string>>(new Set());
 
   const apiBaseUrl = 'http://localhost:3001';
 
@@ -45,6 +46,7 @@ export function SkillsPage() {
       const response = await fetch(`${apiBaseUrl}/api/skills`);
       if (response.ok) {
         const data = await response.json();
+        // Show all skills including external ones from 4xx API
         setSkills(data.skills || []);
       }
     } catch (error) {
@@ -58,7 +60,7 @@ export function SkillsPage() {
   // Load active recording sessions
   const loadActiveSessions = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/record/active`);
+      const response = await fetch(`${apiBaseUrl}/api/skills/record/active`);
       if (response.ok) {
         const data = await response.json();
         setActiveSessions(data.sessions || []);
@@ -101,7 +103,7 @@ export function SkillsPage() {
 
   const handleStartRecording = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/record/start`, {
+      const response = await fetch(`${apiBaseUrl}/api/skills/record/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: `Recording ${new Date().toLocaleTimeString()}` }),
@@ -125,10 +127,9 @@ export function SkillsPage() {
     if (!recording.sessionId) return;
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/record/stop`, {
+      const response = await fetch(`${apiBaseUrl}/api/skills/record/${recording.sessionId}/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: recording.sessionId }),
       });
       if (response.ok) {
         const result = await response.json();
@@ -149,14 +150,18 @@ export function SkillsPage() {
     }
   };
 
-  const handleViewSkillCode = async (skillName: string) => {
+  const handleViewSkillCode = async (skillId: string) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/skills/${encodeURIComponent(skillName)}`);
+      const response = await fetch(`${apiBaseUrl}/api/skills/${encodeURIComponent(skillId)}`);
       if (response.ok) {
         const skill = await response.json();
-        if (skill.skill) {
-          setCodeContent(JSON.stringify(skill.skill, null, 2));
-          setShowCode(skillName);
+        // API returns skill directly or in error format
+        const skillData = skill.error ? null : skill;
+        if (skillData) {
+          setCodeContent(JSON.stringify(skillData, null, 2));
+          setShowCode(skill.name || skillId);
+        } else {
+          console.error('Skill not found or error:', skill.error || skill.message);
         }
       }
     } catch (error) {
@@ -164,9 +169,9 @@ export function SkillsPage() {
     }
   };
 
-  const handleDeleteSkill = async (skillName: string) => {
+  const handleDeleteSkill = async (skillId: string) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/skills/${encodeURIComponent(skillName)}`, {
+      const response = await fetch(`${apiBaseUrl}/api/skills/${encodeURIComponent(skillId)}`, {
         method: 'DELETE',
       });
       if (response.ok) {
@@ -178,6 +183,7 @@ export function SkillsPage() {
   };
 
   const handleInstallSkill = async (skillName: string) => {
+    setInstalling(prev => new Set(prev).add(skillName));
     try {
       const response = await fetch(`${apiBaseUrl}/api/hub/install`, {
         method: 'POST',
@@ -187,17 +193,20 @@ export function SkillsPage() {
 
       if (response.ok) {
         const result = await response.json();
-        if (result.installed) {
-          // Reload skills after installation
-          loadSkills();
-        } else {
-          console.error('Install failed:', result.message);
-        }
+        console.log('Skill installed:', result);
+        // Reload skills to update the list
+        await loadSkills();
       } else {
-        console.error('Install request failed:', response.status);
+        console.error('Failed to install skill:', await response.text());
       }
     } catch (error) {
       console.error('Failed to install skill:', error);
+    } finally {
+      setInstalling(prev => {
+        const next = new Set(prev);
+        next.delete(skillName);
+        return next;
+      });
     }
   };
 
@@ -205,93 +214,95 @@ export function SkillsPage() {
   const availableCount = skills.filter((s) => !s.installed).length;
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="skills-page">
       {/* Header */}
-      <PageHeader
-        icon={Package}
-        title="Skills"
-        subtitle="Manage agent skills and recordings"
-        actions={
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-lg">
-              <Package className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">{skills.length}</span>
-            </div>
-            {activeSessions.length > 0 && (
-              <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20">
-                <Circle className="w-4 h-4 text-primary animate-pulse" />
-                <span className="text-sm font-medium text-primary">{activeSessions.length} recording</span>
-              </div>
-            )}
+      <div className="skills-header">
+        <Package size={18} className="skills-header-icon" />
+        <div className="flex-1">
+          <h1 className="skills-header-title">Skills</h1>
+          <p className="skills-header-subtitle">
+            Manage agent skills and recordings
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="skills-counter">
+            <Package size={14} className="skills-counter-icon" />
+            <span className="skills-counter-value">
+              {skills.length}
+            </span>
           </div>
-        }
-      />
+          {activeSessions.length > 0 && (
+            <div className="recording-badge">
+              <Circle size={14} className="recording-badge-icon" />
+              <span className="recording-badge-text">
+                {activeSessions.length} recording
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Search & Filter */}
-      <div className="p-6 border-b border-border bg-background space-y-4">
+      <div className="skills-search-section">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
+            <Search
+              size={14}
+              className="skills-search-icon"
+            />
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search skills..."
-              className="pl-9"
+              className="skills-search-input"
             />
           </div>
-          <Button
-            variant={recording.isRecording ? 'destructive' : 'default'}
+          <button
             onClick={recording.isRecording ? handleStopRecording : handleStartRecording}
-            className="flex items-center gap-2"
+            className={cn('recording-button', recording.isRecording ? 'recording' : 'idle')}
           >
             {recording.isRecording ? (
               <>
-                <Square className="w-4 h-4" />
+                <Square size={14} />
                 Stop Recording
               </>
             ) : (
               <>
-                <Circle className="w-4 h-4" />
+                <Circle size={14} />
                 Start Recording
               </>
             )}
-          </Button>
+          </button>
         </div>
 
-        <div className="flex gap-2 max-w-4xl mx-auto">
-          <Button
-            variant={filter === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter('all')}
-          >
-            All ({skills.length})
-          </Button>
-          <Button
-            variant={filter === 'installed' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter('installed')}
-          >
-            Installed ({installedCount})
-          </Button>
-          <Button
-            variant={filter === 'available' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setFilter('available')}
-          >
-            Available ({availableCount})
-          </Button>
+        <div className="skills-filter-group max-w-4xl mx-auto">
+          {(['all', 'installed', 'available'] as const).map((filterType) => (
+            <button
+              key={filterType}
+              onClick={() => setFilter(filterType)}
+              className={cn('skills-filter-button', filter === filterType && 'active')}
+            >
+              {filterType === 'all' && `All (${skills.length})`}
+              {filterType === 'installed' && `Installed (${installedCount})`}
+              {filterType === 'available' && `Available (${availableCount})`}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Active Recording Sessions */}
       {activeSessions.length > 0 && (
-        <div className="px-6 py-3 bg-primary/5 border-b border-primary/20">
+        <div className="px-6 py-3 border-b" style={{
+          backgroundColor: 'rgba(139, 92, 246, 0.05)',
+          borderColor: 'rgba(139, 92, 246, 0.2)'
+        }}>
           <div className="max-w-4xl mx-auto flex items-center gap-3">
-            <Circle className="w-4 h-4 text-primary animate-pulse" />
-            <span className="text-sm font-medium text-primary">
+            <Circle size={14} className="animate-pulse" style={{ color: 'var(--vscode-focusBorder)' }} />
+            <span className="text-sm font-medium" style={{ color: 'var(--vscode-focusBorder)' }}>
               Active Recording: {activeSessions[0]?.name}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs" style={{ color: 'var(--vscode-secondary-text)' }}>
               ({recording.frameCount} frames captured)
             </span>
           </div>
@@ -299,21 +310,23 @@ export function SkillsPage() {
       )}
 
       {/* Skills List */}
-      <ScrollArea className="flex-1">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
+      <div className="skills-content">
+        <div className="max-w-4xl mx-auto space-y-6">
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            <div className="skills-loading">
+              <div className="skills-loading-spinner" />
             </div>
           ) : filteredSkills.length > 0 ? (
             <>
               {/* Available Skills Section */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold">Available Skills ({filteredSkills.length})</h2>
+                  <h2 className="text-sm font-semibold uppercase" style={{ color: 'var(--vscode-foreground)' }}>
+                    Available Skills ({filteredSkills.length})
+                  </h2>
                   {skills.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Folder className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--vscode-secondary-text)' }}>
+                      <Folder size={14} />
                       {Object.keys(skillsByCategory).length} categories
                     </div>
                   )}
@@ -321,46 +334,65 @@ export function SkillsPage() {
 
                 {/* Display by category */}
                 {Object.entries(skillsByCategory).map(([category, categorySkills]) => (
-                  <div key={category} className="mb-6">
-                    <h3 className="text-sm font-semibold uppercase text-muted-foreground mb-3 flex items-center gap-2">
-                      <Folder className="w-4 h-4" />
-                      {category}
-                      <span className="text-xs">({categorySkills.length})</span>
-                    </h3>
-                    <div className="border border-border rounded-lg overflow-hidden">
+                  <div key={category} className="skills-category">
+                    <div className="skills-category-header">
+                      <div className="flex items-center gap-2">
+                        <Folder size={14} />
+                        <span className="skills-category-title">{category}</span>
+                        <span className="skills-category-count">({categorySkills.length})</span>
+                      </div>
+                    </div>
+                    <div className="border rounded overflow-hidden" style={{
+                      borderColor: 'var(--vscode-border-color)',
+                      borderRadius: 'var(--radius-md)'
+                    }}>
                       {categorySkills.map((skill, index) => (
                         <div
                           key={skill.name}
-                          className={cn(
-                            "flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors",
-                            index !== categorySkills.length - 1 && "border-b border-border"
-                          )}
+                          className="flex items-center gap-4 p-4 transition-colors"
+                          style={{
+                            borderBottom: index !== categorySkills.length - 1 ? '1px solid var(--vscode-border-color)' : 'none'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--vscode-list-hoverBackground)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
                         >
                           {/* Icon */}
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted flex-shrink-0">
+                          <div className="skill-card-icon">
                             {skill.source ? (
-                              <ExternalLink className="w-5 h-5 text-muted-foreground" />
+                              <ExternalLink size={18} style={{ color: 'var(--vscode-secondary-text)' }} />
                             ) : (
-                              <Package className="w-5 h-5 text-muted-foreground" />
+                              <Package size={18} style={{ color: 'var(--vscode-secondary-text)' }} />
                             )}
                           </div>
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-foreground truncate">{skill.name}</h4>
+                              <h4 className="skill-card-name">
+                                {skill.name}
+                              </h4>
                               {skill.version && (
-                                <Badge variant="info" className="text-xs">
+                                <span className="text-[10px] px-2 py-0.5 rounded" style={{
+                                  backgroundColor: 'var(--vscode-badge-background)',
+                                  color: 'var(--vscode-badge-foreground)'
+                                }}>
                                   v{skill.version}
-                                </Badge>
+                                </span>
                               )}
                               {skill.source && (
-                                <Badge variant="default" className="text-xs">
+                                <span className="text-[10px] px-2 py-0.5 rounded" style={{
+                                  backgroundColor: 'var(--vscode-info-foreground)',
+                                  color: 'white'
+                                }}>
                                   {skill.source.split('/')[0]}
-                                </Badge>
+                                </span>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground line-clamp-1 mt-1">
+                            <p className="skill-card-description">
                               {skill.description}
                             </p>
                           </div>
@@ -368,31 +400,40 @@ export function SkillsPage() {
                           {/* Actions */}
                           <div className="flex items-center gap-2">
                             {!skill.installed && (
-                              <Button
-                                variant="default"
-                                size="sm"
+                              <button
                                 onClick={() => handleInstallSkill(skill.name)}
+                                disabled={installing.has(skill.name)}
+                                className="skill-card-button primary"
+                                style={{ opacity: installing.has(skill.name) ? 0.6 : 1 }}
                               >
-                                <Package className="w-3 h-3 mr-1" />
-                                Install
-                              </Button>
+                                {installing.has(skill.name) ? (
+                                  <>
+                                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    Installing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download size={12} />
+                                    Install
+                                  </>
+                                )}
+                              </button>
                             )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewSkillCode(skill.name)}
+                            <button
+                              onClick={() => handleViewSkillCode(skill.id)}
+                              className="skill-card-button secondary"
                             >
-                              <Code className="w-3 h-3 mr-1" />
+                              <Code size={12} />
                               View
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteSkill(skill.name)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
+                            </button>
+                            {skill.installed && (
+                              <button
+                                onClick={() => handleDeleteSkill(skill.id)}
+                                className="skill-card-button danger"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -402,9 +443,9 @@ export function SkillsPage() {
               </div>
             </>
           ) : (
-            <div className="text-center py-16">
-              <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-              <p className="text-muted-foreground">
+            <div className="skills-empty-state">
+              <Package size={48} className="skills-empty-icon" />
+              <p className="skills-empty-description">
                 {searchQuery || filter !== 'all'
                   ? 'No skills found matching your criteria'
                   : 'No skills available. Start recording to create skills!'}
@@ -412,38 +453,43 @@ export function SkillsPage() {
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Code View Modal */}
       {showCode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowCode(null)}>
-          <div className="w-full max-w-3xl mx-4 bg-card rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+        <div
+          className="skill-code-modal"
+          onClick={() => setShowCode(null)}
+        >
+          <div
+            className="skill-code-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="skill-code-modal-header">
               <div>
-                <h3 className="text-lg font-semibold text-foreground">Skill: {showCode}</h3>
+                <h3 className="skill-code-modal-title">
+                  Skill: {showCode}
+                </h3>
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
                   onClick={() => {
                     navigator.clipboard.writeText(codeContent);
                   }}
+                  className="skill-code-modal-close"
                 >
-                  <Code className="w-4 h-4 mr-2" />
-                  Copy
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                  <Code size={14} />
+                </button>
+                <button
                   onClick={() => setShowCode(null)}
+                  className="skill-code-modal-close"
                 >
-                  <X className="w-4 h-4" />
-                </Button>
+                  <X size={14} />
+                </button>
               </div>
             </div>
-            <div className="p-6 overflow-auto max-h-[60vh] bg-muted">
-              <pre className="text-sm font-mono p-4 rounded-lg bg-background text-foreground overflow-x-auto">
+            <div className="skill-code-modal-body">
+              <pre className="skill-code-modal-code">
                 {codeContent}
               </pre>
             </div>
@@ -453,3 +499,5 @@ export function SkillsPage() {
     </div>
   );
 }
+
+export default SkillsPage;

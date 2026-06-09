@@ -11,7 +11,6 @@ import {
   MemoryError,
   ConfigError,
   classifyError,
-  looksLikeError,
 } from "../../src/core/errors";
 
 describe("error hierarchy", () => {
@@ -138,31 +137,5 @@ describe("classifyError", () => {
   test("detects timeout errors", () => {
     const info = classifyError(new Error("request timed out"));
     expect(info.code).toBe("TIMEOUT");
-  });
-});
-
-describe("looksLikeError", () => {
-  test("returns true for empty string", () => {
-    expect(looksLikeError("")).toBe(true);
-  });
-
-  test("detects structural errors", () => {
-    expect(looksLikeError("Traceback (most recent call last):")).toBe(true);
-  });
-
-  test("detects error patterns appearing multiple times", () => {
-    expect(looksLikeError("error: failed to connect. error: timeout exceeded")).toBe(true);
-  });
-
-  test("returns false for success messages with negative context", () => {
-    expect(looksLikeError("completed successfully with no errors detected")).toBe(false);
-  });
-
-  test("returns false for normal text", () => {
-    expect(looksLikeError("The weather is nice today.")).toBe(false);
-  });
-
-  test("detects http status errors", () => {
-    expect(looksLikeError("HTTP 500 Internal Server Error")).toBe(true);
   });
 });

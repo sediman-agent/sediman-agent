@@ -2,8 +2,29 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { getConfig } from "../core/config";
+import { CONVERSATIONS_SCHEMA } from "./schema-conversations";
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    user_data_dir TEXT NOT NULL,
+    headless INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS project_conversations (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    task TEXT NOT NULL,
+    steps_json TEXT NOT NULL DEFAULT '[]',
+    result TEXT,
+    agent_mode TEXT DEFAULT 'browser',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     task TEXT NOT NULL,
@@ -41,6 +62,10 @@ CREATE TABLE IF NOT EXISTS trajectory_preferences (
     feedback TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_projects_name ON projects(name);
+CREATE INDEX IF NOT EXISTS idx_project_conversations_project ON project_conversations(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_conversations_created ON project_conversations(created_at);
 
 CREATE INDEX IF NOT EXISTS idx_trajectories_success ON trajectories(success);
 CREATE INDEX IF NOT EXISTS idx_trajectories_skill ON trajectories(skill_name);
@@ -90,6 +115,7 @@ export function getDb(dbPath?: string): Database {
     _db = new Database(path, { create: true });
     for (const p of PRAGMAS) _db.exec(p);
     _db.exec(SCHEMA);
+    _db.exec(CONVERSATIONS_SCHEMA);
   }
   return _db;
 }

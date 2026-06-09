@@ -1,12 +1,43 @@
 import type { RPCServer } from "../server.js";
 import type { RPCHandlerDeps } from "../deps.js";
-import { getOpenbrowserAdapter, takeBrowserScreenshot } from "../../agent/tools/browser-tools.js";
+import type { BrowserController } from "../../browser/controller.js";
+import type { BrowserSession } from "../../browser/session.js";
+
+function resolveController(deps: RPCHandlerDeps, params: Record<string, unknown>): BrowserController | null {
+  const projectId = params.project_id as string | undefined;
+  if (projectId) {
+    return deps.projectManager.getBrowserController(projectId);
+  }
+  return deps.browserController;
+}
+
+function resolveSession(deps: RPCHandlerDeps, params: Record<string, unknown>): BrowserSession | null {
+  const projectId = params.project_id as string | undefined;
+  if (projectId) {
+    return deps.projectManager.getBrowserSession(projectId);
+  }
+  return deps.browserSession;
+}
+
+function isBrowserStarted(deps: RPCHandlerDeps, params: Record<string, unknown>): boolean {
+  const session = resolveSession(deps, params);
+  return session?.isStarted ?? false;
+}
+
+async function ensureBrowserStarted(deps: RPCHandlerDeps, params: Record<string, unknown>): Promise<void> {
+  const projectId = params.project_id as string | undefined;
+  if (projectId) {
+    await deps.projectManager.getOrCreateBrowser(projectId);
+  } else if (!deps.browserSession.isStarted) {
+    await deps.browserSession.start();
+  }
+}
 
 export function registerBrowserHandlers(
   server: RPCServer,
   deps: RPCHandlerDeps,
 ): void {
-  // === Legacy Browser Handlers (Backward Compatible) ===
+  // === Browser Handlers (Playwright-based) ===
 
   server.register("browser.configure", async (params) => {
     const headless = (params.headless as boolean) ?? true;
@@ -18,11 +49,13 @@ export function registerBrowserHandlers(
   server.register("browser.goto", async (params) => {
     const url = params.url as string;
     if (!url) return { success: false, error: "Missing url parameter" };
-    if (!deps.browserSession.isStarted) {
-      await deps.browserSession.start();
-    }
+
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
     try {
-      const msg = await deps.browserController.navigate(url);
+      const msg = await controller.navigate(url);
       const success = !msg.startsWith("Failed");
       return { success, url: success ? url : undefined, error: success ? undefined : msg };
     } catch (err) {
@@ -33,12 +66,14 @@ export function registerBrowserHandlers(
   server.register("browser.click", async (params) => {
     const selector = params.selector as string;
     const refId = params.ref_id as number | undefined;
-    if (!deps.browserSession.isStarted) {
-      return { success: false, error: "Browser not started" };
-    }
+
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
     try {
       if (refId !== undefined) {
-        const msg = await deps.browserController.click(refId);
+        const msg = await controller.click(refId);
         return { success: !msg.startsWith("Failed"), selector, error: msg.startsWith("Failed") ? msg : undefined };
       }
       return { success: false, selector, error: "No selector or ref_id provided" };
@@ -51,13 +86,15 @@ export function registerBrowserHandlers(
     const selector = params.selector as string;
     const value = params.value as string;
     const refId = params.ref_id as number | undefined;
-    if (!deps.browserSession.isStarted) {
-      return { success: false, error: "Browser not started" };
-    }
+
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
     try {
       if (refId !== undefined) {
         const submit = params.submit as boolean | undefined;
-        const msg = await deps.browserController.typeText(refId, value, submit);
+        const msg = await controller.typeText(refId, value, submit);
         return { success: !msg.startsWith("Failed"), selector, error: msg.startsWith("Failed") ? msg : undefined };
       }
       return { success: false, selector, error: "No ref_id provided" };
@@ -69,11 +106,13 @@ export function registerBrowserHandlers(
   server.register("browser.wait", async (params) => {
     const selector = params.selector as string;
     const timeout = params.timeout as number | undefined;
-    if (!deps.browserSession.isStarted) {
-      return { success: false, error: "Browser not started" };
-    }
+
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
     try {
-      const msg = await deps.browserController.waitForSelector(selector, timeout);
+      const msg = await controller.waitForSelector(selector, timeout);
       const success = !msg.startsWith("Timeout");
       return { success, selector, error: success ? undefined : msg };
     } catch (err) {
@@ -81,93 +120,13 @@ export function registerBrowserHandlers(
     }
   });
 
-  // === New Openbrowser-based Handlers ===
-
-  // Get list of active browser instances
-  server.register("browser.list_instances", async () => {
-    const adapter = getOpenbrowserAdapter();
-    if (!adapter) {
-      return { instances: [], error: "Browser adapter not initialized" };
+  server.register("browser.screenshot", async (params) => {
+    if (!isBrowserStarted(deps, params)) {
+      return { success: false, error: "Browser not started" };
     }
 
-    const manager = adapter.getBrowserManager();
-    const instances = manager.listInstances();
-
-    return {
-      instances: instances.map(inst => ({
-        id: inst.id,
-        connected: inst.connected,
-        url: inst.url,
-        port: inst.port,
-      })),
-    };
-  });
-
-  // Create new browser instance with Openbrowser
-  server.register("browser.create_instance", async (params) => {
-    const adapter = getOpenbrowserAdapter();
-    if (!adapter) {
-      return { success: false, error: "Browser adapter not initialized" };
-    }
-
-    try {
-      const result = await adapter.executeTool("browser_new", {
-        instance_id: params.instanceId || undefined,
-        proxy: params.proxy || undefined,
-        timeout: params.timeout || undefined,
-      });
-
-      return {
-        success: result.success,
-        instanceId: params.instanceId,
-        output: result.output,
-        error: result.error,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to create browser",
-      };
-    }
-  });
-
-  // Navigate using Openbrowser
-  server.register("browser.navigate2", async (params) => {
-    const adapter = getOpenbrowserAdapter();
-    if (!adapter) {
-      return { success: false, error: "Browser adapter not initialized" };
-    }
-
-    try {
-      const result = await adapter.executeTool("browser_navigate", {
-        instance_id: params.instanceId,
-        url: params.url,
-        wait_ms: params.waitMs || 3000,
-      });
-
-      return {
-        success: result.success,
-        output: result.output,
-        error: result.error,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Navigation failed",
-      };
-    }
-  });
-
-  // Take screenshot with Openbrowser
-  server.register("browser.screenshot2", async (params) => {
-    const instanceId = params.instanceId as string | undefined;
-
-    // Try Openbrowser screenshot first, fall back to browser session
-    let screenshot = await takeBrowserScreenshot(instanceId);
-    if (!screenshot && deps.browserSession.isStarted) {
-      screenshot = await deps.browserSession.takeScreenshot();
-    }
-
+    const session = resolveSession(deps, params);
+    const screenshot = session ? await session.takeScreenshot() : null;
     return {
       success: !!screenshot,
       screenshot: screenshot || "",
@@ -175,24 +134,14 @@ export function registerBrowserHandlers(
     };
   });
 
-  // Extract page text using Openbrowser
   server.register("browser.extract_text", async (params) => {
-    const adapter = getOpenbrowserAdapter();
-    if (!adapter) {
-      return { success: false, error: "Browser adapter not initialized" };
-    }
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
 
     try {
-      const result = await adapter.executeTool("browser_extract_text", {
-        instance_id: params.instanceId,
-        selector: params.selector || undefined,
-      });
-
-      return {
-        success: result.success,
-        output: result.output,
-        error: result.error,
-      };
+      const text = await controller.extractText();
+      return { success: true, output: text };
     } catch (error) {
       return {
         success: false,
@@ -201,54 +150,84 @@ export function registerBrowserHandlers(
     }
   });
 
-  // Close browser instance
-  server.register("browser.close_instance", async (params) => {
-    const adapter = getOpenbrowserAdapter();
-    if (!adapter) {
-      return { success: false, error: "Browser adapter not initialized" };
-    }
+  server.register("browser.snapshot", async (params) => {
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
 
     try {
-      const result = await adapter.executeTool("browser_close", {
-        instance_id: params.instanceId,
-      });
-
-      return {
-        success: result.success,
-        output: result.output,
-        error: result.error,
-      };
+      const snapshot = await controller.snapshot();
+      return { success: true, output: snapshot };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Close failed",
+        error: error instanceof Error ? error.message : "Snapshot failed",
       };
     }
   });
 
-  // Get page state using Openbrowser
-  server.register("browser.get_state", async (params) => {
-    const adapter = getOpenbrowserAdapter();
-    if (!adapter) {
-      return { success: false, error: "Browser adapter not initialized" };
-    }
+  server.register("browser.back", async (params) => {
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
 
     try {
-      const result = await adapter.executeTool("browser_get_state", {
-        instance_id: params.instanceId,
-      });
-
-      return {
-        success: result.success,
-        output: result.output,
-        error: result.error,
-      };
+      const msg = await controller.goBack();
+      return { success: !msg.startsWith("Failed"), error: msg.startsWith("Failed") ? msg : undefined };
     } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Get state failed",
-      };
+      return { success: false, error: error instanceof Error ? error.message : "Navigation failed" };
+    }
+  });
+
+  server.register("browser.forward", async (params) => {
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
+    try {
+      const msg = await controller.goForward();
+      return { success: !msg.startsWith("Failed"), error: msg.startsWith("Failed") ? msg : undefined };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Navigation failed" };
+    }
+  });
+
+  server.register("browser.refresh", async (params) => {
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
+    try {
+      const msg = await controller.refresh();
+      return { success: !msg.startsWith("Failed"), error: msg.startsWith("Failed") ? msg : undefined };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Refresh failed" };
+    }
+  });
+
+  server.register("browser.get_url", async (params) => {
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
+    try {
+      const url = await controller.getUrl();
+      return { success: true, url };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Get URL failed" };
+    }
+  });
+
+  server.register("browser.get_title", async (params) => {
+    await ensureBrowserStarted(deps, params);
+    const controller = resolveController(deps, params);
+    if (!controller) return { success: false, error: "Browser not started" };
+
+    try {
+      const title = await controller.getTitle();
+      return { success: true, title };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : "Get title failed" };
     }
   });
 }
-

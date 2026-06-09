@@ -4,6 +4,24 @@
 
 declare global {
   interface Window {
+    electronAPI?: {
+      browserShow: () => Promise<any>;
+      browserHide: () => Promise<any>;
+      browserNavigate: (url: string) => Promise<any>;
+      browserBack: () => Promise<any>;
+      browserForward: () => Promise<any>;
+      browserRefresh: () => Promise<any>;
+      browserGetState: () => Promise<any>;
+      browserScreenshot: () => Promise<any>;
+      onAgentAction: (callback: (action: any) => void) => (() => void) | undefined;
+      selectFile: () => Promise<any>;
+      selectFiles: () => Promise<any>;
+      saveFile: (options: any) => Promise<any>;
+      getVersion: () => Promise<string>;
+      getPlatform: () => string;
+      onMessage: (callback: (message: any) => void) => (() => void) | undefined;
+      sendMessage: (message: any) => void;
+    };
     electronWebviewController?: {
       navigate: (url: string) => void;
       takeScreenshot: () => Promise<string | undefined>;

@@ -6,17 +6,18 @@
     "packages/app"
   ],
   "scripts": {
-    "tui": "bun run packages/server/src/tui-runner.ts",
     "backend": "bun run packages/server/src/index.ts --mode api",
-    "desktop": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm start",
+    "backend:watch": "bun --watch run packages/server/src/index.ts --mode api",
+    "desktop": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; SEDIMAN_MODE=electron bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm run build && npm start",
     "app": "cd packages/app && npm start",
     "stop": "pkill -f 'packages/server/src/index.ts' 2>/dev/null; sleep 0.3; rm -f /tmp/sediman-python.sock /tmp/sediman.sock; echo 'Stopped.'",
     "start": "bun run stop && sleep 0.5 && bun run backend & sleep 1 && echo 'API server running'",
     "restart": "bun run stop && sleep 0.5 && bun run backend & sleep 1 && echo 'API server running'",
     "install-local": "./scripts/install.sh",
     "test": "bun test packages/server/tests",
-    "electron": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm start",
-    "electron:dev": "if ! lsof -ti:3001 > /dev/null 2>&1; then echo 'Starting backend...'; bun run packages/server/src/index.ts --mode api & sleep 2; fi && cd packages/app && npm start"
+    "electron": "lsof -ti:3001 | xargs kill -9 2>/dev/null; sleep 0.5; SEDIMAN_MODE=electron bun run packages/server/src/index.ts --mode api & sleep 2; cd packages/app && npm run build && npm start",
+    "electron:dev": "lsof -ti:3001 | xargs kill -9 2>/dev/null; sleep 0.5; SEDIMAN_MODE=electron bun run packages/server/src/index.ts --mode api & sleep 2; cd packages/app && npm start",
+    "dev": "bun scripts/dev.cjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
@@ -30,9 +31,6 @@
     "vite-plugin-dts": "^5.0.2"
   },
   "dependencies": {
-    "@opentui/core": "^0.3.2",
-    "@opentui/react": "^0.3.2",
-    "@opentui/solid": "0.3.2",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -42,7 +40,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.17.0",
-    "solid-js": "1.9.12",
     "tailwind-merge": "^3.6.0"
   }
 }

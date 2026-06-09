@@ -82,15 +82,6 @@ export interface ErrorInfo {
   suggestion?: string;
 }
 
-const ERROR_PATTERNS =
-  /(?:error|failed|timeout|not found|exception|unreachable|refused|denied)/i;
-
-const NEGATIVE_CONTEXT =
-  /(?:no\s+error|without\s+error|error[- ]?free|error\s+code\s+0|no\s+errors?\s+(?:found|detected|reported)|successfully|completed\s+successfully)/i;
-
-const STRUCTURAL_ERROR =
-  /(?:traceback\s|exception\s+in|error:\s+\w|failed\s+to\s|http\s+4\d{2}|http\s+5\d{2}|status.*(?:4\d{2}|5\d{2})|errno\s+\d|exit\s+code\s+[1-9])/i;
-
 export function classifyError(exc: unknown): ErrorInfo {
   if (exc instanceof AuthError) {
     return {
@@ -233,15 +224,4 @@ export function classifyError(exc: unknown): ErrorInfo {
     code: "INTERNAL_ERROR",
     message: msg.length > 300 ? msg.slice(0, 300) : msg || excType,
   };
-}
-
-export function looksLikeError(text: string): boolean {
-  if (!text) return true;
-  if (NEGATIVE_CONTEXT.test(text)) return false;
-  if (STRUCTURAL_ERROR.test(text)) return true;
-  const firstLine = text.split("\n")[0].toLowerCase();
-  if (/^(error|failed|exception|traceback)/.test(firstLine)) return true;
-  const matches = text.match(new RegExp(ERROR_PATTERNS.source, "gi"));
-  if (matches && matches.length >= 2) return true;
-  return false;
 }

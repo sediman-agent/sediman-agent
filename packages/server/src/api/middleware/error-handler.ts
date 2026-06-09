@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { classifyError } from "../../core/errors";
+import { addLog } from "../routes/logs";
 
 export const errorHandler: MiddlewareHandler = async (c, next) => {
   try {
@@ -8,6 +9,7 @@ export const errorHandler: MiddlewareHandler = async (c, next) => {
   } catch (err) {
     const info = classifyError(err);
     const status = mapCodeToStatus(info.code) as ContentfulStatusCode;
+    addLog("error", `${info.code}: ${info.message}`, "api");
     return c.json({ error: info.code, message: info.message, suggestion: info.suggestion }, status);
   }
 };

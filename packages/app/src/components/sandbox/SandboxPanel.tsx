@@ -1,553 +1,257 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { ElectronWebView } from '@/components/electron/ElectronWebView';
-import { X, Plus, Maximize2, Minimize2, RefreshCw, ExternalLink, Globe, XCircle, Upload, FileText, Square } from 'lucide-react';
-import { Button } from '@/components/shared/Button';
+/**
+ * VS Code-Style SandboxPanel Component - Industrial Grade
+ * Enhanced main browser panel with professional architecture and styling
+ * Improved visual consistency, transitions, and panel management
+ */
+
+import { useRef, useCallback, useEffect, useState } from 'react';
+import { Bug, PanelLeftClose, PanelLeftOpen, Columns } from 'lucide-react';
 import { useSandboxStore } from '@/stores/useSandboxStore';
-import { SkillRecordingControls } from '@/components/skills/SkillRecordingControls';
-import { cn } from '@/lib/utils';
+import { browserService } from '@/services/BrowserService';
+import { BrowserHeader } from './BrowserHeader';
+import { BrowserStatusBar } from './BrowserStatusBar';
+import { ResizeHandle } from './ResizeHandle';
+import { DebugPanel } from './DebugPanel';
+import { useBrowserState } from '@/hooks/browser/useBrowserState';
+import { usePanelResize } from '@/hooks/browser/usePanelResize';
+import { useBrowserCommands } from '@/hooks/browser/useBrowserCommands';
+import { useWebviewControl } from '@/hooks/browser/useWebviewControl';
+import { useCdpConnection } from '@/hooks/browser/useCdpConnection';
+import { VS_CODES } from '@/styles/vscode-constants';
 
-interface Tab {
-  id: string;
-  title: string;
-  url: string;
-  isActive: boolean;
-}
-
-interface UploadedFile {
-  name: string;
-  path: string;
-  size: number;
-}
-
-interface SandboxSession {
-  id: string;
-  name: string;
-  type: 'browser' | 'computer';
-  status: 'starting' | 'running' | 'stopped' | 'error';
-  createdAt: number;
-  lastUsedAt: number;
-  browserInstanceId?: string;
-  metadata?: Record<string, unknown>;
-}
-
+// ============================================================================
+// Main Component
+// ============================================================================
 export function SandboxPanel() {
+  const webviewRef = useRef<HTMLWebViewElement | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugHovered, setDebugHovered] = useState(false);
+
+  // Store state
   const isOpen = useSandboxStore(state => state.isOpen);
-  const isActive = useSandboxStore(state => state.isActive);
   const togglePanel = useSandboxStore(state => state.togglePanel);
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(600);
-  const [isResizing, setIsResizing] = useState(false);
-  const [browserUrl] = useState('https://www.google.com');
-  const [tabs, setTabs] = useState<Tab[]>([
-    { id: '1', title: 'Browser', url: 'https://www.google.com', isActive: true }
-  ]);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [sandboxSessions, setSandboxSessions] = useState<SandboxSession[]>([]);
-  const apiBaseUrl = 'http://localhost:3001';
+  // Custom hooks
+  const {
+    browserStatus,
+    browserUrl,
+    inputUrl,
+    webviewSrc,
+    setLatestSnapshot,
+    setInputUrl,
+    navigateTo,
+    handleRefresh,
+    handleBack,
+    handleForward,
+    handleUrlKeyDown
+  } = useBrowserState(isOpen);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (isFullscreen) return;
-    setIsResizing(true);
-    e.preventDefault();
-  }, [isFullscreen]);
+  const {
+    panelWidth,
+    isResizing,
+    isFullscreen,
+    toggleFullscreen,
+    resizeHandlers
+  } = usePanelResize(600);
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
-    const newWidth = window.innerWidth - e.clientX;
-    if (newWidth >= 400 && newWidth <= window.innerWidth - 100) {
-      setPanelWidth(newWidth);
+  // Set up command polling when panel opens
+  useBrowserCommands(isOpen, webviewRef, setLatestSnapshot);
+
+  // Set up webview control
+  useWebviewControl(isOpen, webviewRef, navigateTo);
+
+  // Establish CDP connection when browser panel opens
+  // This hook now also handles showing the Electron BrowserView
+  useCdpConnection(isOpen);
+
+  // Callback ref to set src when webview mounts
+  const setWebviewRef = useCallback((node: HTMLWebViewElement | null) => {
+    if (node) {
+      webviewRef.current = node;
+      node.src = webviewSrc;
     }
-  }, [isResizing]);
+  }, [webviewSrc]);
 
-  const handleMouseUp = useCallback(() => {
-    setIsResizing(false);
+  // Set webview src directly when webviewSrc state changes
+  useEffect(() => {
+    if (webviewRef.current && webviewSrc && webviewSrc !== 'about:blank') {
+      webviewRef.current.src = webviewSrc;
+    }
+  }, [webviewSrc]);
+
+  // Register webview with BrowserService when mounted
+  useEffect(() => {
+    if (webviewRef.current && isOpen) {
+      browserService.registerWebview(webviewRef.current);
+      browserService.activate();
+    }
+  }, [isOpen]);
+
+  const handleClose = useCallback(() => togglePanel(), [togglePanel]);
+
+  const toggleDebug = useCallback(() => {
+    setShowDebug(prev => !prev);
   }, []);
 
-  useEffect(() => {
-    if (isResizing) {
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
-  }, [isResizing, handleMouseMove, handleMouseUp]);
-
-  const addTab = () => {
-    const newTab: Tab = {
-      id: Date.now().toString(),
-      title: 'New Tab',
-      url: 'https://www.google.com',
-      isActive: true
-    };
-    setTabs(prev => prev.map(t => ({ ...t, isActive: false })).concat(newTab));
-  };
-
-  const closeTab = (tabId: string) => {
-    if (tabs.length === 1) return;
-    setTabs(prev => {
-      const filtered = prev.filter(t => t.id !== tabId);
-      if (prev.find(t => t.id === tabId)?.isActive) {
-        filtered[filtered.length - 1].isActive = true;
-      }
-      return filtered;
-    });
-  };
-
-  const switchTab = (tabId: string) => {
-    setTabs(prev => prev.map(t => ({ ...t, isActive: t.id === tabId })));
-  };
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('files', files[i]);
-    }
-
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/files/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.uploaded) {
-          setUploadedFiles(prev => [...prev, ...result.uploaded]);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to upload files:', error);
-    }
-  };
-
-  const handleRemoveFile = (fileName: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.name !== fileName));
-  };
-
-  const handleOpenFilePicker = () => {
-    fileInputRef.current?.click();
-  };
-
-  // Load sandbox sessions on mount
-  useEffect(() => {
-    loadSandboxSessions();
-    const interval = setInterval(loadSandboxSessions, 10000); // Refresh every 10s
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadSandboxSessions = async () => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/sandbox/list`);
-      if (response.ok) {
-        const data = await response.json();
-        setSandboxSessions(data.sessions || []);
-      }
-    } catch (error) {
-      console.error('Failed to load sandbox sessions:', error);
-    }
-  };
-
-  const handleCreateSandbox = async () => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/sandbox/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `Sandbox ${new Date().toLocaleTimeString()}`,
-          type: 'browser',
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success || result.session) {
-          await loadSandboxSessions();
-          // Activate the newly created sandbox
-          if (result.session) {
-            useSandboxStore.getState().setIsActive(true);
-            useSandboxStore.getState().setConnectionStatus('connected');
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to create sandbox:', error);
-    }
-  };
-
-  const handleStopSandbox = async (sessionId: string) => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/sandbox/stop`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
-
-      if (response.ok) {
-        await loadSandboxSessions();
-      }
-    } catch (error) {
-      console.error('Failed to stop sandbox:', error);
-    }
-  };
-
-  const handleDeleteSandbox = async (sessionId: string) => {
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/sandbox/${sessionId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        await loadSandboxSessions();
-      }
-    } catch (error) {
-      console.error('Failed to delete sandbox:', error);
-    }
-  };
-
-  if (!isOpen) {
-    return null;
-  }
-
-  const activeTab = tabs.find(t => t.isActive);
-
-  const handleStart = async () => {
-    try {
-      useSandboxStore.getState().setIsActive(true);
-      useSandboxStore.getState().setConnectionStatus('connected');
-    } catch (error) {
-      console.error('[SandboxPanel] Failed to start browser:', error);
-    }
-  };
+  if (!isOpen) return null;
 
   return (
     <>
+      {/* Resize Handle */}
       {!isFullscreen && (
-        <div
-          className={cn(
-            "fixed top-0 h-full z-[60] w-1.5 cursor-col-resize",
-            "hover:bg-primary/30 transition-colors",
-            isResizing && "bg-primary/50"
-          )}
-          style={{ right: panelWidth - 1 }}
-          onMouseDown={handleMouseDown}
-          aria-hidden="true"
+        <ResizeHandle
+          panelWidth={panelWidth}
+          isResizing={isResizing}
+          onMouseDown={resizeHandlers.down}
         />
       )}
+
+      {/* Main Panel - Enhanced Architecture */}
       <div
-        className={cn(
-          "flex flex-col bg-background shadow-lg transition-all duration-300 border-l border-border",
-          isFullscreen ? "fixed inset-0 z-50" : "fixed right-0 top-0 bottom-0 z-40"
-        )}
-        style={{ width: isFullscreen ? '100%' : panelWidth }}
+        className={`flex flex-col font-mono transition-all ${
+          isFullscreen ? 'fixed inset-0 z-40' : 'fixed right-0 top-0 bottom-0 z-40'
+        }`}
+        style={{
+          width: isFullscreen ? '100%' : panelWidth,
+          backgroundColor: 'var(--vscode-panel-background)',
+          borderColor: 'var(--vscode-border-color)',
+          color: 'var(--vscode-foreground)',
+          transitionDuration: VS_CODES.transition,
+          // Enhanced shadow for depth
+          boxShadow: isFullscreen ? 'none' : '-2px 0 8px rgba(0, 0, 0, 0.1)'
+        }}
         role="complementary"
-        aria-label="Browser panel"
+        aria-label="Browser Panel"
       >
-        <div className="bg-muted/30 border-b border-border">
-          <div className="flex items-center bg-muted/50">
-            {tabs.map(tab => (
-              <div
-                key={tab.id}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 border-r border-border cursor-pointer group relative transition-all duration-200",
-                  tab.isActive ? 'bg-background shadow-sm' : 'bg-muted/30 hover:bg-muted/50'
-                )}
-                onClick={() => switchTab(tab.id)}
-              >
-                <span className="text-sm max-w-[150px] truncate font-medium">{tab.title}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeTab(tab.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive rounded p-1 transition-all duration-200 flex-shrink-0"
-                  aria-label={`Close tab ${tab.title}`}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={addTab}
-              className="p-2 hover:bg-muted-foreground/20 rounded transition-all duration-200"
-              title="New tab"
-              aria-label="Open new tab"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            <div className="flex-1" />
-            <button
-              onClick={() => setIsFullscreen(!isFullscreen)}
-              className="p-2 hover:bg-muted-foreground/20 rounded transition-all duration-200"
-              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-            <button
-              onClick={togglePanel}
-              className="p-2 hover:bg-destructive/20 hover:text-destructive rounded transition-all duration-200 ml-1"
-              title="Close browser"
-              aria-label="Close browser panel"
-            >
-              <XCircle className="w-4 h-4" />
-            </button>
+        {/* Header */}
+        <BrowserHeader
+          browserStatus={browserStatus}
+          inputUrl={inputUrl}
+          setInputUrl={setInputUrl}
+          onUrlKeyDown={handleUrlKeyDown}
+          onBack={handleBack}
+          onForward={handleForward}
+          onRefresh={handleRefresh}
+          onToggleFullscreen={toggleFullscreen}
+          onClose={handleClose}
+        />
+
+        {/* Toolbar - Enhanced Debug Toggle */}
+        <div
+          className="flex items-center border-b"
+          style={{
+            borderColor: 'var(--vscode-border-color)',
+            backgroundColor: 'var(--vscode-sideBar-background)',
+            padding: `${VS_CODES.spacing.sm}px ${VS_CODES.spacing.lg}px`,
+            minHeight: '32px'
+          }}
+        >
+          <button
+            onClick={toggleDebug}
+            className="flex items-center gap-2 px-3 py-1.5 transition-all duration-150 font-mono uppercase tracking-wider"
+            style={{
+              backgroundColor: showDebug ? 'var(--vscode-warning-foreground)' : 'transparent',
+              color: showDebug ? '#000000' : 'var(--vscode-secondary-text)',
+              border: `1px solid ${showDebug ? 'var(--vscode-warning-foreground)' : 'var(--vscode-border-color)'}`,
+              borderRadius: VS_CODES.radiusSm,
+              fontSize: '11px',
+              fontWeight: 500,
+              transform: debugHovered ? 'scale(1.02)' : 'scale(1)',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={() => setDebugHovered(true)}
+            onMouseLeave={() => setDebugHovered(false)}
+          >
+            <Bug size={11} />
+            <span>
+              {showDebug ? 'Debug ON' : 'Debug OFF'}
+            </span>
+          </button>
+
+          <div className="flex-1" style={{ fontSize: '11px', color: 'var(--vscode-secondary-text)' }}>
+            <span className="uppercase tracking-wide" style={{ fontWeight: 500 }}>
+              {showDebug ? 'Debug panel active - use controls below' : 'Toggle debug panel for inspection'}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2">
-            <div className="flex items-center gap-1">
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Back" aria-label="Go back">
-                <span className="text-xs">{'\u25C0'}</span>
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Forward" aria-label="Go forward">
-                <span className="text-xs">{'\u25B6'}</span>
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Refresh" aria-label="Refresh page">
-                <RefreshCw className="w-3 h-3" />
-              </Button>
-            </div>
-
-            {isActive && (
-              <div className="flex items-center">
-                <SkillRecordingControls position="header" />
-              </div>
-            )}
-            <div className="flex-1 flex items-center bg-background border border-input rounded-md px-3 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring focus-within:border-ring transition-all duration-200">
-              <ExternalLink className="w-3 h-3 text-muted-foreground mr-2" />
-              <input
-                type="text"
-                value={activeTab?.url || ''}
-                readOnly
-                className="flex-1 bg-transparent text-sm outline-none text-foreground"
-                aria-label="Current URL"
-              />
-            </div>
+          {/* Panel info badge */}
+          <div
+            className="flex items-center gap-1 px-2 py-0.5"
+            style={{
+              backgroundColor: 'var(--vscode-badge-background)',
+              borderRadius: VS_CODES.radiusSm,
+              fontSize: '10px',
+              color: 'var(--vscode-badge-foreground)',
+              opacity: 0.8
+            }}
+          >
+            <Columns size={10} />
+            <span className="font-mono">{Math.round(panelWidth)}px</span>
           </div>
-
-          {/* Sandbox Sessions Section */}
-          {sandboxSessions.length > 0 && (
-            <div className="border-b border-border bg-muted/30 px-3 py-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Globe className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">Active Sandboxes</span>
-                  <span className="text-xs text-muted-foreground">({sandboxSessions.filter(s => s.status === 'running').length})</span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={handleCreateSandbox}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Plus className="w-3 h-3 mr-1" />
-                  New Sandbox
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {sandboxSessions.map((session) => (
-                  <div
-                    key={session.id}
-                    className="flex items-center gap-2 bg-background border border-input rounded-md px-2 py-1 text-sm"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <div
-                        className={cn(
-                          "w-2 h-2 rounded-full",
-                          session.status === 'running' ? 'bg-green-500' : 'bg-yellow-500',
-                          session.status === 'error' && 'bg-red-500'
-                        )}
-                      />
-                      <span className="font-medium text-xs">{session.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-muted-foreground">
-                        {session.type === 'browser' ? 'Browser' : 'Computer'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        ({session.status})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 ml-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleStopSandbox(session.id)}
-                        disabled={session.status !== 'running'}
-                        className="h-6 px-1.5 text-xs"
-                        title="Stop"
-                      >
-                        <Square className="w-2.5 h-2.5" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteSandbox(session.id)}
-                        className="h-6 px-1.5 text-xs text-muted-foreground hover:text-destructive"
-                        title="Delete"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {sandboxSessions.length === 0 && (
-            <div className="border-b border-border px-3 py-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleCreateSandbox}
-                className="w-full text-xs"
-              >
-                <Globe className="w-3 h-3 mr-2" />
-                Create Browser Sandbox
-              </Button>
-            </div>
-          )}
-
-          {/* File Workspace Section */}
-          {uploadedFiles.length > 0 && (
-            <div className="border-b border-border bg-muted/30 px-3 py-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <FileText className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">Workspace Files</span>
-                  <span className="text-xs text-muted-foreground">({uploadedFiles.length})</span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleOpenFilePicker}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Upload className="w-3 h-3 mr-1" />
-                  Add Files
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {uploadedFiles.map((file) => (
-                  <div
-                    key={file.name}
-                    className="flex items-center gap-2 bg-background border border-input rounded-md px-2 py-1 text-sm"
-                  >
-                    <FileText className="w-3 h-3 text-muted-foreground" />
-                    <span className="max-w-[150px] truncate">{file.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({(file.size / 1024).toFixed(1)} KB)
-                    </span>
-                    <button
-                      onClick={() => handleRemoveFile(file.name)}
-                      className="text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {uploadedFiles.length === 0 && sandboxSessions.length === 0 && (
-            <div className="border-b border-border px-3 py-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCreateSandbox}
-                  className="text-xs"
-                >
-                  <Globe className="w-3 h-3 mr-2" />
-                  Create Sandbox
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleOpenFilePicker}
-                  className="text-xs"
-                >
-                  <Upload className="w-3 h-3 mr-2" />
-                  Upload Files
-                </Button>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </div>
-          )}
-
-          {uploadedFiles.length === 0 && sandboxSessions.length > 0 && (
-            <div className="border-b border-border px-3 py-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleOpenFilePicker}
-                className="w-full text-xs"
-              >
-                <Upload className="w-3 h-3 mr-2" />
-                Upload Files to Workspace
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </div>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
         </div>
 
-        <div className="flex-1 relative bg-background">
-          {!isActive ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center p-8">
-                <Globe className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-2">Browser ready to start</p>
-                <Button onClick={handleStart} size="lg">
-                  Start Browser
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <ElectronWebView
-              url={activeTab?.url || browserUrl}
-              style={{ width: '100%', height: '100%' }}
+        {/* Content Area - Enhanced */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Browser View */}
+          <div
+            className="flex-1 relative overflow-hidden"
+            style={{
+              backgroundColor: '#ffffff',
+              transition: `width ${VS_CODES.transition} ease-out`
+            }}
+          >
+            <webview
+              ref={setWebviewRef}
+              id="embedded-browser"
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none'
+              }}
+              allowpopups={true}
+              nodeintegration={false}
+              plugins={true}
             />
+          </div>
+
+          {/* Debug Panel - Enhanced Transition */}
+          {showDebug && (
+            <div
+              className="border-l overflow-hidden transition-all duration-200"
+              style={{
+                width: '300px',
+                minWidth: '300px',
+                borderColor: 'var(--vscode-border-color)',
+                animation: 'slideIn 200ms ease-out'
+              }}
+            >
+              <DebugPanel />
+            </div>
           )}
         </div>
 
-        {isActive && (
-          <div className="flex items-center justify-between px-3 py-1 bg-muted/30 border-t border-border text-xs text-muted-foreground">
-            <span>Connected</span>
-            <span>Electron Runtime</span>
-          </div>
-        )}
+        {/* Status Bar */}
+        <BrowserStatusBar
+          browserStatus={browserStatus}
+          browserUrl={browserUrl}
+        />
       </div>
+
+      {/* Slide-in animation for debug panel */}
+      <style>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+      `}</style>
     </>
   );
 }
+
+export default SandboxPanel;

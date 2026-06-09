@@ -45,6 +45,7 @@ class BrowserService extends EventEmitter {
   private webviewRef: HTMLWebViewElement | null = null;
   private eventHistory: BrowserEvent[] = [];
   private maxHistorySize = 100;
+  private isWebviewRegistered = false;
 
   constructor() {
     super();
@@ -55,8 +56,14 @@ class BrowserService extends EventEmitter {
    * Register and initialize the webview element
    */
   registerWebview(webview: HTMLWebViewElement): void {
+    // Prevent duplicate registrations
+    if (this.isWebviewRegistered && this.webviewRef === webview) {
+      return;
+    }
+
     this.webviewRef = webview;
     this.setupWebviewListeners(webview);
+    this.isWebviewRegistered = true;
     console.log('[BrowserService] Webview registered');
   }
 
@@ -87,7 +94,7 @@ class BrowserService extends EventEmitter {
     });
 
     webview.addEventListener('dom-ready', () => {
-      console.log('[BrowserService] DOM ready');
+      // Silently record event without logging
       this.recordEvent('dom-ready', {});
       this.extractPageContext();
     });
@@ -133,7 +140,19 @@ class BrowserService extends EventEmitter {
    */
   private handleError(detail: unknown): void {
     const error = detail as { errorCode: number; errorDescription: string; validatedURL: string };
-    const errorMessage = `${error.errorCode}: ${error.errorDescription}`;
+
+    // Handle missing error detail gracefully
+    if (!error || typeof error !== 'object') {
+      this.updateState({
+        isLoading: false,
+        lastError: 'Unknown browser error',
+      });
+      return;
+    }
+
+    const errorMessage = error.errorDescription
+      ? `${error.errorCode}: ${error.errorDescription}`
+      : 'Browser navigation failed';
 
     this.updateState({
       isLoading: false,
@@ -141,12 +160,12 @@ class BrowserService extends EventEmitter {
     });
 
     this.recordEvent('error', {
-      code: error.errorCode,
-      description: error.errorDescription,
-      url: error.validatedURL,
+      code: error.errorCode || 'UNKNOWN',
+      description: error.errorDescription || 'Unknown error',
+      url: error.validatedURL || '',
     });
 
-    this.emit('browser-error', { error: errorMessage, url: error.validatedURL });
+    this.emit('browser-error', { error: errorMessage, url: error.validatedURL || '' });
   }
 
   /**
@@ -184,6 +203,13 @@ class BrowserService extends EventEmitter {
   private async extractPageContext(): Promise<void> {
     if (!this.webviewRef) return;
 
+    // Only extract context if we have a real URL loaded (not about:blank)
+    const currentUrl = this.webviewRef.getURL() || '';
+    if (currentUrl === 'about:blank' || currentUrl === '' || currentUrl.startsWith('data:')) {
+      // Silently skip - no logging needed
+      return;
+    }
+
     try {
       const context = await this.webviewRef.executeJavaScript(`
         (async () => {
@@ -212,7 +238,7 @@ class BrowserService extends EventEmitter {
       this.emit('browser-context-extracted', context);
       console.log('[BrowserService] Context extracted:', context);
     } catch (error) {
-      console.error('[BrowserService] Failed to extract context:', error);
+      console.log('[BrowserService] Context extraction failed (non-critical):', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -238,6 +264,19 @@ class BrowserService extends EventEmitter {
     } else {
       console.error('[BrowserService] No webview registered');
     }
+  }
+
+  /**
+   * Called when server-side browser navigates to a URL
+   * This only tracks the URL for display purposes, doesn't try to load in webview
+   * (Electron webview cannot load external URLs due to security restrictions)
+   */
+  serverNavigated(url: string): void {
+    console.log('[BrowserService] Server navigated to:', url);
+    // Only update state, don't try to navigate webview (security restrictions)
+    this.updateState({ url, isLoading: false });
+    // Emit event for UI to update display
+    this.emit('server-navigate', { url });
   }
 
   /**

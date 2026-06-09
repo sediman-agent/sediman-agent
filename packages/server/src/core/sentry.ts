@@ -20,8 +20,3 @@ export function initSentry(): void {
     // ignore
   }
 }
-
-export function captureException(exc: unknown): void {
-  if (!_initialized) return;
-  Sentry.captureException(exc);
-}

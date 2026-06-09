@@ -1,6 +1,6 @@
 /**
  * Sandbox Routes
- * Enhanced sandbox routes with session management and Openbrowser integration
+ * Enhanced sandbox routes with session management and project integration
  */
 
 import { Hono } from "hono";
@@ -15,6 +15,7 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
     const body = await c.req.json<{
       name?: string;
       type?: 'browser' | 'computer';
+      projectId?: string;
       userId?: string;
       headless?: boolean;
       proxy?: string;
@@ -24,6 +25,7 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
       const session = await sandboxSessionManager.createSession({
         name: body.name,
         type: body.type || 'browser',
+        projectId: body.projectId,
         userId: body.userId,
         headless: body.headless,
         proxy: body.proxy,
@@ -35,9 +37,9 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
           id: session.id,
           name: session.name,
           type: session.type,
+          projectId: session.projectId,
           status: session.status,
           createdAt: session.createdAt,
-          browserInstanceId: session.browserInstanceId,
           metadata: session.metadata,
         },
         error: session.status === 'error' ? session.metadata?.error : undefined,
@@ -54,7 +56,6 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
   router.post("/stop", async (c) => {
     const body = await c.req.json<{ sessionId?: string }>();
 
-    // If no sessionId provided, check if there's an active browser session
     if (!body.sessionId && deps.browserSession.isStarted) {
       await deps.browserSession.stop();
       return c.json({ status: "stopped" });
@@ -71,6 +72,7 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
   // Get session status
   router.get("/status", async (c) => {
     const sessionId = c.req.query("sessionId");
+    const projectId = c.req.query("projectId");
 
     if (sessionId) {
       const session = sandboxSessionManager.getSession(sessionId as string);
@@ -80,15 +82,24 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
             id: session.id,
             name: session.name,
             type: session.type,
+            projectId: session.projectId,
             status: session.status,
             createdAt: session.createdAt,
             lastUsedAt: session.lastUsedAt,
-            browserInstanceId: session.browserInstanceId,
             metadata: session.metadata,
           },
         });
       }
       return c.json({ error: "Session not found" }, 404);
+    }
+
+    if (projectId) {
+      const sessions = sandboxSessionManager.listSessionsForProject(projectId as string);
+      return c.json({
+        sessions,
+        total: sessions.length,
+        running: sessions.filter(s => s.status === 'running').length,
+      });
     }
 
     // Return all sessions
@@ -103,9 +114,12 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
   // List sessions
   router.get("/list", async (c) => {
     const userId = c.req.query("userId");
+    const projectId = c.req.query("projectId");
 
     let sessions: any[];
-    if (userId) {
+    if (projectId) {
+      sessions = sandboxSessionManager.listSessionsForProject(projectId as string);
+    } else if (userId) {
       sessions = sandboxSessionManager.listSessionsForUser(userId as string);
     } else {
       sessions = sandboxSessionManager.listSessions();
@@ -131,10 +145,10 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
         id: session.id,
         name: session.name,
         type: session.type,
+        projectId: session.projectId,
         status: session.status,
         createdAt: session.createdAt,
         lastUsedAt: session.lastUsedAt,
-        browserInstanceId: session.browserInstanceId,
         metadata: session.metadata,
       },
     });
@@ -165,7 +179,6 @@ export function createSandboxRoutes(deps: ApiDeps): Hono {
       text?: string;
     }>();
 
-    const adapter = deps.llmProvider; // TODO: Use proper adapter
     return c.json({ ok: true, type: body.type });
   });
 
@@ -177,16 +190,27 @@ export function createSystemRoutes(deps: ApiDeps): Hono {
 
   router.get("/screenshot", async (c) => {
     const sessionId = c.req.query("sessionId");
+    const projectId = c.req.query("projectId");
 
-    // Try to get screenshot from Openbrowser session
-    if (sessionId) {
-      const session = sandboxSessionManager.getSession(sessionId);
-      if (session && session.browserInstanceId) {
-        // TODO: Get screenshot from browser instance
+    if (projectId && deps.projectManager) {
+      const session = deps.projectManager.getBrowserSession(projectId);
+      if (session) {
+        const data = await session.takeScreenshot();
+        if (data) return c.json({ screenshot: data });
       }
     }
 
-    // Fall back to legacy browser session
+    if (sessionId) {
+      const session = sandboxSessionManager.getSession(sessionId);
+      if (session?.status === 'running' && session.projectId && deps.projectManager) {
+        const browserSession = deps.projectManager.getBrowserSession(session.projectId);
+        if (browserSession) {
+          const data = await browserSession.takeScreenshot();
+          if (data) return c.json({ screenshot: data });
+        }
+      }
+    }
+
     if (!deps.browserSession.isStarted) {
       return c.json({ error: "BROWSER_ERROR", message: "browser not started" }, 400);
     }

@@ -7,16 +7,43 @@ export function registerSandboxHandlers(
   deps: RPCHandlerDeps,
 ): void {
   server.register("sandbox.start", async (params) => {
+    const projectId = (params.project_id as string) || "__default__";
     const image = (params.image as string) ?? "default";
-    return { started: true, container_id: `sandbox_${Date.now()}`, image };
+
+    try {
+      await deps.projectManager.getOrCreateBrowser(projectId);
+      return {
+        started: true,
+        container_id: `sandbox_${projectId}`,
+        image,
+        project_id: projectId,
+      };
+    } catch (err) {
+      return {
+        started: false,
+        error: (err as Error).message,
+      };
+    }
   });
 
-  server.register("sandbox.stop", async () => {
-    return { stopped: true };
+  server.register("sandbox.stop", async (params) => {
+    const projectId = (params.project_id as string) || "__default__";
+    try {
+      await deps.projectManager.stopProjectBrowser(projectId);
+      return { stopped: true, project_id: projectId };
+    } catch (err) {
+      return { stopped: false, error: (err as Error).message };
+    }
   });
 
-  server.register("sandbox.status", async () => {
-    return { running: false, mode: deps.sandboxMode };
+  server.register("sandbox.status", async (params) => {
+    const projectId = (params.project_id as string) || "__default__";
+    const instance = deps.projectManager.getProjectInstance(projectId);
+    return {
+      running: instance !== null,
+      mode: deps.sandboxMode,
+      project_id: projectId,
+    };
   });
 
   server.register("sandbox.set_mode", async (params) => {
@@ -30,15 +57,20 @@ export function registerSandboxHandlers(
     return { success: true, action, output: "" };
   });
 
-  server.register("sandbox.test_browser", async () => {
-    if (!deps.browserSession.isStarted) {
+  server.register("sandbox.test_browser", async (params) => {
+    const projectId = (params.project_id as string) || "__default__";
+    const controller = deps.projectManager.getBrowserController(projectId);
+    if (!controller) {
       return { success: false, error: "Browser not started" };
     }
+
     try {
-      // Try Openbrowser screenshot first, fall back to browser session
-      let screenshot = await takeBrowserScreenshot();
+      let screenshot = await takeBrowserScreenshot(projectId);
       if (!screenshot) {
-        screenshot = await deps.browserSession.takeScreenshot();
+        const session = deps.projectManager.getBrowserSession(projectId);
+        if (session) {
+          screenshot = await session.takeScreenshot();
+        }
       }
       return { success: true, has_screenshot: !!screenshot };
     } catch (err) {
@@ -47,11 +79,13 @@ export function registerSandboxHandlers(
   });
 
   server.register("sandbox.screenshot", async (params) => {
-    const instanceId = params.instanceId as string | undefined;
-    // Try Openbrowser screenshot first, fall back to browser session
-    let screenshot = await takeBrowserScreenshot(instanceId);
-    if (!screenshot && deps.browserSession.isStarted) {
-      screenshot = await deps.browserSession.takeScreenshot();
+    const projectId = (params.project_id as string) || "__default__";
+    let screenshot = await takeBrowserScreenshot(projectId);
+    if (!screenshot) {
+      const session = deps.projectManager.getBrowserSession(projectId);
+      if (session) {
+        screenshot = await session.takeScreenshot();
+      }
     }
     return { screenshot: screenshot ?? "" };
   });

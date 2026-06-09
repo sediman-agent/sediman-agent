@@ -100,7 +100,7 @@ if (isLocalMode) {
 
       const headless = (process.env.SEDIMAN_HEADLESS ?? 'true') === 'true';
       const browserSession = new BrowserSession({ headless, stealth: false });
-      const browserController = new BrowserController(browserSession);
+      const browserController = new BrowserController({ headless });
 
       const agentLoop = new AgentLoop({
         llmProvider,

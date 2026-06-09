@@ -49,8 +49,6 @@ export function createLogger(name: string): pino.Logger {
   return _rootLogger!.child({ name });
 }
 
-export function suppressNoisyLoggers(): void {}
-
 const logger = new Proxy({} as pino.Logger, {
   get(_target, prop) {
     if (!_rootLogger) setupLogging();

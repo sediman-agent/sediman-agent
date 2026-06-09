@@ -36,40 +36,15 @@ interface SandboxState {
 }
 
 interface SandboxActions {
-  // Panel actions
   togglePanel: () => void;
   setOpen: (open: boolean) => void;
-
-  // Sandbox control
-  startSandbox: (type: SandboxType) => void;
-  stopSandbox: () => void;
   setControlMode: (mode: ControlMode) => void;
-  setSandboxType: (type: SandboxType) => void;
   setIsActive: (active: boolean) => void;
-
-  // Connection state
-  setConnectionStatus: (status: ConnectionStatus) => void;
-  setSession: (session: SandboxSession | null) => void;
-
-  // Streaming
-  setStreaming: (streaming: boolean) => void;
-  setScreenshot: (screenshot: string | null) => void;
-  setStreamError: (error: string | null) => void;
-
-  // Loading states
-  setStarting: (starting: boolean) => void;
-  setStopping: (stopping: boolean) => void;
-
-  // Error handling
   setError: (error: string | null) => void;
-  clearError: () => void;
-
-  // Reset
-  reset: () => void;
 }
 
 const initialState: SandboxState = {
-  isOpen: false,
+  isOpen: true, // Start with panel open for browser agent testing
   isActive: false,
   sandboxType: 'browser',
   controlMode: 'agent',
@@ -87,53 +62,25 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
   (set) => ({
     ...initialState,
 
-    // Panel actions
-    togglePanel: () => set((state) => ({ isOpen: !state.isOpen })),
-    setOpen: (open) => set({ isOpen: open }),
+    // Panel actions - auto-activate when opening
+    togglePanel: () => set((state) => {
+      const newOpen = !state.isOpen;
+      return {
+        isOpen: newOpen,
+        isActive: newOpen ? true : false,
+        connectionStatus: newOpen ? 'connecting' : 'disconnected'
+      };
+    }),
 
-    // Sandbox control
-    startSandbox: (type) =>
-      set({
-        sandboxType: type,
-        isActive: true,
-        controlMode: 'agent',
-        connectionStatus: 'connecting',
-        isStarting: true,
-        error: null,
-      }),
-
-    stopSandbox: () =>
-      set({
-        isActive: false,
-        isStopping: true,
-        connectionStatus: 'disconnected',
-        currentSession: null,
-        isStreaming: false,
-        lastScreenshot: null,
-      }),
+    setOpen: (open) => set({
+      isOpen: open,
+      isActive: open,
+      connectionStatus: open ? 'connecting' : 'disconnected'
+    }),
 
     setControlMode: (mode) => set({ controlMode: mode }),
-    setSandboxType: (type) => set({ sandboxType: type }),
     setIsActive: (active) => set({ isActive: active }),
 
-    // Connection state
-    setConnectionStatus: (status) => set({ connectionStatus: status }),
-    setSession: (session) => set({ currentSession: session }),
-
-    // Streaming
-    setStreaming: (streaming) => set({ isStreaming: streaming }),
-    setScreenshot: (screenshot) => set({ lastScreenshot: screenshot }),
-    setStreamError: (error) => set({ streamError: error }),
-
-    // Loading states
-    setStarting: (starting) => set({ isStarting: starting }),
-    setStopping: (stopping) => set({ isStopping: stopping }),
-
-    // Error handling
     setError: (error) => set({ error }),
-    clearError: () => set({ error: null }),
-
-    // Reset
-    reset: () => set(initialState),
   })
 );

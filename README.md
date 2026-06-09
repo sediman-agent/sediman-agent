@@ -22,24 +22,29 @@ Teach it once. It repeats forever. 24/7 Slavery.
 
 ### Install
 
-```
-curl -fsSL https://raw.githubusercontent.com/sediman-agent/OpenSkynet/main/scripts/install.sh | bash
+```bash
+# Clone the repository
+git clone https://github.com/sediman-agent/OpenSkynet.git
+cd OpenSkynet
+
+# Install dependencies
+npm install
+bun install
+
+# Start the backend
+bun run backend
+
+# Start the Electron app (in another terminal)
+npm run electron
 ```
 
-Then you can run with
-```
-terminator
-```
+### Browser-First Architecture
 
-### Agents
-<img width="2816" height="1536" alt="Gemini_Generated_Image_g8qaaqg8qaaqg8qa" src="https://github.com/user-attachments/assets/45cdaf57-c812-45a2-8f73-21674ed6a4ea" />
-
-Switch between agents with `Tab`.
-
-- **Manager** — orchestrates tasks and delegates to other agents
-- **Browser** — browses the web, fills forms, clicks buttons
-- **Coder** — writes, edits, and debugs code
-- **Terminator** — autonomous execution, no confirmation needed
+OpenSkynet is a browser automation platform focused on:
+- **Browser Automation** — Navigate, click, type, and extract data from any website
+- **Skills System** — Record browser actions and replay them as reusable skills
+- **Self-Healing** — Pages change? The agent adapts automatically
+- **Community Skills** — Browse and install skills from the community hub
 
 ### What it does
 

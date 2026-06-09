@@ -47,6 +47,37 @@ export interface Config {
   agentBrowserBinary: string;
   authFile: string;
   dbPath: string;
+  // P0: Batch execution
+  enableBatchExecution: boolean;
+  maxBatchSize: number;
+  batchChangeDetection: "strict" | "loose";
+  // P0: Structured validation
+  enableStructuredValidation: boolean;
+  strictResponseParsing: boolean;
+  maxResponseParsingRetries: number;
+  // P1: Page extraction LLM
+  enablePageExtractionLLM: boolean;
+  pageExtractionProvider: string;
+  pageExtractionModel: string;
+  // P1: Granular timeouts
+  toolTimeouts: Record<string, number>;
+  defaultToolTimeout: number;
+  // P2: Fallback LLM
+  fallbackProvider: string;
+  fallbackModel: string;
+  enableAutomaticFailover: boolean;
+  maxConsecutiveFailures: number;
+  // P2: Flash mode
+  enableFlashMode: boolean;
+  flashModeKeywords: string[];
+  flashModeSkipThinking: boolean;
+  flashModeSkipEvaluation: boolean;
+  // P3: Conversation persistence
+  autoExportConversations: boolean;
+  conversationExportFormats: { json: boolean; markdown: boolean; txt: boolean };
+  // P3: Agent history
+  autoSaveHistory: boolean;
+  maxHistoryEntries: number;
 }
 
 let _config: Config | null = null;
@@ -161,9 +192,71 @@ export function getConfig(): Config {
 
     authFile: join(dataDir, "auth.json"),
     dbPath: join(dataDir, "state.db"),
+
+    // P0: Batch execution
+    enableBatchExecution: _envBool("SEDIMAN_BATCH_EXECUTION", "true"),
+    maxBatchSize: parseInt(process.env.SEDIMAN_MAX_BATCH_SIZE ?? "5", 10),
+    batchChangeDetection: (process.env.SEDIMAN_BATCH_CHANGE_DETECTION as "strict" | "loose") ?? "loose",
+
+    // P0: Structured validation
+    enableStructuredValidation: _envBool("SEDIMAN_STRUCTURED_VALIDATION", "true"),
+    strictResponseParsing: _envBool("SEDIMAN_STRICT_RESPONSE_PARSING", "false"),
+    maxResponseParsingRetries: parseInt(process.env.SEDIMAN_MAX_PARSING_RETRIES ?? "3", 10),
+
+    // P1: Page extraction LLM
+    enablePageExtractionLLM: _envBool("SEDIMAN_PAGE_EXTRACTION_LLM", "false"),
+    pageExtractionProvider: process.env.SEDIMAN_PAGE_EXTRACTION_PROVIDER ?? "openai",
+    pageExtractionModel: process.env.SEDIMAN_PAGE_EXTRACTION_MODEL ?? "gpt-4o-mini",
+
+    // P1: Granular timeouts
+    toolTimeouts: {
+      browser_navigate: parseInt(process.env.TIMEOUT_BROWSER_NAVIGATE ?? "45000", 10),
+      browser_click: parseInt(process.env.TIMEOUT_BROWSER_CLICK ?? "5000", 10),
+      browser_type: parseInt(process.env.TIMEOUT_BROWSER_TYPE ?? "10000", 10),
+      browser_scroll: parseInt(process.env.TIMEOUT_BROWSER_SCROLL ?? "5000", 10),
+      browser_wait: parseInt(process.env.TIMEOUT_BROWSER_WAIT ?? "30000", 10),
+      browser_snapshot: parseInt(process.env.TIMEOUT_BROWSER_SNAPSHOT ?? "10000", 10),
+      browser_screenshot: parseInt(process.env.TIMEOUT_BROWSER_SCREENSHOT ?? "15000", 10),
+      browser_hover: parseInt(process.env.TIMEOUT_BROWSER_HOVER ?? "5000", 10),
+      browser_press_key: parseInt(process.env.TIMEOUT_BROWSER_PRESS_KEY ?? "5000", 10),
+      browser_select_option: parseInt(process.env.TIMEOUT_BROWSER_SELECT_OPTION ?? "5000", 10),
+      browser_go_back: parseInt(process.env.TIMEOUT_BROWSER_GO_BACK ?? "10000", 10),
+      browser_go_forward: parseInt(process.env.TIMEOUT_BROWSER_GO_FORWARD ?? "10000", 10),
+      browser_refresh: parseInt(process.env.TIMEOUT_BROWSER_REFRESH ?? "30000", 10),
+      browser_switch_tab: parseInt(process.env.TIMEOUT_BROWSER_SWITCH_TAB ?? "5000", 10),
+      browser_list_tabs: parseInt(process.env.TIMEOUT_BROWSER_LIST_TABS ?? "5000", 10),
+      browser_extract_text: parseInt(process.env.TIMEOUT_BROWSER_EXTRACT_TEXT ?? "10000", 10),
+      browser_end: parseInt(process.env.TIMEOUT_BROWSER_END ?? "5000", 10),
+      request_human_help: parseInt(process.env.TIMEOUT_REQUEST_HUMAN_HELP ?? "120000", 10),
+    },
+    defaultToolTimeout: parseInt(process.env.TIMEOUT_DEFAULT ?? "30000", 10),
+
+    // P2: Fallback LLM
+    fallbackProvider: process.env.SEDIMAN_FALLBACK_PROVIDER ?? "openai",
+    fallbackModel: process.env.SEDIMAN_FALLBACK_MODEL ?? "gpt-4o",
+    enableAutomaticFailover: _envBool("SEDIMAN_AUTO_FAILOVER", "false"),
+    maxConsecutiveFailures: parseInt(process.env.SEDIMAN_MAX_CONSECUTIVE_FAILURES ?? "3", 10),
+
+    // P2: Flash mode
+    enableFlashMode: _envBool("SEDIMAN_FLASH_MODE", "true"),
+    flashModeKeywords: (process.env.SEDIMAN_FLASH_MODE_KEYWORDS ?? "navigate to,go to,open,click,screenshot,scroll,type,fill form").split(",").map(k => k.trim()).filter(Boolean),
+    flashModeSkipThinking: _envBool("SEDIMAN_FLASH_SKIP_THINKING", "true"),
+    flashModeSkipEvaluation: _envBool("SEDIMAN_FLASH_SKIP_EVALUATION", "true"),
+
+    // P3: Conversation persistence
+    autoExportConversations: _envBool("SEDIMAN_AUTO_EXPORT_CONVERSATIONS", "false"),
+    conversationExportFormats: {
+      json: _envBool("SEDIMAN_EXPORT_JSON", "true"),
+      markdown: _envBool("SEDIMAN_EXPORT_MARKDOWN", "true"),
+      txt: _envBool("SEDIMAN_EXPORT_TXT", "false"),
+    },
+
+    // P3: Agent history
+    autoSaveHistory: _envBool("SEDIMAN_AUTO_SAVE_HISTORY", "false"),
+    maxHistoryEntries: parseInt(process.env.SEDIMAN_MAX_HISTORY_ENTRIES ?? "100", 10),
   };
 
   Object.freeze(config);
   _config = config;
-  return _config;
+  return config;
 }

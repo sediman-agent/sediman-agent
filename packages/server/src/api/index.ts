@@ -21,7 +21,7 @@ export interface ApiServerOptions {
 }
 
 export function startApiServer(opts: ApiServerOptions) {
-  const config = getConfig();
+  getConfig();
   const port = opts.port ?? parseInt(process.env.SEDIMAN_API_PORT ?? "3001", 10);
 
   const wsDeps: WSDeps = { ...opts.deps, rpcDeps: opts.rpcDeps };
@@ -35,6 +35,7 @@ export function startApiServer(opts: ApiServerOptions) {
     port,
     fetch: app.fetch,
     websocket,
+    idleTimeout: 255, // Maximum allowed - allow browser agents time to complete
   });
 
   logger.info({ port }, "api_server_started");

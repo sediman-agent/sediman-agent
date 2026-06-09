@@ -1,6 +1,0 @@
-[submodule "Openbrowser"]
-	path = vendor/Openbrowser
-	url = https://github.com/JasonHonKL/Openbrowser.git
-[submodule "CloakBrowser"]
-	path = vendor/CloakBrowser
-	url = https://github.com/JasonHonKL/CloakBrowser.git

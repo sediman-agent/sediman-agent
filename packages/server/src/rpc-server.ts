@@ -110,7 +110,6 @@ async function main() {
 
   const allHandlers: Record<string, (server: { register: (m: string, h: RPCHandler) => void }, deps: any) => void> = {};
   const handlerMods = await Promise.all([
-    import("./rpc/handlers/agent.js"),
     import("./rpc/handlers/browser.js"),
     import("./rpc/handlers/skills.js"),
     import("./rpc/handlers/hub.js"),
@@ -118,11 +117,12 @@ async function main() {
     import("./rpc/handlers/sessions.js"),
     import("./rpc/handlers/schedule.js"),
     import("./rpc/handlers/auth.js"),
-    import("./rpc/handlers/terminal.js"),
+    // import("./rpc/handlers/terminal.js"), // Terminal handler removed
     import("./rpc/handlers/record.js"),
-    import("./rpc/handlers/integration.js"),
+    // import("./rpc/handlers/integration.js"), // Integration handler removed
     import("./rpc/handlers/checkpoint.js"),
     import("./rpc/handlers/sandbox.js"),
+    import("./rpc/handlers/project.js"),
   ]);
 
   const { getConfig } = await import("./core/config.js");
@@ -137,8 +137,12 @@ async function main() {
   const { CheckpointManager } = await import("./agent/memory/checkpoint.js");
   const { BrowserSession } = await import("./browser/session.js");
   const { BrowserController } = await import("./browser/controller.js");
+  const { setGlobalBrowserSession } = await import("./browser/global-session.js");
   const { createProvider } = await import("./llm/provider.js");
   const { AgentLoop } = await import("./agent/loop.js");
+  const { ProjectManager } = await import("./project/manager.js");
+  const { setProjectManager } = await import("./agent/tools/browser-tools.js");
+  const { sandboxSessionManager } = await import("./sandbox/SessionManager.js");
 
   const headless = (process.env.SEDIMAN_HEADLESS ?? "true") === "true";
   const memory = new FileMemoryStrategy();
@@ -149,12 +153,33 @@ async function main() {
     process.env.SEDIMAN_BASE_URL,
     process.env.SEDIMAN_API_KEY,
   );
+
+  const projectManager = new ProjectManager({
+    llmProvider,
+    memory,
+    skillEngine,
+    headless,
+    terminalAllowed: false,
+  });
+  await projectManager.ensureDefaultProject();
+  setProjectManager(projectManager);
+  sandboxSessionManager.setProjectManager(projectManager);
+
   const browserSession = new BrowserSession({
     headless,
     stealth: config.stealthEnabled,
     proxy: config.stealthProxy || undefined,
     userDataDir: config.browserProfileDir,
   });
+
+  // In Electron mode, prepare for CDP connection instead of launching Playwright
+  if (process.env.SEDIMAN_MODE === 'electron') {
+    browserSession.prepareForWebviewCDP();
+    logger.info('[RPC] Browser session prepared for Electron embedded webview');
+  }
+
+  // Register globally for API access
+  setGlobalBrowserSession(browserSession);
   const agentLoop = new AgentLoop({
     llmProvider,
     browserSession,
@@ -166,7 +191,11 @@ async function main() {
   const deps = {
     llmProvider,
     browserSession,
-    browserController: new BrowserController(browserSession),
+    browserController: new BrowserController({
+      headless,
+      userDataDir: config.browserProfileDir,
+    }),
+    projectManager,
     memory,
     skillEngine,
     agentLoop,
