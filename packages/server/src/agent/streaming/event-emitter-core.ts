@@ -22,8 +22,9 @@ export class EventEmitterCore {
   private flushTimer: NodeJS.Timeout | null = null;
 
   constructor(options: EmitterOptions = {}) {
-    this.batchSize = options.batchSize ?? 10;
-    this.flushIntervalMs = options.flushIntervalMs ?? 50;
+    // Optimized for fast first token: flush immediately on first event
+    this.batchSize = options.batchSize ?? 1;
+    this.flushIntervalMs = options.flushIntervalMs ?? 5;
   }
 
   /**
@@ -44,11 +45,18 @@ export class EventEmitterCore {
 
   /**
    * Add event to queue
+   * Optimized for fast first token - content events flush immediately
    */
   enqueue(event: AgentStreamEvent): void {
     this.eventQueue.push(event);
 
-    // Flush if we've reached batch size
+    // For content events (user-facing text), flush immediately for fastest UX
+    if (event.type === 'content') {
+      this.flush();
+      return;
+    }
+
+    // For other events, use batching
     if (this.eventQueue.length >= this.batchSize) {
       this.flush();
     } else {

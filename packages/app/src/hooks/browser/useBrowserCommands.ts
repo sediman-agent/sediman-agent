@@ -23,9 +23,8 @@ export function useBrowserCommands(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ commandId, result, error })
       });
-      console.log('[BrowserCommands] Result sent for', commandId);
     } catch (err) {
-      console.error('[BrowserCommands] Failed to send result:', err);
+      // Silent fail
     }
   }, []);
 
@@ -62,13 +61,8 @@ export function useBrowserCommands(
       const data = await response.json();
       const commands: BrowserCommand[] = data.commands || [];
 
-      if (commands.length > 0) {
-        console.log('[BrowserCommands] Poll', pollCountRef.current, ': found', commands.length, 'commands');
-      }
-
       const webview = webviewRef.current;
       if (!webview) {
-        console.error('[BrowserCommands] Webview not ready');
         // Send error results for all commands
         await Promise.all(commands.map(cmd =>
           sendResult(cmd.id, { success: false }, 'Webview not ready')
@@ -99,8 +93,7 @@ export function useBrowserCommands(
   useEffect(() => {
     if (!isOpen) return;
 
-    console.log('[BrowserCommands] Starting polling');
-    const interval = setInterval(pollCommands, 100);
+    const interval = setInterval(pollCommands, 1000); // Increased from 500ms to 1000ms (1 second)
     pollIntervalRef.current = interval;
 
     return () => {
@@ -123,11 +116,23 @@ async function executeNavigate(webview: HTMLWebViewElement, params: any): Promis
   webview.src = url;
   await new Promise(resolve => setTimeout(resolve, 500));
 
-  return {
-    success: true,
-    output: `Navigated to ${url}`,
-    url
-  };
+  // Wait for page to load and capture screenshot
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  try {
+    const screenshotResult = await executeScreenshot(webview);
+    return {
+      success: true,
+      output: `Navigated to ${url}`,
+      url,
+      screenshot: screenshotResult.screenshot
+    };
+  } catch (e) {
+    return {
+      success: true,
+      output: `Navigated to ${url}`,
+      url
+    };
+  }
 }
 
 async function executeSnapshot(
@@ -170,7 +175,17 @@ async function executeClick(
   const clickJS = getClickScript(element.x, element.y);
   const result = await webview.executeJavaScript(clickJS);
 
-  return result;
+  // Wait for page to settle and capture screenshot
+  await new Promise(resolve => setTimeout(resolve, 500));
+  try {
+    const screenshotResult = await executeScreenshot(webview);
+    return {
+      ...result,
+      screenshot: screenshotResult.screenshot
+    };
+  } catch (e) {
+    return result;
+  }
 }
 
 async function executeType(
@@ -219,28 +234,118 @@ async function executeType(
 }
 
 async function executeScreenshot(webview: HTMLWebViewElement): Promise<CommandResult> {
-  const screenshotJS = `
-    (async () => {
-      try {
-        const html = document.documentElement.outerHTML;
-        const url = window.location.href;
-        const title = document.title;
-        return {
-          success: true,
-          url,
-          title,
-          htmlLength: html.length,
-          message: 'Page captured for analysis'
-        };
-      } catch (e) {
-        return {
-          success: false,
-          error: e.message
-        };
+  try {
+    // Get page metadata first
+    const metadataJS = `
+      (async () => {
+        try {
+          const url = window.location.href;
+          const title = document.title;
+          return { url, title };
+        } catch (e) {
+          return { url: '', title: '' };
+        }
+      })()
+    `;
+    const metadata = await webview.executeJavaScript(metadataJS);
+
+    // Try multiple methods to capture screenshot
+    let base64Data = '';
+    let captureSuccess = false;
+
+    // Method 1: Try capturePage on webview
+    try {
+      const image = await (webview as any).capturePage();
+      if (image) {
+        // Try to get data URL from NativeImage
+        if (typeof image.toDataURL === 'function') {
+          const dataUrl = image.toDataURL();
+          base64Data = dataUrl.replace(/^data:image\/[a-z]+;base64,/i, '');
+          captureSuccess = true;
+          console.log('[BrowserCommands] Screenshot via capturePage:', base64Data.length, 'bytes');
+        } else if (image.toPNG && typeof image.toPNG === 'function') {
+          // Try PNG buffer
+          const buffer = image.toPNG();
+          base64Data = buffer.toString('base64');
+          captureSuccess = true;
+          console.log('[BrowserCommands] Screenshot via toPNG:', base64Data.length, 'bytes');
+        }
       }
-    })()
-  `;
-  return await webview.executeJavaScript(screenshotJS);
+    } catch (e) {
+      console.warn('[BrowserCommands] capturePage failed:', e);
+    }
+
+    // Method 2: Try getWebContents and capture from there
+    if (!captureSuccess) {
+      try {
+        const webContents = (webview as any).getWebContents?.();
+        if (webContents) {
+          const image = await webContents.capturePage();
+          if (image) {
+            if (typeof image.toDataURL === 'function') {
+              const dataUrl = image.toDataURL();
+              base64Data = dataUrl.replace(/^data:image\/[a-z]+;base64,/i, '');
+              captureSuccess = true;
+              console.log('[BrowserCommands] Screenshot via webContents:', base64Data.length, 'bytes');
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[BrowserCommands] webContents capture failed:', e);
+      }
+    }
+
+    // Method 3: Use window.electronWebviewController if available
+    if (!captureSuccess && typeof window !== 'undefined' && (window as any).electronWebviewController) {
+      try {
+        const screenshot = await (window as any).electronWebviewController.takeScreenshot?.();
+        if (screenshot) {
+          base64Data = screenshot;
+          captureSuccess = true;
+          console.log('[BrowserCommands] Screenshot via electronWebviewController:', base64Data.length, 'bytes');
+        }
+      } catch (e) {
+        console.warn('[BrowserCommands] electronWebviewController failed:', e);
+      }
+    }
+
+    if (!captureSuccess) {
+      return {
+        success: false,
+        error: 'Failed to capture screenshot - all methods failed'
+      };
+    }
+
+    // Send screenshot to backend state service
+    try {
+      await fetch(`${API_BASE}/screenshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          screenshot: base64Data,
+          url: metadata?.url || '',
+          title: metadata?.title || ''
+        })
+      });
+      console.log('[BrowserCommands] Screenshot sent to backend');
+    } catch (err) {
+      console.error('[BrowserCommands] Failed to send screenshot to backend:', err);
+    }
+
+    return {
+      success: true,
+      output: `Screenshot captured (${base64Data.length} bytes)`,
+      url: metadata?.url || '',
+      title: metadata?.title || '',
+      screenshot: base64Data
+    };
+  } catch (error) {
+    console.error('[BrowserCommands] Screenshot failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
 }
 
 async function executeWait(webview: HTMLWebViewElement, params: any): Promise<CommandResult> {

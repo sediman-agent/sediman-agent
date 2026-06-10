@@ -35,10 +35,12 @@ export interface CommandResult {
   output?: string;
   error?: string;
   url?: string;
+  title?: string;
   elements?: any[];
   tagName?: string;
   strategy?: string;
   found?: boolean;
+  screenshot?: string;
 }
 
 export interface WebviewController {

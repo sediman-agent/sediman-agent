@@ -115,7 +115,7 @@ export function reflect(
   const visionIssues = recentSteps.filter(s =>
     s.detail?.includes('no elements') ||
     s.detail?.includes('not found') ||
-    s.observation?.includes('empty')
+    (typeof s.observation === 'string' && s.observation.includes('empty'))
   );
 
   if (visionIssues.length >= 2) {

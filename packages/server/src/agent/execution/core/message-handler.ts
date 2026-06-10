@@ -17,10 +17,17 @@ export class MessageHandler {
 
   /**
    * Add a user message to the conversation
+   * Handles both string content and complex Message objects (for vision)
    */
-  addUserMessage(content: string): void {
-    this.conversationManager.addUserMessage(content);
-    logger.debug(`[MessageHandler] Added user message, total: ${this.conversationManager.length}`);
+  addUserMessage(content: string | any): void {
+    if (typeof content === 'object' && content.role) {
+      // Vision message or complex message object
+      logger.info(`[MessageHandler] Adding complex user message (with vision)`);
+      this.conversationManager.addUserMessage(content);
+    } else {
+      // Simple string message
+      this.conversationManager.addUserMessage(content);
+    }
   }
 
   /**

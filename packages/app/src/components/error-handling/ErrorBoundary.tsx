@@ -230,7 +230,7 @@ function ErrorInfo({ error, errorInfo, onReset, onCopy, onGoHome }: ErrorInfoPro
           }}
         >
           <div className="flex items-center justify-between">
-            <span>Error ID: {Date.now().toString(36)}</span>
+            <span>Error ID: {this.errorId}</span>
             <span>Please report this issue if it persists</span>
           </div>
         </div>
@@ -244,9 +244,13 @@ function ErrorInfo({ error, errorInfo, onReset, onCopy, onGoHome }: ErrorInfoPro
 // ============================================================================
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  private errorId: string;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
+    // Generate error ID once during construction to avoid hydration mismatch
+    this.errorId = Math.random().toString(36).substring(2, 9);
   }
 
   static getDerivedStateFromError(error: Error, errorInfo: any): ErrorBoundaryState {

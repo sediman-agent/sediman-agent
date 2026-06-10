@@ -90,7 +90,8 @@ export class EnhancedAgentLoop {
     const calculatedMax = config.compressThreshold * 2 + 10;
     this.maxIterations = opts.maxIterations ?? Math.max(calculatedMax, 50);
 
-    this.streamEmitter = new StreamEmitter({ batchSize: 10, flushIntervalMs: 50 });
+    // Optimized for fast first token - content flushes immediately
+    this.streamEmitter = new StreamEmitter({ batchSize: 1, flushIntervalMs: 5 });
 
     const toolBus = opts.toolBus || new ToolBus();
 

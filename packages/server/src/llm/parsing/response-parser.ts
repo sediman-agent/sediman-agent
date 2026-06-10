@@ -33,12 +33,31 @@ export class ResponseParser {
       let args: Record<string, unknown> = {};
 
       try {
-        args = JSON.parse(tc.function.arguments || "{}");
-      } catch {}
+        // Handle both OpenAI format and potential MiniMax variations
+        const argumentsStr = tc.function?.arguments || tc.arguments || "{}";
+        args = JSON.parse(argumentsStr);
+      } catch (parseError) {
+        // If JSON parsing fails, try to extract arguments from different formats
+        if (tc.function?.parameters) {
+          args = tc.function.parameters;
+        } else if (tc.parameters) {
+          args = tc.parameters;
+        } else {
+          console.warn('[ResponseParser] Failed to parse tool arguments:', {
+            tool_call: tc,
+            error: parseError.message
+          });
+        }
+      }
+
+      // Ensure arguments is an object
+      if (!args || typeof args !== 'object') {
+        args = {};
+      }
 
       return {
         id: tc.id,
-        name: tc.function.name,
+        name: tc.function?.name || tc.name,
         arguments: args
       };
     });

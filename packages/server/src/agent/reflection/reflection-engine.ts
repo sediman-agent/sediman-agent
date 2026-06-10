@@ -82,7 +82,7 @@ function assessProgress(steps: StepEvent[]): boolean {
   if (steps.length === 0) return true;
 
   // Look for successful actions (observations that don't contain errors)
-  const successfulSteps = steps.filter(s => !s.observation?.toLowerCase().includes('error'));
+  const successfulSteps = steps.filter(s => typeof s.observation !== 'string' || !s.observation.toLowerCase().includes('error'));
 
   // If we have any successful actions in recent steps, that's progress
   if (successfulSteps.length > 0) {
@@ -109,8 +109,8 @@ function detectErrorPattern(steps: StepEvent[]): string | null {
 
   // Check for repeated "element not found" errors
   const elementNotFoundErrors = recentSteps.filter(s =>
-    s.observation?.toLowerCase().includes('not found') ||
-    s.observation?.toLowerCase().includes('element not found')
+    (typeof s.observation === 'string' && s.observation.toLowerCase().includes('not found')) ||
+    (typeof s.observation === 'string' && s.observation.toLowerCase().includes('element not found'))
   );
 
   if (elementNotFoundErrors.length >= 3) {
@@ -119,7 +119,7 @@ function detectErrorPattern(steps: StepEvent[]): string | null {
 
   // Check for repeated timeout errors
   const timeoutErrors = recentSteps.filter(s =>
-    s.observation?.toLowerCase().includes('timeout')
+    typeof s.observation === 'string' && s.observation.toLowerCase().includes('timeout')
   );
 
   if (timeoutErrors.length >= 3) {
@@ -128,9 +128,11 @@ function detectErrorPattern(steps: StepEvent[]): string | null {
 
   // Check for navigation errors
   const navErrors = recentSteps.filter(s =>
-    s.observation?.toLowerCase().includes('navigate') ||
-    s.observation?.toLowerCase().includes('404') ||
-    s.observation?.toLowerCase().includes('blocked')
+    typeof s.observation === 'string' && (
+      s.observation.toLowerCase().includes('navigate') ||
+      s.observation.toLowerCase().includes('404') ||
+      s.observation.toLowerCase().includes('blocked')
+    )
   );
 
   if (navErrors.length >= 2) {
@@ -154,7 +156,7 @@ export function generateSuggestion(
 
   const lastStep = steps[steps.length - 1];
 
-  if (lastStep.observation?.toLowerCase().includes('error')) {
+  if (typeof lastStep.observation === 'string' && lastStep.observation.toLowerCase().includes('error')) {
     if (lastStep.observation.toLowerCase().includes('not found')) {
       return 'Try browser_snapshot to get fresh element coordinates, or scroll to find the element';
     }
@@ -167,7 +169,7 @@ export function generateSuggestion(
   }
 
   // If last action was successful but we're still going
-  if (!lastStep.observation?.toLowerCase().includes('error')) {
+  if (typeof lastStep.observation !== 'string' || !lastStep.observation.toLowerCase().includes('error')) {
     if (lastStep.action === 'browser_snapshot') {
       return 'Interact with an element using its refId number';
     }

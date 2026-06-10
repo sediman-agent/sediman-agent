@@ -144,15 +144,17 @@ export async function retryWithBackoff<T>(
 }
 
 /**
- * Calculate delay for retry (exponential backoff)
+ * Calculate delay for retry (faster exponential backoff for browser agents)
  */
-export function calculateRetryDelay(attempt: number, baseDelay: number = 1000): number {
-  return baseDelay * Math.pow(2, attempt);
+export function calculateRetryDelay(attempt: number, baseDelay: number = 200): number {
+  // Faster backoff for browser tasks: 200ms, 400ms, 800ms, 1600ms
+  return Math.min(baseDelay * Math.pow(2, attempt), 2000); // Cap at 2 seconds
 }
 
 /**
- * MiniMax-specific delay calculation (for 1000 errors)
+ * MiniMax-specific delay calculation (optimized for faster retries)
  */
 export function calculateMiniMaxDelay(attempt: number): number {
-  return 10000 + (attempt * 5000); // 10s, 15s, 20s
+  // Much faster: 1s, 2s, 3s instead of 10s, 15s, 20s
+  return 1000 + (attempt * 1000); // 1s, 2s, 3s
 }

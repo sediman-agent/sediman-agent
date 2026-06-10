@@ -146,6 +146,10 @@ export class AgentLoop {
       logger.error('[AgentLoop] ERROR CAUGHT:');
       logger.error('  Type:', typeof err);
       logger.error('  Constructor:', err?.constructor?.name);
+      logger.error('  Keys:', err ? Object.keys(err) : 'null');
+      console.log('[AgentLoop] RAW ERROR:', err);
+      console.log('[AgentLoop] ERROR KEYS:', err ? Object.keys(err) : 'null');
+      console.log('[AgentLoop] ERROR STRING:', JSON.stringify(err));
 
       let message = 'Unknown error';
       let stringRep = '';
@@ -160,6 +164,15 @@ export class AgentLoop {
       } else {
         stringRep = JSON.stringify(err);
         logger.error('  String:', stringRep);
+      }
+
+      // Log additional error properties
+      if (err && typeof err === 'object') {
+        for (const [key, value] of Object.entries(err)) {
+          if (key !== 'stack' && key !== 'message') {
+            logger.error(`  ${key}:`, value);
+          }
+        }
       }
 
       if (!message || message === 'Unknown error') {
@@ -187,13 +200,19 @@ export class AgentLoop {
     this.context.startTime = Date.now();
     this.context.soul = loadSoul();
 
-    // Set conversation history if provided
+    // Always create fresh ConversationManager for new tasks
+    const { ConversationManager } = await import('./conversation-manager.js');
+
     if (conversationHistory && conversationHistory.length > 0) {
-      const { ConversationManager } = await import('./conversation-manager.js');
+      // Use provided conversation history
       const conversationManager = new ConversationManager({ initialHistory: conversationHistory });
       this.context.conversationManager = conversationManager;
       this.messageHandler = new MessageHandler(conversationManager);
     } else {
+      // Create fresh conversation manager for new task
+      const conversationManager = new ConversationManager();
+      this.context.conversationManager = conversationManager;
+      this.messageHandler = new MessageHandler(conversationManager);
       // Add task as initial user message
       this.messageHandler.addUserMessage(task);
     }
@@ -227,7 +246,19 @@ export class AgentLoop {
         "Agent needs shared browser for task execution",
         this.context.currentTask
       );
+
+      // Wait for browser panel to be shown and CDP connection to be established
       await this.delay(BROWSER_PANEL_READY_DELAY_MS);
+
+      // Wait for CDP connection to be established
+      logger.info("setupBrowser: Waiting for CDP connection...");
+      const { waitForCdpConnection } = await import('../../api/routes/browser.js');
+      const connected = await waitForCdpConnection(10000); // 10 second timeout
+      if (connected) {
+        logger.info("setupBrowser: ✓ CDP connection established");
+      } else {
+        logger.warn("setupBrowser: CDP connection timeout - will try IPC execution");
+      }
     }
   }
 

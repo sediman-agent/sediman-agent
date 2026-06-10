@@ -195,9 +195,16 @@ export class OpenAICompatibleProvider extends LLMProvider {
     super();
     this.model = model;
     this.baseUrl = baseUrl;
+
+    // MiniMax China API requires custom default headers
+    const isMiniMax = baseUrl?.includes('minimax') || baseUrl?.includes('minimaxi');
+
     this.client = new OpenAI({
       apiKey: apiKey ?? "unused",
       baseURL: baseUrl ?? undefined,
+      defaultHeaders: isMiniMax ? {
+        'Authorization': `Bearer ${apiKey}`
+      } : undefined,
     });
   }
 
@@ -219,12 +226,35 @@ export class OpenAICompatibleProvider extends LLMProvider {
   ): OpenAI.Chat.CompletionMessageParam[] {
     const out: OpenAI.Chat.CompletionMessageParam[] = [];
 
-    if (system) {
-      out.push({ role: "system", content: system });
-    }
+    // For MiniMax, we must NOT have multiple system messages
+    if (this.isMiniMax()) {
+      // Check if messages already contain a system message
+      const existingSystem = messages.find(m => m.role === 'system');
 
-    for (const m of messages) {
-      out.push(m as OpenAI.Chat.CompletionMessageParam);
+      if (existingSystem && system) {
+        // Merge both system messages into one
+        out.push({ role: "system", content: `${system}\n\n${(existingSystem.content || '')}` });
+      } else if (system) {
+        out.push({ role: "system", content: system });
+      } else if (existingSystem) {
+        out.push(existingSystem as OpenAI.Chat.CompletionMessageParam);
+      }
+
+      // Add all non-system messages
+      for (const m of messages) {
+        if (m.role !== 'system') {
+          out.push(m as OpenAI.Chat.CompletionMessageParam);
+        }
+      }
+    } else {
+      // Standard OpenAI format - allow multiple system messages
+      if (system) {
+        out.push({ role: "system", content: system });
+      }
+
+      for (const m of messages) {
+        out.push(m as OpenAI.Chat.CompletionMessageParam);
+      }
     }
 
     return out;
