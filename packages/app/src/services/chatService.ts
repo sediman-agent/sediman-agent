@@ -12,6 +12,7 @@ export interface ChatStreamOptions {
     iteration?: number;
     maxIterations?: number;
   }) => void;
+  onThinking?: (content: string) => void;
   onDone?: (result?: any) => void;
   onError?: (error: string) => void;
   onIntervention?: (message: string, id: number) => void;
@@ -181,6 +182,11 @@ class ChatService {
                 case 'chunk':
                   console.log('[chatService] Chunk received:', event.data.delta?.substring(0, 50), 'phase:', event.data.phase);
                   options.onChunk(event.data.delta, event.data.phase);
+                  break;
+                case 'thinking':
+                  console.log('[chatService] Thinking received:', event.data.content?.substring(0, 50));
+                  // Store thinking content separately
+                  options.onThinking?.(event.data.content);
                   break;
                 case 'progress':
                   console.log('[chatService] Progress received:', event.data);

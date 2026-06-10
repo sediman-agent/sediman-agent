@@ -63,10 +63,23 @@ export class ConversationManager {
 
   /**
    * Add a user message to the conversation
+   * Handles both string content and complex Message objects (for vision)
    */
-  addUserMessage(content: string): void {
-    this.conversation.push({ role: 'user', content });
-    logger.debug(`[ConversationManager] Added user message, total: ${this.conversation.length}`);
+  addUserMessage(content: string | Message): void {
+    logger.info(`[ConversationManager] ========== STORING MESSAGE ==========`);
+    logger.info(`[ConversationManager] Content type: ${typeof content}`);
+
+    // If content is already a Message object, add it directly
+    if (typeof content === 'object' && content.role) {
+      this.conversation.push(content as Message);
+      logger.info(`[ConversationManager] ✓ Stored vision message, total: ${this.conversation.length}`);
+      logger.info(`[ConversationManager] Last message role: ${this.conversation[this.conversation.length - 1]?.role}`);
+      logger.info(`[ConversationManager] Last message content type: ${typeof this.conversation[this.conversation.length - 1]?.content}`);
+    } else {
+      // Otherwise, wrap string content in a user message
+      this.conversation.push({ role: 'user', content: content as string });
+      logger.info(`[ConversationManager] ✓ Stored string message, total: ${this.conversation.length}`);
+    }
   }
 
   /**
@@ -88,19 +101,53 @@ export class ConversationManager {
   /**
    * Add a tool result message to the conversation
    */
-  addToolResult(toolCallId: string, toolName: string, content: string): void {
+  addToolResult(toolCallId: string, toolName: string, content: string | object): void {
     logger.info(`[ConversationManager] Adding tool result for ${toolName} (id: ${toolCallId})`);
-    logger.debug(`[ConversationManager] Tool result content: ${JSON.stringify(content).slice(0, 200)}...`);
+    logger.debug(`[ConversationManager] Tool result content type: ${typeof content}`);
 
-    this.conversation.push({
-      role: 'tool',
-      tool_call_id: toolCallId,
-      content,
-      name: toolName
-    });
+    // Check if this is MiniMax format (toolCallId format differs)
+    const isMiniMaxFormat = toolCallId && toolCallId.includes('call_');
+
+    if (isMiniMaxFormat) {
+      // MiniMax format: role: 'tool', tool_call_id, content (no 'name' field)
+      // For MiniMax, content should be a plain string, not JSON-encoded
+      let contentStr: string;
+      if (typeof content === 'string') {
+        contentStr = content;
+      } else if (typeof content === 'object' && content !== null) {
+        // For objects, try to extract meaningful text
+        if (content.text) {
+          contentStr = String(content.text);
+        } else if (content.result) {
+          contentStr = String(content.result);
+        } else if (content.output) {
+          contentStr = String(content.output);
+        } else {
+          // Last resort: stringify the object
+          contentStr = JSON.stringify(content);
+        }
+      } else {
+        contentStr = String(content);
+      }
+
+      this.conversation.push({
+        role: 'tool',
+        tool_call_id: toolCallId,
+        content: contentStr
+      });
+      logger.info(`[ConversationManager] ✓ Added MiniMax format tool result (content length: ${contentStr.length})`);
+    } else {
+      // OpenAI format
+      this.conversation.push({
+        role: 'tool',
+        tool_call_id: toolCallId,
+        content: typeof content === 'string' ? content : JSON.stringify(content),
+        name: toolName
+      });
+      logger.info(`[ConversationManager] ✓ Added OpenAI format tool result`);
+    }
 
     logger.info(`[ConversationManager] Conversation now has ${this.conversation.length} messages`);
-    logger.debug(`[ConversationManager] Last 2 messages preview: ${JSON.stringify(this.conversation.slice(-2)).slice(0, 500)}...`);
   }
 
   /**

@@ -445,18 +445,72 @@ function VSCodeAccordionItem({ step, onRetry, onDismiss }: VSCodeAccordionItemPr
               <div className="text-[10px] uppercase mb-2 font-medium tracking-wider" style={{ color: 'var(--vscode-secondary-text)', opacity:0.8 }}>
                 Output
               </div>
-              <pre
-                className="p-3 overflow-x-auto max-h-40 whitespace-pre-wrap break-all font-mono border-l-2 rounded"
-                style={{
-                  backgroundColor: hasError ? 'rgba(244, 135, 113, 0.05)' : 'var(--vscode-sideBar-background)',
-                  borderColor: hasError ? 'var(--vscode-error-foreground)' : 'var(--vscode-success-foreground)',
-                  fontSize: VS_CODES.fontSize,
-                  lineHeight: VS_CODES.lineHeight,
-                  color: hasError ? 'var(--vscode-error-foreground)' : 'var(--vscode-foreground)'
-                }}
-              >
-                {step.observation.length > 1000 ? step.observation.slice(0, 1000) + '...' : step.observation}
-              </pre>
+
+              {/* Check if observation contains screenshot data (in snapshot result) */}
+              {(() => {
+                const obs = step.observation as any;
+                if (typeof obs === 'object' && obs && 'screenshot' in obs && obs.screenshot) {
+                  return (
+                    <div className="mt-2">
+                      <img
+                        src={obs.screenshot.startsWith('data:image') ? obs.screenshot : `data:image/png;base64,${obs.screenshot}`}
+                        alt="Browser Screenshot"
+                        className="max-w-full h-auto border rounded cursor-pointer hover:opacity-90 transition-opacity"
+                        style={{
+                          borderColor: 'var(--vscode-border-color)',
+                          maxHeight: '400px'
+                        }}
+                        onClick={(e) => {
+                          // Open in new tab when clicked
+                          const win = window.open();
+                          if (win) {
+                            win.document.write(`<img src="${e.currentTarget.src}" style="max-width:100%">`);
+                          }
+                        }}
+                      />
+                      <div className="text-[10px] mt-1" style={{ color: 'var(--vscode-secondary-text)' }}>
+                        📸 Screenshot - Click to view full size
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Display the snapshot elements below the screenshot */}
+              {(() => {
+                const obs = step.observation as any;
+                if (typeof obs === 'object' && obs && 'url' in obs && obs.url) {
+                  return (
+                    <div className="mt-2 p-2 border rounded" style={{
+                      borderColor: 'var(--vscode-border-color)',
+                      backgroundColor: 'var(--vscode-sideBar-background)',
+                      fontSize: '11px'
+                    }}>
+                      <div><strong>URL:</strong> {obs.url}</div>
+                      <div><strong>Title:</strong> {obs.title}</div>
+                      <div><strong>Elements:</strong> {obs.elements?.length || 0} interactive elements found</div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Text-based output for non-snapshot results */}
+              {typeof step.observation === 'string' && (
+                <pre
+                  className="p-3 overflow-x-auto max-h-40 whitespace-pre-wrap break-all font-mono border-l-2 rounded"
+                  style={{
+                    backgroundColor: hasError ? 'rgba(244, 135, 113, 0.05)' : 'var(--vscode-sideBar-background)',
+                    borderColor: hasError ? 'var(--vscode-error-foreground)' : 'var(--vscode-success-foreground)',
+                    fontSize: VS_CODES.fontSize,
+                    lineHeight: VS_CODES.lineHeight,
+                    color: hasError ? 'var(--vscode-error-foreground)' : 'var(--vscode-foreground)'
+                  }}
+                >
+                  {step.observation.length > 1000 ? step.observation.slice(0, 1000) + '...' : step.observation}
+                </pre>
+              )}
             </div>
           )}
         </div>

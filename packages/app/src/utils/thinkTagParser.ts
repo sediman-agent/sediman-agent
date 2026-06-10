@@ -1,6 +1,7 @@
 /**
  * Enhanced parser for extracting thinking content from <think/> tags
  * Supports attributes like type, label, and streaming updates
+ * Also filters common implicit reasoning patterns
  */
 
 export interface ThinkBlock {
@@ -31,6 +32,16 @@ export interface StreamingThinkUpdate {
 const THINK_TAG_REGEX = /<(?:think|thinking)(?:\s([^>]*?))?\s*([\s\S]*?)<\/(?:think|thinking)>/gi;
 const THINK_ATTRS_REGEX = /(\w+)=["']([^"']*)["']/g;
 
+// Common implicit reasoning patterns to filter out
+const REASONING_PATTERNS = [
+  /^(The user wants me to|Let me|I should|I need to|I'll|I'm going to|I plan to|I will|The goal is to|My plan is|Strategy:)/,
+  /^(First|Next|Then|After that|Finally|Now|OK|Alright|So|Well|Actually|However)/,
+  /^(I'll try|I can|Let me try|Let me attempt|I should try|Going to|Try to|Attempting to)/,
+  /^(I think|I believe|I suspect|I guess|I assume)/,
+  /^(I'm|I was|I've been|I've|We're|We've been)/,
+  /^(Note:|IMPORTANT:|WARNING:|ERROR:)/
+];
+
 /**
  * Parse attributes from think tag opening
  */
@@ -42,6 +53,17 @@ function parseAttributes(attrString: string | undefined): Record<string, string>
     attrs[match[1]] = match[2];
   }
   return attrs;
+}
+
+/**
+ * Filter out implicit reasoning patterns from visible content
+ * NOTE: This function is disabled to prevent filtering legitimate content.
+ * The thinking content is now handled separately via the onThinking callback.
+ */
+export function filterReasoningPatterns(text: string): string {
+  // Return the original text without filtering to preserve all content
+  // The thinking content is handled separately and displayed in the ThinkingBlock
+  return text;
 }
 
 /**
@@ -57,7 +79,8 @@ export function parseThinkTags(text: string): ParsedContent {
 
   while ((match = THINK_TAG_REGEX.exec(text)) !== null) {
     const attrs = parseAttributes(match[1]);
-    const content = match[2].trim();
+    // Preserve original formatting exactly as received from the LLM
+    const content = match[2];
 
     thinkBlocks.push({
       content,
@@ -72,6 +95,9 @@ export function parseThinkTags(text: string): ParsedContent {
 
   // Clean up extra whitespace
   visible = visible.replace(/\s+/g, ' ').trim();
+
+  // Filter out implicit reasoning patterns from visible content
+  visible = filterReasoningPatterns(visible);
 
   return {
     thinking: thinkBlocks.length > 0 ? thinkBlocks : [],

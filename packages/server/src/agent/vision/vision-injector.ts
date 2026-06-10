@@ -42,14 +42,19 @@ export class VisionInjector {
     state?: BrowserState
   ): Promise<void> {
     if (!this.enabled) {
-      logger.debug('[VisionInjector] Vision injection disabled by config');
       return;
     }
 
     const result = await captureScreenshot();
 
     if (!result.success || !result.data) {
-      logger.debug('[VisionInjector] No screenshot data available');
+      // Check if this is a bot detection page
+      if (result.error === 'BOT_DETECTION') {
+        logger.warn('[VisionInjector] Bot detection detected - requesting human intervention');
+        this.requestHumanIntervention(result.url || 'unknown', addMessage);
+        return;
+      }
+
       this.injectTextOnly(result.url || 'unknown', addMessage);
       return;
     }
@@ -63,8 +68,26 @@ export class VisionInjector {
     } else {
       this.injectTextOnly(result.url || 'unknown', addMessage);
     }
+  }
 
-    logger.debug(`[VisionInjector] Injected vision for ${result.url}`);
+  /**
+   * Request human intervention for bot detection/challenge pages
+   */
+  private requestHumanIntervention(url: string, addMessage: (content: string | Message) => void): void {
+    const message = `⚠️ **Bot Detection Page Detected**
+
+The browser has encountered a bot detection or access challenge page at:
+**${url}**
+
+**Please help by:**
+1. Checking the browser panel
+2. Solving any CAPTCHA or challenge
+3. Clicking "Accept" or "Continue" if prompted
+4. Once the page loads, let me know and I'll continue
+
+After you've solved the challenge, reply "continue" and I'll proceed with the task.`;
+
+    addMessage(message);
   }
 
   /**
@@ -79,7 +102,7 @@ export class VisionInjector {
    * Inject vision message with image
    */
   private injectWithImage(url: string, imageData: string, addMessage: (content: string | Message) => void): void {
-    // Create message with text and image
+    // Create message with text and image - NO logging of image data
     const message = MessageBuilder.user()
       .withText(`[Browser screenshot after your last action. Use browser_snapshot for element refIds. Current URL: ${url}]`)
       .withImage(`data:image/jpeg;base64,${imageData}`, 'low')

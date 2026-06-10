@@ -21,6 +21,7 @@ import { useConversationManager } from '@/hooks/agent/useConversationManager';
 import { ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Message } from '@/types';
+import { filterReasoningPatterns } from '@/utils/thinkTagParser';
 
 export function AgentPage() {
   // Store hooks
@@ -167,12 +168,27 @@ export function AgentPage() {
         }
 
         // Show content during all phases so user can see real-time response
-        // This improves UX by showing the agent's thinking process as it happens
+        // Filter out reasoning patterns to prevent them from appearing in UI
         if (delta) {
-          accumulatedContent += delta;
-          console.log('[AgentPage] Updating message with content length:', accumulatedContent.length);
+          // Filter reasoning patterns from delta before appending
+          const filteredDelta = filterReasoningPatterns(delta);
+          accumulatedContent += filteredDelta;
+
+          // Filter accumulated content again to catch multi-line patterns
+          const visibleContent = filterReasoningPatterns(accumulatedContent);
+
+          console.log('[AgentPage] Updating message with content length:', visibleContent.length);
           updateMessage(conversationId, actualAssistantId, {
-            content: accumulatedContent
+            content: visibleContent
+          });
+        }
+      },
+      onThinking: (thinkingContent) => {
+        console.log('[AgentPage] onThinking called:', thinkingContent?.substring(0, 50));
+        // Store thinking content separately to preserve formatting
+        if (thinkingContent) {
+          updateMessage(conversationId, actualAssistantId, {
+            thinking: thinkingContent
           });
         }
       },
@@ -183,6 +199,15 @@ export function AgentPage() {
           const validPhases: string[] = ['thinking', 'planning', 'executing', 'reflecting', 'retrying', 'responding'];
           if (validPhases.includes(progress.phase)) {
             updatePhase(progress.phase as any);
+          }
+        }
+
+        // Auto-open browser panel when browser tools are being used
+        if (progress.action && progress.action.startsWith('browser_') && progress.phase === 'executing') {
+          const sandboxStore = useSandboxStore.getState();
+          if (!sandboxStore.isOpen) {
+            console.log('[AgentPage] Auto-opening browser panel for browser tool:', progress.action);
+            sandboxStore.setOpen(true);
           }
         }
 
@@ -254,10 +279,12 @@ export function AgentPage() {
       },
       onDone: () => {
         console.log('[AgentPage] onDone called, accumulatedContent length:', accumulatedContent.length);
+        // Filter final content to remove any remaining reasoning patterns
+        const finalContent = filterReasoningPatterns(accumulatedContent);
         // Finalize assistant message
         updateMessage(conversationId, actualAssistantId, {
           status: 'done',
-          content: accumulatedContent
+          content: finalContent
         });
 
         setTimeout(() => {

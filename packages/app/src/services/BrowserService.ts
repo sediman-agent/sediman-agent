@@ -32,9 +32,20 @@ export interface BrowserEvent {
 }
 
 export interface BrowserCommand {
+  id: string;
   action: string;
   params: Record<string, any>;
   timestamp: number;
+  // Note: Backend stores parameters inside params object, not flattened to top level
+  url?: string;
+  refId?: number;
+  text?: string;
+  direction?: string;
+  amount?: number;
+  key?: string;
+  selector?: string;
+  timeout?: number;
+  submit?: boolean;
 }
 
 class BrowserService extends EventEmitter {
@@ -73,7 +84,7 @@ class BrowserService extends EventEmitter {
     this.webviewRef = webview;
     this.setupWebviewListeners(webview);
     this.isWebviewRegistered = true;
-    console.log('[BrowserService] Webview registered');
+    // console.log('[BrowserService] Webview registered');
   }
 
   /**
@@ -83,23 +94,21 @@ class BrowserService extends EventEmitter {
     if (this.isPollingCommands) return;
     this.isPollingCommands = true;
 
-    // Poll every 500ms for pending commands
+    // Poll every 2000ms for pending commands (2 seconds - reduce noise)
     setInterval(async () => {
-      if (!this.isWebviewRegistered) return;
-
       try {
         const response = await fetch('http://localhost:3001/api/browser/pending-commands');
         if (response.ok) {
           const data = await response.json();
           if (data.commands && data.commands.length > 0) {
-            console.log('[BrowserService] Received commands:', data.commands);
+            // Execute commands silently
             await this.executeCommands(data.commands);
           }
         }
       } catch (err) {
-        // Ignore polling errors
+        // Ignore polling errors silently
       }
-    }, 500);
+    }, 2000);
   }
 
   /**
@@ -108,9 +117,6 @@ class BrowserService extends EventEmitter {
   private async executeCommands(commands: BrowserCommand[]): Promise<void> {
     for (const command of commands) {
       try {
-        console.log('[BrowserService] Executing:', command.action, command.params);
-        console.log('[BrowserService] Full command:', JSON.stringify(command));
-
         let result: any = null;
         let error: string | null = null;
 
@@ -118,137 +124,408 @@ class BrowserService extends EventEmitter {
           case 'navigate':
             // Navigate directly using webview ref
             if (this.webviewRef) {
-              const url = command.params?.url;
-              console.log('[BrowserService] Navigating webview to:', url);
+              // URL extraction - backend stores params inside command.params object
+              let url = command.params?.url || (command as any).params?.url || command.url;
+
+              if (!url) {
+                console.error('[BrowserService] No URL found in command. Full command:', JSON.stringify(command, null, 2));
+                console.error('[BrowserService] Command keys:', Object.keys(command));
+                console.error('[BrowserService] Has params?', !!command.params, 'Params keys:', command.params ? Object.keys(command.params) : 'N/A');
+              }
+
               if (url) {
-                this.webviewRef.src = url;
+                // For external URLs, don't try to load in webview (will fail with ERR_ABORTED)
+                // Instead, emit server-navigate event and let backend handle it
+                this.emit('server-navigate', { url });
+
+                // Wait a moment for backend to process navigation
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Wait for document to be ready
+                try {
+                  await this.webviewRef.executeJavaScript(`
+                    (async () => {
+                      return new Promise(resolve => {
+                        if (document.readyState === 'complete') {
+                          resolve(true);
+                        } else {
+                          window.addEventListener('load', () => resolve(true), { once: true });
+                          setTimeout(() => resolve(true), 5000); // Timeout after 5s
+                        }
+                      });
+                    })()
+                  `);
+                  // console.log('[BrowserService] Page loaded');
+                } catch (err) {
+                  // console.warn('[BrowserService] Page load check failed:', err);
+                }
+
                 result = { success: true, url };
-                // Wait for navigation to complete
-                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Send result back to backend
+                await this.sendCommandResult(command.id, result, null);
               } else {
                 error = 'No URL found in command';
-                console.error('[BrowserService] No URL found in command');
+                // console.error('[BrowserService] No URL found in command');
+                await this.sendCommandResult(command.id, null, error);
               }
             } else {
               error = 'No webview registered for navigation';
-              console.error('[BrowserService] No webview registered for navigation');
+              // console.error('[BrowserService] No webview registered for navigation');
+              await this.sendCommandResult(command.id, null, error);
             }
             break;
           case 'click':
             // Execute click directly on webview
             if (this.webviewRef) {
-              console.log('[BrowserService] Clicking at:', command.params.x, command.params.y);
+              const refId = command.params?.refId || command.refId;
               const clickResult = await this.webviewRef.executeJavaScript(`
                 (async () => {
-                  const element = document.elementFromPoint(${command.params.x}, ${command.params.y});
-                  if (element) {
+                  const refId = ${refId};
+                  const interactive = document.querySelectorAll('button, a, input, textarea, select, [onclick], [role="button"]');
+                  if (refId >= 0 && refId < interactive.length) {
+                    const element = interactive[refId];
                     element.click();
-                    return { success: true, tagName: element.tagName };
+                    return { success: true, tagName: element.tagName, refId };
                   }
-                  return { success: false, error: 'No element at point' };
+                  return { success: false, error: 'Invalid refId: ' + refId };
                 })()
               `);
               result = clickResult;
+              // Send result back to backend
+              await this.sendCommandResult(command.id, result, null);
             }
             break;
           case 'type':
             // Execute type directly on webview
-            if (this.webviewRef && command.params.selector) {
-              console.log('[BrowserService] Typing into:', command.params.selector);
-              const typeResult = await this.webviewRef.executeJavaScript(`
-                (async () => {
-                  const element = document.querySelector('${command.params.selector}');
-                  if (element) {
-                    element.value = '${command.params.text}';
-                    element.dispatchEvent(new Event('input', { bubbles: true }));
-                    return { success: true };
+            if (this.webviewRef) {
+              const refId = command.params?.refId || command.refId;
+              const text = command.params?.text || command.text;
+              if (refId !== undefined) {
+                // console.log('[BrowserService] Typing into refId:', refId, 'text:', text);
+                const typeResult = await this.webviewRef.executeJavaScript(`
+                  (async () => {
+                    const refId = ${refId};
+                    const interactive = document.querySelectorAll('button, a, input, textarea, select, [onclick], [role="button"]');
+                    if (refId >= 0 && refId < interactive.length) {
+                      const element = interactive[refId];
+                      const text = ${JSON.stringify(text)};
+                    if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+                      element.value = text;
+                      element.dispatchEvent(new Event('input', { bubbles: true }));
+                      element.dispatchEvent(new Event('change', { bubbles: true }));
+                      return { success: true, refId, value: text };
+                    } else {
+                      // For non-input elements, try to focus and type
+                      element.focus();
+                      return { success: false, error: 'Element is not an input field', refId };
+                    }
                   }
-                  return { success: false, error: 'Element not found' };
+                  return { success: false, error: 'Invalid refId: ' + refId };
                 })()
               `);
               result = typeResult;
+              // console.log('[BrowserService] Type result:', result);
+              // Send result back to backend
+              await this.sendCommandResult(command.id, result, null);
+              }
+            } else {
+              error = 'No refId provided for type command';
+              await this.sendCommandResult(command.id, null, error);
             }
             break;
           case 'snapshot':
             // Execute snapshot directly on webview
             if (this.webviewRef) {
-              console.log('[BrowserService] Taking snapshot...');
+              // console.log('[BrowserService] Taking snapshot...');
+              // console.log('[BrowserService] Current webview URL:', this.webviewRef.src);
               const snapResult = await this.webviewRef.executeJavaScript(`
                 (async () => {
-                  const interactive = document.querySelectorAll('button, a, input, textarea, select, [onclick], [role="button"]');
-                  const results = [];
-                  interactive.forEach((el, idx) => {
-                    const rect = el.getBoundingClientRect();
-                    results.push({
-                      refId: idx,
-                      tag: el.tagName.toLowerCase(),
-                      type: el.type || '',
-                      text: el.textContent?.slice(0, 50) || el.placeholder || '',
-                      x: rect.left + rect.width / 2,
-                      y: rect.top + rect.height / 2
+                  try {
+                    // console.log('[SnapshotJS] Starting capture');
+                    // console.log('[SnapshotJS] Page URL:', window.location.href);
+                    // console.log('[SnapshotJS] Title:', document.title);
+
+                    const interactive = document.querySelectorAll('button, a, input, textarea, select, [onclick], [role="button"]');
+                    // console.log('[SnapshotJS] Found', interactive.length, 'interactive elements');
+
+                    const results = [];
+                    interactive.forEach((el, idx) => {
+                      const rect = el.getBoundingClientRect();
+
+                      if (rect.width === 0 || rect.height === 0) return;
+
+                      let text = '';
+                      if (el.placeholder) {
+                        text = el.placeholder;
+                      } else if (el.value && el.tagName === 'INPUT') {
+                        text = el.value;
+                      } else if (el.textContent) {
+                        text = el.textContent.slice(0, 50);
+                      }
+
+                      text = text.trim().slice(0, 100);
+
+                      results.push({
+                        refId: idx,
+                        tag: el.tagName.toLowerCase(),
+                        type: el.type || '',
+                        text: text,
+                        x: rect.left + rect.width / 2,
+                        y: rect.top + rect.height / 2,
+                        width: rect.width,
+                        height: rect.height,
+                        visible: rect.width > 0 && rect.height > 0
+                      });
                     });
-                  });
-                  return {
-                    success: true,
-                    elements: results,
-                    url: window.location.href,
-                    title: document.title
-                  };
+
+                    // console.log('[SnapshotJS] Visible elements captured:', results.length);
+
+                    const out = results.map(
+                      (el) => '[' + el.refId + ']<' + el.tag + (el.type ? '[type=' + el.type + ']' : '') + '>' + (el.text ? ' ' + JSON.stringify(el.text.slice(0, 100)) : '')
+                    ).join('\\n');
+
+                    return {
+                      success: true,
+                      output: 'Current URL: ' + window.location.href + '\\n\\nTitle: ' + document.title + '\\n\\n' + out + '\\n\\n' + results.length + ' interactive elements total.',
+                      elements: results,
+                      url: window.location.href,
+                      title: document.title
+                    };
+                  } catch (e) {
+                    // console.error('[SnapshotJS] Error:', e);
+                    return {
+                      success: false,
+                      error: e.message || 'Snapshot failed',
+                      url: window.location.href,
+                      title: document.title,
+                      elements: []
+                    };
+                  }
                 })()
               `);
-              console.log('[BrowserService] Snapshot result:', snapResult);
+              // console.log('[BrowserService] Snapshot result:', snapResult?.elements?.length || 0, 'elements');
+              // console.log('[BrowserService] Snapshot URL:', snapResult?.url);
               result = snapResult;
               this.emit('snapshot', result);
+              // Send result back to backend
+              await this.sendCommandResult(command.id, result, null);
             }
             break;
           case 'screenshot':
             // Execute screenshot directly on webview
             if (this.webviewRef) {
-              console.log('[BrowserService] Taking screenshot...');
+              // console.log('[BrowserService] Taking screenshot...');
               try {
-                const shotResult = await this.webviewRef.executeJavaScript(`
-                  (async () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = window.innerWidth;
-                    canvas.height = window.innerHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    // Simple capture - in production use html2canvas
-                    ctx.drawWindow(window, 0, 0, canvas.width, canvas.height, 'rgb(255,255,255)');
-                    return canvas.toDataURL('image/png', 0.9);
-                  })()
-                `);
-                console.log('[BrowserService] Screenshot result:', shotResult ? 'success' : 'failed');
-                result = shotResult;
-                this.emit('screenshot', result);
+                // Use takeScreenshot method which handles capturePage and JavaScript fallback
+                const screenshotDataUrl = await this.takeScreenshot();
+                if (screenshotDataUrl && typeof screenshotDataUrl === 'string') {
+                  // Remove data URL prefix to get raw base64
+                  const base64Data = screenshotDataUrl.replace(/^data:image\/[a-z]+;base64,/i, '');
+                  const url = this.webviewRef.getURL() || '';
+                  const title = await this.webviewRef.executeJavaScript('document.title') || '';
+
+                  result = {
+                    success: true,
+                    screenshot: base64Data,
+                    url,
+                    title,
+                    size: base64Data.length
+                  };
+                  // console.log('[BrowserService] Screenshot captured:', base64Data.length, 'bytes for', url);
+
+                  // Send screenshot to backend state service
+                  try {
+                    await fetch('http://localhost:3001/api/browser/screenshot', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        screenshot: base64Data,
+                        url,
+                        title
+                      })
+                    });
+                    // console.log('[BrowserService] Screenshot sent to backend');
+                  } catch (err) {
+                    // console.error('[BrowserService] Failed to send screenshot to backend:', err);
+                  }
+
+                  this.emit('screenshot', result);
+                  await this.sendCommandResult(command.id, result, null);
+                } else {
+                  error = 'Screenshot capture failed - no data returned';
+                  // console.error('[BrowserService] Screenshot failed - no data');
+                  await this.sendCommandResult(command.id, null, error);
+                }
               } catch (err) {
                 error = err instanceof Error ? err.message : String(err);
-                console.error('[BrowserService] Screenshot failed:', err);
+                // console.error('[BrowserService] Screenshot failed:', err);
+                await this.sendCommandResult(command.id, null, error);
               }
             }
             break;
           case 'refresh':
             // Execute refresh directly on webview
             if (this.webviewRef) {
-              console.log('[BrowserService] Refreshing webview...');
+              // console.log('[BrowserService] Refreshing webview...');
               this.webviewRef.reload();
               result = { success: true };
+              await this.sendCommandResult(command.id, result, null);
+            }
+            break;
+          case 'extract_text':
+            // Execute text extraction directly on webview
+            if (this.webviewRef) {
+              // console.log('[BrowserService] Extracting text...');
+              const textResult = await this.webviewRef.executeJavaScript(`
+                (async () => {
+                  const body = document.body;
+                  if (!body) return "";
+                  const clone = body.cloneNode(true);
+                  clone.querySelectorAll("script, style, noscript, svg, path").forEach((el) => el.remove());
+                  const text = (clone.innerText || "").replace(/\\s+/g, " ").trim();
+                  return text;
+                })()
+              `);
+              // console.log('[BrowserService] Text extraction result length:', textResult?.length || 0);
+              result = { text: textResult, success: true };
+              await this.sendCommandResult(command.id, result, null);
+            }
+            break;
+          case 'extract_data':
+            // Execute data extraction directly on webview
+            if (this.webviewRef) {
+              // console.log('[BrowserService] Extracting data...');
+              const textResult = await this.webviewRef.executeJavaScript(`
+                (async () => {
+                  const body = document.body;
+                  if (!body) return "";
+                  const clone = body.cloneNode(true);
+                  clone.querySelectorAll("script, style, noscript, svg, path").forEach((el) => el.remove());
+                  const text = (clone.innerText || "").replace(/\\s+/g, " ").trim();
+                  return text;
+                })()
+              `);
+              // console.log('[BrowserService] Data extraction result length:', textResult?.length || 0);
+              result = { text: textResult, success: true };
+              // Send result back to backend
+              await this.sendCommandResult(command.id, result, null);
+            }
+            break;
+          case 'execute_script':
+            // Execute custom JavaScript directly on webview
+            if (this.webviewRef && command.params?.script) {
+              // console.log('[BrowserService] Executing script...');
+              const scriptResult = await this.webviewRef.executeJavaScript(`
+                (async () => {
+                  try {
+                    const result = eval(${JSON.stringify(command.params.script)});
+                    return { success: true, result };
+                  } catch (error) {
+                    return { success: false, error: error.message || String(error) };
+                  }
+                })()
+              `);
+              // console.log('[BrowserService] Script execution result:', scriptResult);
+              result = scriptResult;
+              await this.sendCommandResult(command.id, result, null);
+            }
+            break;
+          case 'scroll':
+            // Execute scroll directly on webview
+            if (this.webviewRef) {
+              const direction = command.params?.direction || 'down';
+              const amount = command.params?.amount || 500;
+              // console.log('[BrowserService] Scrolling...', direction, amount);
+              const scrollResult = await this.webviewRef.executeJavaScript(`
+                (async () => {
+                  const delta = ${direction === 'up' ? -amount : amount};
+                  window.scrollBy(0, delta);
+                  return { success: true, scrollY: window.scrollY };
+                })()
+              `);
+              result = scrollResult;
+              await this.sendCommandResult(command.id, result, null);
+            }
+            break;
+          case 'press_key':
+            // Execute key press directly on webview
+            if (this.webviewRef) {
+              const key = command.params?.key || command.key;
+              if (key) {
+                // console.log('[BrowserService] Pressing key:', key);
+                const keyResult = await this.webviewRef.executeJavaScript(`
+                  (async () => {
+                    const keyEvent = new KeyboardEvent('keydown', {
+                      key: '${key}',
+                    code: '${command.params.key}',
+                    bubbles: true
+                  });
+                  document.activeElement?.dispatchEvent(keyEvent);
+                  return { success: true, key: '${command.params.key}' };
+                })()
+              `);
+                result = keyResult;
+                await this.sendCommandResult(command.id, result, null);
+              }
+            }
+            break;
+          case 'hover':
+            // Execute hover directly on webview
+            if (this.webviewRef) {
+              const refId = command.params?.refId || command.refId;
+              // console.log('[BrowserService] Hovering refId:', refId);
+              const hoverResult = await this.webviewRef.executeJavaScript(`
+                (async () => {
+                  const refId = ${refId};
+                  const interactive = document.querySelectorAll('button, a, input, textarea, select, [onclick], [role="button"]');
+                  if (refId >= 0 && refId < interactive.length) {
+                    const element = interactive[refId];
+                    element.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+                    return { success: true, tagName: element.tagName, refId };
+                  }
+                  return { success: false, error: 'Invalid refId: ' + refId };
+                })()
+              `);
+              result = hoverResult;
+              await this.sendCommandResult(command.id, result, null);
+            }
+            break;
+          case 'wait':
+            // Execute wait for selector directly on webview
+            if (this.webviewRef) {
+              const selector = command.params?.selector || command.selector;
+              const timeout = command.params?.timeout || command.timeout || 10000;
+              if (selector) {
+                // console.log('[BrowserService] Waiting for selector:', selector);
+                const waitResult = await this.webviewRef.executeJavaScript(`
+                  (async () => {
+                    const selector = '${selector}';
+                  const timeout = ${timeout};
+                  const startTime = Date.now();
+                  while (Date.now() - startTime < timeout) {
+                    const element = document.querySelector(selector);
+                    if (element && getComputedStyle(element).display !== 'none') {
+                      return { success: true, selector, found: true };
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                  }
+                  return { success: false, selector, found: false, error: 'Timeout waiting for selector' };
+                })()
+              `);
+                result = waitResult;
+                await this.sendCommandResult(command.id, result, null);
+              } else {
+                error = 'No selector provided for wait command';
+                await this.sendCommandResult(command.id, null, error);
+              }
             }
             break;
         }
-
-        // Send result back to backend
-        const commandId = (command as any).id;
-        if (commandId) {
-          await this.sendCommandResult(commandId, result, error);
-        } else {
-          console.error('[BrowserService] Command missing ID field:', command);
-        }
       } catch (err) {
-        console.error('[BrowserService] Command execution error:', err);
+        // console.error('[BrowserService] Command execution error:', err);
         // Try to send error result if we have command ID
-        const commandId = (command as any).id;
+        const commandId = command.id;
         if (commandId) {
           await this.sendCommandResult(commandId, null, err instanceof Error ? err.message : String(err));
         }
@@ -271,12 +548,12 @@ class BrowserService extends EventEmitter {
         })
       });
       if (response.ok) {
-        console.log('[BrowserService] Result sent for command:', commandId);
+        // console.log('[BrowserService] Result sent for command:', commandId);
       } else {
-        console.error('[BrowserService] Failed to send result:', response.status);
+        // console.error('[BrowserService] Failed to send result:', response.status);
       }
     } catch (err) {
-      console.error('[BrowserService] Error sending result:', err);
+      // console.error('[BrowserService] Error sending result:', err);
     }
   }
 
@@ -360,6 +637,14 @@ class BrowserService extends EventEmitter {
         isLoading: false,
         lastError: 'Unknown browser error',
       });
+      return;
+    }
+
+    // ERR_ABORTED (-3) is expected for external URLs - not a real error
+    // This happens when webview can't load external URLs due to security restrictions
+    if (error.errorCode === -3) {
+      // Silently ignore - this is expected behavior
+      this.updateState({ isLoading: false });
       return;
     }
 
@@ -449,9 +734,9 @@ class BrowserService extends EventEmitter {
       `);
 
       this.emit('browser-context-extracted', context);
-      console.log('[BrowserService] Context extracted:', context);
+      // console.log('[BrowserService] Context extracted:', context);
     } catch (error) {
-      console.log('[BrowserService] Context extraction failed (non-critical):', error instanceof Error ? error.message : String(error));
+      // console.log('[BrowserService] Context extraction failed (non-critical):', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -472,10 +757,10 @@ class BrowserService extends EventEmitter {
    */
   navigate(url: string): void {
     if (this.webviewRef) {
-      console.log('[BrowserService] Navigating to:', url);
+      // console.log('[BrowserService] Navigating to:', url);
       this.webviewRef.src = url;
     } else {
-      console.error('[BrowserService] No webview registered');
+      // console.error('[BrowserService] No webview registered');
     }
   }
 
@@ -485,7 +770,7 @@ class BrowserService extends EventEmitter {
    * (Electron webview cannot load external URLs due to security restrictions)
    */
   serverNavigated(url: string): void {
-    console.log('[BrowserService] Server navigated to:', url);
+    // console.log('[BrowserService] Server navigated to:', url);
     // Only update state, don't try to navigate webview (security restrictions)
     this.updateState({ url, isLoading: false });
     // Emit event for UI to update display
@@ -521,37 +806,75 @@ class BrowserService extends EventEmitter {
 
   /**
    * Take a screenshot of the current page
+   * Uses JavaScript-based capture for Electron webview compatibility
    */
   async takeScreenshot(): Promise<string | undefined> {
     if (!this.webviewRef) return undefined;
 
     try {
+      // Use native webview capturePage API first (most reliable)
+      const webview = this.webviewRef as any;
+      try {
+        const image = await webview.capturePage();
+        if (image && typeof image.toDataURL === 'function') {
+          return image.toDataURL();
+        }
+      } catch (e) {
+        // console.warn('[BrowserService] capturePage failed, trying JavaScript fallback:', e);
+      }
+
+      // Fallback: JavaScript-based capture (limited but works)
       const screenshot = await this.webviewRef.executeJavaScript(`
         (async () => {
-          // Use html2canvas or similar for better results
-          // For now, basic canvas capture
-          const canvas = document.createElement('canvas');
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-          const ctx = canvas.getContext('2d');
+          try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
 
-          // Capture the visible viewport
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Set canvas to viewport size
+            const width = window.innerWidth || 1280;
+            const height = window.innerHeight || 720;
+            canvas.width = width;
+            canvas.height = height;
 
-          // Simple capture - in production use html2canvas
-          ctx.drawWindow(window, 0, 0, canvas.width, canvas.height, 'rgb(255,255,255)');
+            // Fill white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
 
-          return canvas.toDataURL('image/png', 0.9);
+            // Try to capture visible content
+            // Note: This is a simplified capture and may not capture all content perfectly
+            const html = document.documentElement;
+            const body = document.body;
+
+            if (body) {
+              // Capture body content
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, width, height);
+
+              // Simple text capture (fallback)
+              const text = body.innerText || body.textContent || '';
+              ctx.fillStyle = '#000000';
+              ctx.font = '12px monospace';
+              const lines = text.split('\\n').slice(0, 50);
+              lines.forEach((line, i) => {
+                ctx.fillText(line.substring(0, 100), 10, 20 + i * 15);
+              });
+            }
+
+            return canvas.toDataURL('image/png');
+          } catch (e) {
+            // console.error('Screenshot JavaScript failed:', e);
+            return null;
+          }
         })()
       `);
 
-      this.recordEvent('screenshot', { success: true });
-      this.emit('browser-screenshot', screenshot);
-      return screenshot;
+      if (screenshot && typeof screenshot === 'string') {
+        return screenshot;
+      }
+
+      return undefined;
     } catch (error) {
-      console.error('[BrowserService] Screenshot failed:', error);
-      this.recordEvent('screenshot', { success: false, error });
       return undefined;
     }
   }
@@ -566,7 +889,7 @@ class BrowserService extends EventEmitter {
       const result = await this.webviewRef.executeJavaScript(script);
       return result;
     } catch (error) {
-      console.error('[BrowserService] Script execution failed:', error);
+      // console.error('[BrowserService] Script execution failed:', error);
       return undefined;
     }
   }
@@ -616,7 +939,7 @@ class BrowserService extends EventEmitter {
    */
   activate(): void {
     this.updateState({ isActive: true });
-    console.log('[BrowserService] Browser activated');
+    // console.log('[BrowserService] Browser activated');
   }
 
   /**
@@ -624,7 +947,7 @@ class BrowserService extends EventEmitter {
    */
   deactivate(): void {
     this.updateState({ isActive: false, isLoading: false });
-    console.log('[BrowserService] Browser deactivated');
+    // console.log('[BrowserService] Browser deactivated');
   }
 
   /**
@@ -641,7 +964,7 @@ class BrowserService extends EventEmitter {
       lastError: null,
     };
     this.eventHistory = [];
-    console.log('[BrowserService] Browser state reset');
+    // console.log('[BrowserService] Browser state reset');
   }
 }
 

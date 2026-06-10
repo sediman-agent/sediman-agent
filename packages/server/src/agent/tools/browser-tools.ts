@@ -30,7 +30,8 @@ import { BrowserToolRouter } from './routing/index.js';
 const logger = createLogger("browser-tools");
 
 // Detect if running in Electron mode
-const RUNNING_IN_ELECTRON = process.env.SEDIMAN_MODE === 'electron';
+// Check if mode is 'electron' or 'all' (which includes Electron support)
+const RUNNING_IN_ELECTRON = process.env.SEDIMAN_MODE === 'electron' || process.env.SEDIMAN_MODE === 'all';
 
 /**
  * Browser Tools Manager coordinates browser tool registration and execution
@@ -138,7 +139,7 @@ export class BrowserToolsManager {
   }
 
   /**
-   * Execute tool via IPC (Electron mode)
+   * Execute tool via IPC (Electron mode) with fallback to Playwright
    */
   private async executeViaIPC(name: string, args: Record<string, any>): Promise<any> {
     if (!this.ipcExecutor) {
@@ -146,6 +147,56 @@ export class BrowserToolsManager {
     }
 
     const result = await this.ipcExecutor.execute(name, args);
+
+    // Check if IPC execution failed
+    if (!result.success) {
+      const errorMessage = result.error || 'Unknown error';
+
+      logger.warn(`[BrowserTools] IPC execution failed, falling back to Playwright: ${errorMessage}`);
+
+      // Ensure browser is started before falling back to Playwright
+      if (this.browserController) {
+        const session = this.browserController.getSession();
+        if (!session?.isStarted) {
+          logger.info('[BrowserTools] Starting browser session for Playwright fallback');
+          await this.browserController.start();
+        }
+
+        // Ensure there's a page available
+        const context = session?.context;
+        if (context && context.pages().length === 0) {
+          logger.info('[BrowserTools] Creating new page for Playwright fallback');
+          await context.newPage();
+        }
+
+        // Ensure page is ready before proceeding
+        try {
+          const pages = context?.pages();
+          if (pages && pages.length > 0) {
+            const currentPage = pages[0];
+            const currentUrl = currentPage.url();
+            if (!currentUrl || currentUrl === 'about:blank') {
+              logger.info('[BrowserTools] Initializing page to about:blank');
+              await currentPage.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 }).catch(() => {});
+            }
+          }
+        } catch (err) {
+          logger.warn(`[BrowserTools] Failed to ensure page readiness: ${err}`);
+        }
+      }
+
+      // Fall back to Playwright mode
+      if (this.toolRouter) {
+        return await this.executeViaRouter(name, args);
+      }
+
+      // If no router available, return the IPC error
+      return {
+        success: false,
+        output: '',
+        error: errorMessage
+      };
+    }
 
     // Transform IPC result to tool bus format
     return {

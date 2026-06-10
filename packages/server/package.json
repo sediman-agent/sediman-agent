@@ -14,7 +14,13 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "benchmark": "bun scripts/run-benchmarks.ts",
+    "benchmark:webbench": "bun scripts/run-benchmarks.ts webbench",
+    "benchmark:page-interaction": "bun scripts/run-benchmarks.ts page-interaction",
+    "benchmark:mind2web": "bun scripts/run-benchmarks.ts mind2web",
+    "benchmark:gaia": "bun scripts/run-benchmarks.ts gaia",
+    "benchmark:browsecomp": "bun scripts/run-benchmarks.ts browsecomp"
   },
   "dependencies": {
     "@mozilla/readability": "^0.5.0",

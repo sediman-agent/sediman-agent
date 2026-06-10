@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, BrowserView } = require('electron');
 const path = require('path');
 const http = require('http');
+const { playwrightService } = require('./playwright-service.cjs');
 
 let mainWindow;
 let browserView; // BrowserView for embedded browser panel
@@ -13,6 +14,21 @@ const isShowcase = args.includes('--showcase');
 const DEBUG_PORT = 9222;
 app.commandLine.appendSwitch('remote-debugging-port', String(DEBUG_PORT));
 console.log(`CDP debugging enabled on port ${DEBUG_PORT}`);
+
+// Additional security settings for webview - MAXIMUM AGGRESSIVE MODE
+app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors');
+app.commandLine.appendSwitch('disable-web-security');
+app.commandLine.appendSwitch('allow-insecure-localhost');
+app.commandLine.appendSwitch('ignore-certificate-errors');
+app.commandLine.appendSwitch('allow-running-insecure-content');
+app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-site-isolation-trials');
+app.commandLine.appendSwitch('disable-features', 'isolated_origins');
+app.commandLine.appendSwitch('disable-features', 'PopulateScriptBindings');
+app.commandLine.appendSwitch('disable-features', 'WebBluetooth');
+app.commandLine.appendSwitch('disable-features', 'WebUSB');
+console.log('⚠️  MAXIMUM web security DISABLED for webview compatibility');
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -45,9 +61,22 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Log renderer errors
+  // Log renderer errors (filtered)
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    console.log(`[Renderer ${level}] ${message} (line ${line})`);
+    const msg = String(message);
+    // Filter out noise
+    const noisePatterns = [
+      /Security Warning/i,
+      /CSP|Content Security Policy/i,
+      /moment.*deprecated/i,
+      /Deprecation warning/i,
+      /initial-scale.*invalid/i,
+      /\[object Object\]/i
+    ];
+    const isNoise = noisePatterns.some(pattern => pattern.test(msg));
+    if (!isNoise && level !== 'verbose' && level !== 'debug') {
+      console.log(`[Renderer ${level}] ${message} (line ${line})`);
+    }
   });
 
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
@@ -471,6 +500,41 @@ function setupBrowserHandlers() {
     }
 
     return { success: false, error: 'Max retries exceeded' };
+  });
+
+  // ============================================================================
+  // Playwright Service IPC Handlers
+  // ============================================================================
+
+  // Initialize Playwright service
+  ipcMain.handle('playwright-init', async () => {
+    console.log('[PlaywrightIPC] Initializing Playwright service...');
+    return await playwrightService.initialize();
+  });
+
+  // Execute browser command via Playwright
+  ipcMain.handle('playwright-exec', async (event, command) => {
+    console.log('[PlaywrightIPC] Executing command:', command.action);
+    const result = await playwrightService.executeCommand(command);
+
+    // Sync webview URL if command was navigate
+    if (command.action === 'navigate' && result.success && result.result?.url) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('playwright-navigated', { url: result.result.url });
+      }
+    }
+
+    return result;
+  });
+
+  // Get current page info
+  ipcMain.handle('playwright-get-page-info', async () => {
+    return await playwrightService.getPageInfo();
+  });
+
+  // Cleanup Playwright service
+  ipcMain.handle('playwright-cleanup', async () => {
+    return await playwrightService.cleanup();
   });
 }
 

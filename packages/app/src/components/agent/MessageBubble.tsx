@@ -130,12 +130,17 @@ const ThinkingBlock = memo(function ThinkingBlock({
 
       {isExpanded && (
         <div
-          className="mt-1.5 pl-4 whitespace-pre-wrap break-words border-l-2"
+          className="mt-1.5 pl-4 border-l-2"
           style={{
             color: 'var(--vscode-descriptionForeground)',
             borderColor: 'var(--vscode-border-color)',
             padding: '8px 12px',
-            lineHeight: 1.5,
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '12px'
           }}
         >
           {content}

@@ -82,7 +82,8 @@ export class ExecutionContext {
       defaultTimeoutMs: 30000
     });
     this.conversationManager = new ConversationManager();
-    this.streamEmitter = new StreamEmitter({ batchSize: 10, flushIntervalMs: 50 });
+    // Optimized for fast first token - content flushes immediately
+    this.streamEmitter = new StreamEmitter({ batchSize: 1, flushIntervalMs: 5 });
 
     // Initialize budget
     this.budget = {

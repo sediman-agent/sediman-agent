@@ -41,6 +41,7 @@ export function createAgentRoutes(deps: {
         // Try to get saved key first
         const savedKey = await getKey(providerName);
         apiKey = savedKey || process.env[preset.api_key_env];
+        console.log(`[API Agent] Creating provider: ${providerName}, Key found: ${!!apiKey}, Key length: ${apiKey?.length || 0}`);
       }
 
       const newProvider = createProvider(

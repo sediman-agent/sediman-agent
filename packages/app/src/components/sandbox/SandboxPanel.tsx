@@ -8,6 +8,7 @@ import { useRef, useCallback, useEffect, useState } from 'react';
 import { Bug, PanelLeftClose, PanelLeftOpen, Columns } from 'lucide-react';
 import { useSandboxStore } from '@/stores/useSandboxStore';
 import { browserService } from '@/services/BrowserService';
+import { ipcBrowserService } from '@/services/IPCBrowserService';
 import { BrowserHeader } from './BrowserHeader';
 import { BrowserStatusBar } from './BrowserStatusBar';
 import { ResizeHandle } from './ResizeHandle';
@@ -67,13 +68,32 @@ export function SandboxPanel() {
   // Callback ref to set src when webview mounts
   const setWebviewRef = useCallback((node: HTMLWebViewElement | null) => {
     if (node) {
+      console.log('[SandboxPanel] Webview element mounted');
       webviewRef.current = node;
-      node.src = webviewSrc;
-      // Register with BrowserService immediately when webview mounts
+
+      // Don't set src immediately - wait for webview to be ready
+      // The webview needs to be fully mounted before setting src
+      setTimeout(() => {
+        if (webviewSrc && webviewSrc !== 'about:blank') {
+          console.log('[SandboxPanel] Setting webview src:', webviewSrc);
+          try {
+            node.src = webviewSrc;
+          } catch (err) {
+            console.error('[SandboxPanel] Failed to set webview src:', err);
+          }
+        }
+      }, 100);
+
+      // Initialize IPC browser service when webview mounts
       if (isOpen) {
-        browserService.registerWebview(node);
-        browserService.activate();
-        console.log('[SandboxPanel] Webview registered and activated');
+        ipcBrowserService.initialize(node).then(() => {
+          console.log('[SandboxPanel] IPC browser service initialized');
+        }).catch(err => {
+          console.error('[SandboxPanel] IPC browser initialization failed:', err);
+          // Fall back to old service
+          browserService.registerWebview(node);
+          browserService.activate();
+        });
       }
     }
   }, [webviewSrc, isOpen]);
@@ -81,15 +101,90 @@ export function SandboxPanel() {
   // Set webview src directly when webviewSrc state changes
   useEffect(() => {
     if (webviewRef.current && webviewSrc && webviewSrc !== 'about:blank') {
-      webviewRef.current.src = webviewSrc;
+      console.log('[SandboxPanel] Updating webview src from useEffect:', webviewSrc);
+      try {
+        webviewRef.current.src = webviewSrc;
+      } catch (err) {
+        console.error('[SandboxPanel] Failed to update webview src:', err);
+      }
     }
   }, [webviewSrc]);
 
-  // Register webview with BrowserService when mounted
+  // Register webview with BrowserService when mounted and add event listeners
   useEffect(() => {
     if (webviewRef.current && isOpen) {
       browserService.registerWebview(webviewRef.current);
       browserService.activate();
+
+      // Add event listeners to webview
+      const webview = webviewRef.current;
+
+      const handleLoad = () => {
+        console.log('[SandboxPanel] Webview loaded successfully:', webview.src);
+      };
+
+      const handleLoadCommit = (event: Event) => {
+        const customEvent = event as any;
+        console.log('[SandboxPanel] Webview load commit:', customEvent?.url);
+      };
+
+      const handleDidFailLoad = (event: Event) => {
+        const customEvent = event as any;
+        // ERR_ABORTED (-3) is expected for external URLs - not a real error
+        if (customEvent?.errorCode === -3) {
+          // Silently ignore - this is expected behavior for external URLs
+          return;
+        }
+        console.error('[SandboxPanel] Webview failed to load:', {
+          errorCode: customEvent?.errorCode,
+          errorDescription: customEvent?.errorDescription,
+          validatedURL: customEvent?.validatedURL,
+          isMainFrame: customEvent?.isMainFrame
+        });
+      };
+
+      const handleConsoleMessage = (event: Event) => {
+        const customEvent = event as any;
+        const message = String(customEvent?.message || '');
+
+        // Filter out noise - only log important messages
+        const noisePatterns = [
+          /initial-scale.*invalid/i,
+          /key.*is not recognized/i,
+          /Security Warning.*CSP/i,
+          /Content Security Policy/i,
+          /moment\(\)\.lang\(\) is deprecated/i,
+          /moment\(\)\.zone is deprecated/i,
+          /Deprecation warning/i,
+          /Arguments:/i,
+          /Error\s+at\s+\w+\s+\(/i,
+          /\[\d+:\d+:\d+\]/,  // Timestamps
+          /^\d+\.\d+$/,       // Pure numbers
+          /^\[object Object\]$/i,
+          /true\s+\[object/,
+          /chart_height=/,
+          /^https?:\/\/\w+\.*/  // URLs
+        ];
+
+        const isNoise = noisePatterns.some(pattern => pattern.test(message));
+        if (!isNoise && message.length > 0 && message.length < 200) {
+          // Only log meaningful, short messages
+          console.log('[Webview Console]', message);
+        }
+      };
+
+      webview.addEventListener('did-finish-load', handleLoad);
+      webview.addEventListener('did-commit-load', handleLoadCommit);
+      webview.addEventListener('did-fail-load', handleDidFailLoad);
+      webview.addEventListener('console-message', handleConsoleMessage);
+
+      // Cleanup function
+      return () => {
+        webview.removeEventListener('did-finish-load', handleLoad);
+        webview.removeEventListener('did-commit-load', handleLoadCommit);
+        webview.removeEventListener('did-fail-load', handleDidFailLoad);
+        webview.removeEventListener('console-message', handleConsoleMessage);
+      };
     }
   }, [isOpen]);
 
@@ -198,7 +293,7 @@ export function SandboxPanel() {
 
         {/* Content Area */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Browser View - Renderer webview is the actual browser */}
+          {/* Browser View - Interactive webview */}
           <div
             className="flex-1 relative overflow-hidden"
             style={{
@@ -206,10 +301,12 @@ export function SandboxPanel() {
               transition: `width ${VS_CODES.transition} ease-out`
             }}
           >
-            {/* Webview - this IS the browser that agent controls via IPC */}
+            {/* Webview - controlled by React state */}
             <webview
               ref={setWebviewRef}
               id="embedded-browser"
+              src={webviewSrc}
+              partition="sandboxed-browser"
               style={{
                 width: '100%',
                 height: '100%',
@@ -218,6 +315,8 @@ export function SandboxPanel() {
               allowpopups={true}
               nodeintegration={false}
               plugins={true}
+              disablewebsecurity={true}
+              guestinstance=""
             />
           </div>
 

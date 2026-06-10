@@ -118,7 +118,8 @@ export class BrowserAgent {
     this.skillEngine = opts.skillEngine ?? null;
     this.skillSearch = opts.skillSearch ?? null;
     this.toolBus = opts.toolBus ?? new ToolBus();
-    this.streamEmitter = new StreamEmitter({ batchSize: 10, flushIntervalMs: 50 });
+    // Optimized for fast first token - content flushes immediately
+    this.streamEmitter = new StreamEmitter({ batchSize: 1, flushIntervalMs: 5 });
     this.useVision = opts.useVision ?? true;
 
     this.conversation = [];

@@ -83,6 +83,34 @@ export class ScreenshotManager {
    */
   private async doCapture(options: ScreenshotCaptureOptions): Promise<ScreenshotResult> {
     try {
+      const RUNNING_IN_ELECTRON = process.env.SEDIMAN_MODE === 'electron';
+
+      // Always try to get screenshot from state service first (both Electron and API mode)
+      const { browserStateService } = await import('../../api/routes/browser.js');
+      const frontendScreenshot = browserStateService.getScreenshotData();
+
+      if (frontendScreenshot && typeof frontendScreenshot === 'string' && frontendScreenshot.length > 1000) {
+        const currentUrl = browserStateService.getScreenshotUrl();
+        return {
+          success: true,
+          data: frontendScreenshot,
+          url: currentUrl,
+          size: frontendScreenshot.length
+        };
+      }
+
+      // If no frontend screenshot available, try CDP in Electron mode
+      if (RUNNING_IN_ELECTRON) {
+        // Ensure CDP connection for fallback
+        const connected = await waitForCdpConnection(5000);
+        if (!connected) {
+          return {
+            success: false,
+            error: 'No browser available and no frontend screenshot'
+          };
+        }
+      }
+
       const ctrl = this.controller || getBrowserController();
 
       if (!ctrl) {
@@ -92,20 +120,12 @@ export class ScreenshotManager {
         };
       }
 
-      // Ensure CDP connection for Electron mode
-      if (process.env.SEDIMAN_MODE === 'electron') {
-        const connected = await waitForCdpConnection(5000);
-        if (!connected) {
-          logger.warn('[ScreenshotManager] CDP connection timeout');
-        }
-      }
-
       // Apply delay if specified
       if (options.delay && options.delay > 0) {
         await new Promise(resolve => setTimeout(resolve, options.delay));
       }
 
-      // Capture screenshot
+      // Capture screenshot via controller (Playwright/CDP)
       const shot = await ctrl.screenshot();
 
       if (!shot || shot.length <= 100) {
@@ -121,8 +141,6 @@ export class ScreenshotManager {
 
       this.lastCaptureTime = Date.now();
 
-      logger.info(`[ScreenshotManager] Captured screenshot (${shot.length} bytes) for ${currentUrl}`);
-
       return {
         success: true,
         data: shot,
@@ -132,11 +150,49 @@ export class ScreenshotManager {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error('[ScreenshotManager] Capture failed:', message);
+      logger.error('[ScreenshotManager] Error details:', error);
       return {
         success: false,
         error: message
       };
     }
+  }
+
+  /**
+   * Detect if the current page is a bot detection/challenge page
+   */
+  private detectBotPage(screenshotData: string, url: string): boolean {
+    // Check URL patterns first
+    const botUrlPatterns = [
+      /cf-challenge/,
+      /challenge-platform/,
+      /cdn-cgi/,
+      /bot-management/,
+      /security-verify/
+    ];
+
+    if (botUrlPatterns.some(pattern => pattern.test(url))) {
+      return true;
+    }
+
+    // Check for common bot detection indicators in the page
+    // Since we can't analyze the image directly, we'll use the page URL
+    // and common patterns
+    const botPageIndicators = [
+      'checking your browser',
+      'please wait while we verify',
+      'access denied',
+      'you have been blocked',
+      'cloudflare',
+      'incapsula',
+      'distil',
+      'akamai',
+      'bot detection'
+    ];
+
+    // Check if URL contains bot-related keywords
+    const urlLower = url.toLowerCase();
+    return botPageIndicators.some(indicator => urlLower.includes(indicator.toLowerCase()));
   }
 
   /**

@@ -200,13 +200,19 @@ export class AgentLoop {
     this.context.startTime = Date.now();
     this.context.soul = loadSoul();
 
-    // Set conversation history if provided
+    // Always create fresh ConversationManager for new tasks
+    const { ConversationManager } = await import('./conversation-manager.js');
+
     if (conversationHistory && conversationHistory.length > 0) {
-      const { ConversationManager } = await import('./conversation-manager.js');
+      // Use provided conversation history
       const conversationManager = new ConversationManager({ initialHistory: conversationHistory });
       this.context.conversationManager = conversationManager;
       this.messageHandler = new MessageHandler(conversationManager);
     } else {
+      // Create fresh conversation manager for new task
+      const conversationManager = new ConversationManager();
+      this.context.conversationManager = conversationManager;
+      this.messageHandler = new MessageHandler(conversationManager);
       // Add task as initial user message
       this.messageHandler.addUserMessage(task);
     }

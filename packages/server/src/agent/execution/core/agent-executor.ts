@@ -111,9 +111,25 @@ export class AgentExecutor {
    * Get messages for LLM call
    */
   private async getMessages(): Promise<any[]> {
+    const messages = this.messageHandler.getConversation();
+
+    logger.info(`[AgentExecutor] ========== GETTING MESSAGES FOR LLM ==========`);
+    logger.info(`[AgentExecutor] Total messages: ${messages.length}`);
+
+    // Log each message to see if vision is included
+    messages.forEach((msg: any, idx: number) => {
+      const contentType = Array.isArray(msg.content) ? 'array' : typeof msg.content;
+      const hasVision = Array.isArray(msg.content) && msg.content.some((item: any) => item.type === 'image_url');
+      logger.info(`[AgentExecutor] Message ${idx}: role=${msg.role}, contentType=${contentType}, hasVision=${hasVision}`);
+
+      if (hasVision) {
+        logger.info(`[AgentExecutor] ✓ Vision message found at index ${idx}!`);
+      }
+    });
+
     // Apply compression if needed
     if (this.context.iteration % 15 === 0 && this.messageHandler.getLength() > 15) {
-      const compressed = this.compressor(this.messageHandler.getConversation(), 10000);
+      const compressed = this.compressor(messages, 10000);
       this.context.conversationManager = new (await import('../conversation-manager.js')).ConversationManager();
       compressed.forEach((msg: any) => {
         if (msg.role === 'user') this.messageHandler.addUserMessage(msg.content);
@@ -121,14 +137,36 @@ export class AgentExecutor {
         else if (msg.role === 'system') this.messageHandler.addSystemMessage(msg.content);
       });
       logger.info(`[AgentExecutor] Compressed conversation to ${this.messageHandler.getLength()} messages`);
+      return this.messageHandler.getConversation();
     }
-    return this.messageHandler.getConversation();
+
+    return messages;
   }
 
   /**
    * Call LLM with streaming
    */
   private async callLLM(messages: any[], tools: any[], systemPrompt: string): Promise<any> {
+    logger.info(`[AgentExecutor] ========== CALLING LLM ==========`);
+    logger.info(`[AgentExecutor] Messages count: ${messages.length}`);
+    logger.info(`[AgentExecutor] Tools count: ${tools.length}`);
+    logger.info(`[AgentExecutor] System prompt length: ${systemPrompt?.length || 0}`);
+
+    // Check if any message has vision
+    const hasVision = messages.some((msg: any) =>
+      Array.isArray(msg.content) && msg.content.some((item: any) => item.type === 'image_url')
+    );
+
+    logger.info(`[AgentExecutor] Has vision in messages: ${hasVision}`);
+
+    if (hasVision) {
+      const visionMsg = messages.find((msg: any) =>
+        Array.isArray(msg.content) && msg.content.some((item: any) => item.type === 'image_url')
+      );
+      logger.info(`[AgentExecutor] Vision message role: ${visionMsg?.role}`);
+      logger.info(`[Vision message]:`, JSON.stringify(visionMsg, null, 2).substring(0, 800));
+    }
+
     let fullContent = '';
     const stream = this.context.llmProvider.chatStreamWithTools(
       messages,
@@ -309,15 +347,28 @@ export class AgentExecutor {
    * Inject browser vision into conversation
    */
   private async injectBrowserVision(): Promise<void> {
+    logger.info('[AgentExecutor] Starting vision injection...');
+
+    // Delay to ensure frontend screenshot is captured and sent to backend
+    // Frontend waits 2-3 seconds for page load + screenshot capture
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
     const { visionInjector } = await import('../../vision/index.js');
+    logger.info('[AgentExecutor] Calling vision injector...');
+
     await visionInjector.injectAfterBrowserAction(
-      (content) => this.messageHandler.addUserMessage(content),
+      (content) => {
+        logger.info('[AgentExecutor] Vision injector returned content, adding to conversation');
+        this.messageHandler.addUserMessage(content);
+      },
       { url: this.context.currentUrl, title: this.context.currentTitle }
     );
 
     // Update current state
     const state = (await import('../../vision/index.js')).screenshotManager;
     this.context.currentUrl = state?.url || this.context.currentUrl;
+
+    logger.info('[AgentExecutor] Vision injection complete');
   }
 
   /**

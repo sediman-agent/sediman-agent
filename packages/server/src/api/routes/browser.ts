@@ -28,6 +28,7 @@ export function createBrowserRoutes(browserSession: any): Hono {
 
   // === State Queries ===
   app.get('/screenshot', async (c) => handlers.handleScreenshot(c));
+  app.post('/screenshot', async (c) => handlers.handleScreenshotSubmit(c));
   app.get('/snapshot', async (c) => handlers.handleSnapshot(c));
   app.get('/state', async (c) => handlers.handleStateSnapshot(c));
 
@@ -56,6 +57,7 @@ app.post('/api/browser/exec/result', async (c) => handlers.handleExecResult(c));
 
 // === State Queries ===
 app.get('/api/browser/screenshot', async (c) => handlers.handleScreenshot(c));
+app.post('/api/browser/screenshot', async (c) => handlers.handleScreenshotSubmit(c));
 app.get('/api/browser/snapshot', async (c) => handlers.handleSnapshot(c));
 app.get('/api/browser/state', async (c) => handlers.handleStateSnapshot(c));
 
@@ -98,6 +100,11 @@ export function isCdpConnected(): boolean {
 export function resetCdpConnection(): void {
   browserStateService.resetCdpConnection();
 }
+
+/**
+ * Get browser state service instance
+ */
+export { browserStateService };
 
 /**
  * Get external CDP URL

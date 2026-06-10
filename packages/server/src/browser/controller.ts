@@ -467,6 +467,12 @@ export class BrowserController {
 
   async extractText(): Promise<string> {
     try {
+      if (this.isElectronModeNoContext()) {
+        console.log('[BrowserController] Electron mode - extract_text handled via BrowserView IPC');
+        this.emit("extract_text", "");
+        return "Text extraction queued (via Electron IPC)";
+      }
+
       const page = this.page();
       const text = await page.evaluate(() => {
         const body = document.body;
@@ -475,8 +481,10 @@ export class BrowserController {
         clone.querySelectorAll("script, style, noscript, svg, path").forEach((el) => el.remove());
         return (clone.innerText || "").replace(/\s+/g, " ").trim();
       });
-      const cfg = getConfig();
-      return text.slice(0, cfg.defaultWebMaxChars);
+
+      // Return full text without truncation for data extraction
+      // The agent needs complete page content to extract structured data
+      return text;
     } catch (e: any) {
       return `Failed to extract text: ${e.message}`;
     }
@@ -557,6 +565,12 @@ export class BrowserController {
 
   async evaluate(script: string): Promise<any> {
     try {
+      if (this.isElectronModeNoContext()) {
+        console.log('[BrowserController] Electron mode - evaluate handled via BrowserView IPC');
+        this.emit("evaluate", `script=${script.slice(0, 100)}`);
+        return `Script execution queued (via Electron IPC) (script=${script.slice(0, 100)})`;
+      }
+
       const page = this.page();
       const result = await page.evaluate(script);
       return result;
