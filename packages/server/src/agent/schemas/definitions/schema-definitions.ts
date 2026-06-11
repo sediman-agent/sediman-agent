@@ -42,6 +42,10 @@ export type AgentThought = z.infer<typeof AgentThoughtSchema>;
  * Individual tool/action call specification
  */
 export const ToolCallSchema = z.object({
+  id: z.string()
+    .optional()
+    .describe('Tool call ID for matching responses'),
+
   name: z.string()
     .min(1)
     .regex(/^[a-z_][a-z0-9_]*$/, 'Tool name must be snake_case')

@@ -19,9 +19,9 @@ export interface TurboPathContext {
   toolBus: ToolBus;
   soul?: string;
   emitContent?: (chunk: string, isFinal: boolean) => void;
-  emitStepStart?: (phase: string, action: string, detail: string) => void;
-  emitStepComplete?: (phase: string, action: string, output: string, success: boolean) => void;
-  saveSessionToDb?: (task: string, steps: StepEvent[], result: string, success: boolean) => Promise<void>;
+  emitStepStart?: (phase: 'planning' | 'executing' | 'done', action: string, detail: string) => void;
+  emitStepComplete?: (phase: 'planning' | 'executing' | 'done', action: string, output: string, success: boolean) => void;
+  saveSessionToDb?: (task: string, steps: string[], result: string, success: boolean) => Promise<void>;
 }
 
 /**
@@ -76,7 +76,7 @@ export class TurboPathExecutor {
     try {
       return await this.execute(task);
     } catch (error) {
-      logger.error('[TurboPath] Error:', error);
+      logger.error(`[TurboPath] Error: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -105,22 +105,19 @@ export class TurboPathExecutor {
         }
       );
 
-      logger.info(`[TurboPath] LLM response:`, {
-        hasText: !!response.text,
-        toolCalls: response.tool_calls?.length || 0
-      });
+      logger.info(`[TurboPath] LLM response: hasText=${!!response.text}, toolCalls=${response.tool_calls?.length || 0}`);
 
       // If no tool calls, we're done
       if (!response.tool_calls || response.tool_calls.length === 0) {
         if (toolRound === 0 && response.text) {
           const parsed = this.thinkParser.parse(response.text);
           const result = this.createResult(task, parsed.visible || response.text, [], allSteps);
-          await this.context.saveSessionToDb?.(task, [], result.result, result.success);
+          await this.context.saveSessionToDb?.(task, [] as string[], result.result, result.success);
           return result;
         } else if (response.text) {
           this.context.emitContent?.(response.text, true);
           const result = this.createResult(task, response.text, allSteps, allSteps.map(s => s.action));
-          await this.context.saveSessionToDb?.(task, allSteps, result.result, result.success);
+          await this.context.saveSessionToDb?.(task, allSteps.map(s => s.action), result.result, result.success);
           return result;
         }
         break;
@@ -254,7 +251,7 @@ export class TurboPathExecutor {
         } as any);
       }
     } catch (error) {
-      logger.debug('[TurboPath] Failed to inject browser vision:', error);
+      logger.debug(`[TurboPath] Failed to inject browser vision: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

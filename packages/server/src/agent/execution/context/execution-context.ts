@@ -29,6 +29,7 @@ export class ExecutionContext {
   public currentTask: string = '';
   public currentCategory: string = '';
   public currentMode: string = '';
+  public soul: string = '';
 
   // Browser state
   public currentUrl: string = '';

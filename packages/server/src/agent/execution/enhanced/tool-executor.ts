@@ -86,7 +86,7 @@ export async function executeToolCall(
       }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      logger.error(`[ToolExecutor] ${name} error (attempt ${attempt + 1}):`, lastError.message);
+      logger.error(`[ToolExecutor] ${name} error (attempt ${attempt + 1}): ${lastError.message}`);
 
       // Don't retry on certain errors
       if (lastError.message.includes('cancelled') || lastError.message.includes('aborted')) {

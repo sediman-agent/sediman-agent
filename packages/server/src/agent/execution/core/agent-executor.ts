@@ -269,7 +269,7 @@ export class AgentExecutor {
     const batchManager = new BatchExecutionManager(this.context.toolBus);
 
     const batchResult = await batchManager.executeUntilChange(
-      tool_calls.map((tc: any) => ({ name: tc.name, arguments: tc.arguments })),
+      tool_calls.map((tc: any) => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
       {
         detect: async () => {
           const previousState = getLastPageState();
@@ -302,9 +302,9 @@ export class AgentExecutor {
 
       const resultToolCallId = formattedCalls[i]?.id;
       this.messageHandler.addToolResult(
-        resultToolCallId || action.name,
+        resultToolCallId || action.id || action.name,
         action.name,
-        result.success ? result.output : result.error ?? 'Tool failed'
+        result.success ? (result.output ?? '') : (result.error ?? 'Tool failed')
       );
 
       // Emit step complete event
@@ -312,7 +312,7 @@ export class AgentExecutor {
 
       // Check for browser_end
       if (action.name === 'browser_end') {
-        const output = result.success ? result.output : result.error || '';
+        const output = (result.success ? result.output : result.error) || '';
         const summaryMatch = output.match(/Task completed:\s*(.*)/s);
         this.context.complete(summaryMatch?.[1] || output, true);
         break;
@@ -359,9 +359,20 @@ export class AgentExecutor {
       { url: this.context.currentUrl, title: this.context.currentTitle }
     );
 
-    // Update current state
-    const state = (await import('../../vision/index.js')).screenshotManager;
-    this.context.currentUrl = state?.url || this.context.currentUrl;
+    // Update current state - try to get current URL from browser controller
+    try {
+      const { getBrowserController } = await import('../../tools/browser-tools.js');
+      const controller = getBrowserController();
+      if (controller) {
+        const session = controller.getSession();
+        const pages = session?.context?.pages();
+        if (pages && pages.length > 0) {
+          this.context.currentUrl = pages[0].url();
+        }
+      }
+    } catch {
+      // Keep existing URL if we can't get it
+    }
 
     logger.info('[AgentExecutor] Vision injection complete');
   }

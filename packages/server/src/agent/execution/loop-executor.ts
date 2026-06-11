@@ -5,7 +5,8 @@
 
 import type { LLMProvider } from '../../llm/provider';
 import type { ToolBus } from '../tools/bus';
-import type { Message, StepEvent, AgentResult } from '../../core/types';
+import type { StepEvent, AgentResult } from '../../core/types';
+import type { Message } from '../../memory/compressor';
 import { InterruptSignal } from '../core/interrupt';
 import { AuditLog, SharedScratchpad, checkBudget } from '../monitoring/guardrails';
 import { ProgressTracker } from '../memory/progress';
@@ -42,6 +43,7 @@ export interface LoopExecutionResult {
   result: AgentResult;
   steps: StepEvent[];
   conversation: Message[];
+  actionsTaken: string[];
 }
 
 /**
@@ -66,15 +68,16 @@ export async function executeLoop(
     memory
   } = opts;
 
-  const { task, systemPrompt, initialConversation, soul } = execOps;
+  const { task, systemPrompt, initialConversation, soul } = execOpts;
 
   logger.info('[LoopExecutor] Starting execution loop');
 
-  const conversation: Message[] = [...initialConversation];
+  let conversation: Message[] = [...initialConversation];
   const steps: StepEvent[] = [];
   let iteration = 0;
   let consecutiveFailures = 0;
   let finalResult = '';
+  const actionsTaken: string[] = [];
 
   // Main execution loop
   while (iteration < maxIterations) {
@@ -90,27 +93,27 @@ export async function executeLoop(
     progress.update(iteration, maxIterations);
 
     // Check for loops
-    const loopDetected = loopDetector.detectLoop(actionsTaken);
-    if (loopDetected) {
-      logger.warn('[LoopExecutor] Loop detected:', loopDetected);
-      streamEmitter.emitLoopWarning(loopDetected);
+    const loopDetected = loopDetector.detectLoop();
+    if (loopDetected.isLooping) {
+      logger.warn(`[LoopExecutor] Loop detected: ${JSON.stringify(loopDetected)}`);
+      // streamEmitter.emitLoopWarning(loopDetected);
 
-      if (loopDetected.severity === 'critical') {
+      const severity = loopDetected.pattern?.severity;
+      if (severity === 'critical') {
         break;
       }
     }
 
     // Check budget
-    const budget = { iterations: iteration, maxIterations, cost: 0 };
-    const budgetCheck = checkBudget(budget);
-    if (!budgetCheck.ok) {
-      logger.warn('[LoopExecutor] Budget exhausted:', budgetCheck);
+    const budgetCheck = checkBudget({ usedIterations: iteration, maxIterations });
+    if (budgetCheck.exceeded) {
+      logger.warn(`[LoopExecutor] Budget exhausted: ${budgetCheck.reason}`);
       break;
     }
 
     // Compress context if needed
     if (iteration % 10 === 0 && conversation.length > 50) {
-      conversation = compressor.compress(conversation);
+      conversation = compressor.compress(conversation, 8000);
       logger.info('[LoopExecutor] Compressed conversation');
     }
 
@@ -133,7 +136,10 @@ export async function executeLoop(
         auditLog,
         scratchpad,
         streamEmitter,
-        steps
+        steps,
+        loopDetector,
+        iteration,
+        actionsTaken
       );
 
       // Update state based on result
@@ -159,15 +165,16 @@ export async function executeLoop(
 
       // Create checkpoint periodically
       if (iteration % 5 === 0) {
-        checkpointManager.saveCheckpoint({
+        await checkpointManager.save({
           iteration,
-          conversation,
-          steps,
-          result: finalResult
+          timestamp: Date.now(),
+          task,
+          conversation: conversation as any,
+          lastResult: finalResult
         });
       }
     } catch (error) {
-      logger.error('[LoopExecutor] Execution error:', error);
+      logger.error(`[LoopExecutor] Execution error: ${error instanceof Error ? error.message : String(error)}`);
       consecutiveFailures++;
 
       if (consecutiveFailures >= 3) {
@@ -179,14 +186,14 @@ export async function executeLoop(
 
   // Build final result
   const agentResult: AgentResult = {
-    success: consecutiveFailures < 3,
+    task,
     result: finalResult || 'Task execution completed',
-    steps: steps.length,
-    duration: 0, // Calculate actual duration
-    conversation: conversation.map(msg => ({
-      role: msg.role,
-      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
-    }))
+    success: consecutiveFailures < 3,
+    steps,
+    actions_taken: actionsTaken,
+    iterations: iteration,
+    strategy_used: 'standard',
+    elapsed_secs: 0
   };
 
   if (memory) {
@@ -196,7 +203,8 @@ export async function executeLoop(
   return {
     result: agentResult,
     steps,
-    conversation
+    conversation,
+    actionsTaken
   };
 }
 
@@ -229,7 +237,10 @@ async function processResponse(
   auditLog: AuditLog,
   scratchpad: SharedScratchpad,
   streamEmitter: StreamEmitter,
-  steps: StepEvent[]
+  steps: StepEvent[],
+  loopDetector: import('../monitoring/loop-detector').LoopDetector,
+  iteration: number,
+  actionsTaken: string[]
 ): Promise<{ success: boolean; output?: string; error?: string; done?: boolean }> {
   const { text, toolCalls } = response;
 
@@ -270,7 +281,7 @@ async function processResponse(
       // Add tool result to conversation
       conversation.push({
         role: 'tool',
-        tool_call_id: toolCall.id,
+        tool_call_id: toolCall.id || `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: result.success ? result.output : result.error || 'Tool failed',
         name: toolCall.name
       });
@@ -282,6 +293,10 @@ async function processResponse(
         detail: result.output,
         observation: result.success ? 'success' : 'failure'
       });
+
+      // Record action for loop detection
+      actionsTaken.push(toolCall.name);
+      loopDetector.recordAction(toolCall.name, toolCall.arguments, iteration);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       results.push({ success: false, output: errorMsg });
@@ -290,10 +305,14 @@ async function processResponse(
 
       conversation.push({
         role: 'tool',
-        tool_call_id: toolCall.id,
+        tool_call_id: toolCall.id || `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         content: `Error: ${errorMsg}`,
         name: toolCall.name
       });
+
+      // Record failed action for loop detection
+      actionsTaken.push(toolCall.name);
+      loopDetector.recordAction(toolCall.name, toolCall.arguments, iteration);
     }
   }
 
@@ -307,6 +326,3 @@ async function processResponse(
     done
   };
 }
-
-// Temporary placeholder for actions tracking
-const actionsTaken: string[] = [];

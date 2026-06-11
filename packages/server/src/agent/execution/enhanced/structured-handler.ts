@@ -33,8 +33,8 @@ export function processStructuredOutput(
     const parsed = JSON.parse(text);
     const validation = validateAgentResponse(parsed);
 
-    if (validation.valid || !useStrictValidation) {
-      return validation.valid ? parsed : coerceAgentResponse(parsed);
+    if (validation.success || !useStrictValidation) {
+      return validation.success ? validation.data! : coerceAgentResponse(parsed);
     }
 
     logger.warn(`[StructuredOutput] Validation errors: ${JSON.stringify(validation.errors)}`);
@@ -48,7 +48,7 @@ export function processStructuredOutput(
 
     if (useStrictValidation) {
       const validation = validateAgentResponse(coerced);
-      if (validation.valid) {
+      if (validation.success) {
         return coerced;
       }
       logger.warn(`[StructuredOutput] Coerced response validation failed: ${JSON.stringify(validation.errors)}`);
@@ -67,7 +67,7 @@ export function processStructuredOutput(
     },
     actions: [],
     done: false,
-    output: text
+    summary: text
   };
 }
 
@@ -91,8 +91,8 @@ export function extractToolCalls(response: AgentResponse): ToolCall[] {
  */
 export function isAgentDone(response: AgentResponse): boolean {
   return response.done === true ||
-         response.output?.toLowerCase().includes('task completed') ||
-         response.output?.toLowerCase().includes('finished');
+         (response.summary?.toLowerCase().includes('task completed') || false) ||
+         (response.summary?.toLowerCase().includes('finished') || false);
 }
 
 /**

@@ -1,4 +1,4 @@
-type Message = {
+export type Message = {
   role: string;
   content?: string | Array<{ type: string; text?: string; image_url?: { url: string } }>;
   tool_calls?: Array<{

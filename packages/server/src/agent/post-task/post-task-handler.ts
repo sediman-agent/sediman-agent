@@ -46,7 +46,7 @@ export class PostTaskHandler {
       try {
         await task();
       } catch (error) {
-        logger.warn('[PostTaskHandler] Task failed:', error);
+        logger.warn(`[PostTaskHandler] Task failed: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
