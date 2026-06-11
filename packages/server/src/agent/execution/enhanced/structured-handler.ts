@@ -37,7 +37,7 @@ export function processStructuredOutput(
       return validation.valid ? parsed : coerceAgentResponse(parsed);
     }
 
-    logger.warn('[StructuredOutput] Validation errors:', validation.errors);
+    logger.warn(`[StructuredOutput] Validation errors: ${JSON.stringify(validation.errors)}`);
   } catch {
     // Not valid JSON, continue to parsing
   }
@@ -51,7 +51,7 @@ export function processStructuredOutput(
       if (validation.valid) {
         return coerced;
       }
-      logger.warn('[StructuredOutput] Coerced response validation failed:', validation.errors);
+      logger.warn(`[StructuredOutput] Coerced response validation failed: ${JSON.stringify(validation.errors)}`);
     }
 
     return coerced;

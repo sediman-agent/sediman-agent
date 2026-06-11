@@ -47,7 +47,7 @@ export async function captureState(options: StateCaptureOptions = {}): Promise<L
           try {
             state.screenshot = await page.screenshot({ type: 'png', encoding: 'base64' });
           } catch (error) {
-            logger.warn('[StateCapture] Failed to capture screenshot:', error);
+            logger.warn(`[StateCapture] Failed to capture screenshot: ${String(error)}`);
           }
         }
 
@@ -57,13 +57,13 @@ export async function captureState(options: StateCaptureOptions = {}): Promise<L
             const fusionState = await visionFusion.getFusionState(page);
             state.elements = fusionState.elements;
           } catch (error) {
-            logger.warn('[StateCapture] Smart perception failed:', error);
+            logger.warn(`[StateCapture] Smart perception failed: ${String(error)}`);
           }
         }
       }
     }
   } catch (error) {
-    logger.error('[StateCapture] Failed to capture state:', error);
+    logger.error(`[StateCapture] Failed to capture state: ${String(error)}`);
   }
 
   return state;

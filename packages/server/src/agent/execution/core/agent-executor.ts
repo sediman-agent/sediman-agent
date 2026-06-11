@@ -163,7 +163,7 @@ export class AgentExecutor {
         Array.isArray(msg.content) && msg.content.some((item: any) => item.type === 'image_url')
       );
       logger.info(`[AgentExecutor] Vision message role: ${visionMsg?.role}`);
-      logger.info(`[Vision message]:`, JSON.stringify(visionMsg, null, 2).substring(0, 800));
+      logger.info(`[Vision message]: ${JSON.stringify(visionMsg, null, 2).substring(0, 800)}`);
     }
 
     let fullContent = '';
@@ -376,7 +376,7 @@ export class AgentExecutor {
       if (!controller) return null;
       return await controller.snapshot();
     } catch (error) {
-      logger.warn('[AgentExecutor] Failed to capture page state:', error);
+      logger.warn(`[AgentExecutor] Failed to capture page state: ${String(error)}`);
       return null;
     }
   }
