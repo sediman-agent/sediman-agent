@@ -6,7 +6,7 @@
 import type { LLMProvider } from '../../llm/provider';
 import type { ToolBus } from '../tools/bus';
 import type { AgentResult, StepEvent } from '../../core/types';
-import type { Message } from '../../memory/compressor';
+import type { Message } from '../../llm/provider';
 import { InterruptSignal } from '../core/interrupt';
 import { ProgressTracker } from '../memory/progress';
 import { StreamEmitter } from '../streaming';
