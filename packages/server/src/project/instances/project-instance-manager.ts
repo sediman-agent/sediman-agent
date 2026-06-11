@@ -3,11 +3,11 @@
  * Manages browser instances and related components for projects
  */
 
-import type { BrowserSession } from "../../browser/session.js";
+import { BrowserSession } from "../../browser/session.js";
 import { BrowserController } from "../../browser/controller.js";
 import type { AgentLoop } from "../../agent/loop.js";
 import type { ToolBus } from "../../agent/tools/bus.js";
-import type { ProjectInstance } from "../../manager.js";
+import type { ProjectInstance } from "../manager";
 import { createAgentToolRegistry } from "../../agent/tools";
 import { registerBrowserTools } from "../../agent/tools/browser-tools.js";
 import { getConfig } from "../../core/config.js";
@@ -78,10 +78,17 @@ export class ProjectInstanceManager {
       headless: project.headless,
     });
 
-    instance = { browserController, browserSession, toolBus, agentLoop };
+    instance = {
+      projectId,
+      project: { headless: project.headless, userDataDir: project.userDataDir || '' },
+      browserController,
+      browserSession,
+      toolBus,
+      agentLoop
+    };
     this.instances.set(projectId, instance);
 
-    logger.info({ projectId }, "project_browser_started");
+    logger.info('[ProjectInstanceManager] Project ' + projectId + ' browser started');
     return instance;
   }
 

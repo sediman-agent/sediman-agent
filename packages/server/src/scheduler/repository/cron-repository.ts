@@ -102,7 +102,7 @@ export class CronJobRepository {
       const content = readFileSync(path, "utf-8");
       return JSON.parse(content) as StoredCronJob;
     } catch (error) {
-      logger.error(`[CronRepository] Failed to load job ${jobId}:`, error);
+      logger.error('[CronRepository] Failed to load job ' + jobId + ': ' + JSON.stringify(error));
       return null;
     }
   }
@@ -119,7 +119,7 @@ export class CronJobRepository {
       logger.info(`[CronRepository] Deleted job ${jobId}`);
       return true;
     } catch (error) {
-      logger.error(`[CronRepository] Failed to delete job ${jobId}:`, error);
+      logger.error('[CronRepository] Failed to delete job ' + jobId + ': ' + JSON.stringify(error));
       return false;
     }
   }
@@ -148,11 +148,11 @@ export class CronJobRepository {
             jobs.push(job);
           }
         } catch (error) {
-          logger.warn(`[CronRepository] Failed to parse job file ${entry.name}:`, error);
+          logger.warn('[CronRepository] Failed to parse job file ' + entry.name + ': ' + JSON.stringify(error));
         }
       }
     } catch (error) {
-      logger.error("[CronRepository] Failed to list jobs:", error);
+      logger.error('[CronRepository] Failed to list jobs: ' + JSON.stringify(error));
     }
 
     return jobs;
@@ -207,7 +207,7 @@ export class CronJobRepository {
       const fs = require("node:fs");
       fs.appendFileSync(this.resultsFile, line, "utf-8");
     } catch (error) {
-      logger.error("[CronRepository] Failed to append result:", error);
+      logger.error('[CronRepository] Failed to append result: ' + JSON.stringify(error));
     }
   }
 
@@ -233,7 +233,7 @@ export class CronJobRepository {
 
       return results;
     } catch (error) {
-      logger.error("[CronRepository] Failed to read results:", error);
+      logger.error('[CronRepository] Failed to read results: ' + JSON.stringify(error));
       return [];
     }
   }
@@ -256,7 +256,7 @@ export class CronJobRepository {
 
       logger.info(`[CronRepository] Cleared old results, kept ${recentLines.length}`);
     } catch (error) {
-      logger.error("[CronRepository] Failed to clear old results:", error);
+      logger.error('[CronRepository] Failed to clear old results: ' + JSON.stringify(error));
     }
   }
 

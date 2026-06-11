@@ -140,6 +140,13 @@ export class MemoryStorage {
   }
 
   /**
+   * Get all nodes
+   */
+  getAllNodes(): MemoryNode[] {
+    return Array.from(this.nodes.values());
+  }
+
+  /**
    * Get storage stats
    */
   getStats(): { totalNodes: number; domains: number; domainCounts: Record<string, number> } {

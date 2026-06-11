@@ -8,7 +8,7 @@
  */
 
 import type { Page } from 'playwright';
-import type { AXNode, ElementMetadata, InteractiveElement, PageState } from '../controller';
+import type { AXNode, ElementMetadata, InteractiveElement, PageState } from '../controller.js';
 import { createLogger } from '../../core/logging';
 
 const logger = createLogger('ax-extractor');
@@ -177,12 +177,13 @@ export class AccessibilityTreeExtractor {
             tag: getElementType(node.role, node),
             text: text || '',
             xpath,
-            boundingBox,
+            attributes: attributes || {},
+            boundingBox: boundingBox || undefined,
             isVisible: boundingBox ? await isElementVisible(page, xpath) : true,
             isInteractable: isElementInteractable(node),
-            attributes,
-            hash: elementHash
-          }
+            hash: elementHash,
+          },
+          xpath,
         };
 
         elements.push(element);
@@ -320,3 +321,6 @@ export class AccessibilityTreeExtractor {
 
 // Singleton instance
 export const axExtractor = new AccessibilityTreeExtractor();
+
+// Re-export types from controller
+export type { AXNode, ElementMetadata, InteractiveElement, PageState } from '../controller.js';

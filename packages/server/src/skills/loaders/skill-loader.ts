@@ -147,10 +147,10 @@ export class SkillLoader {
     for (const [name, param] of Object.entries(skill.parameters)) {
       params.push({
         name,
-        type: param.type || 'string',
-        description: param.description || '',
-        required: param.required || false,
-        default: param.default
+        type: (param as any).type || 'string',
+        description: (param as any).description || '',
+        required: (param as any).required || false,
+        default: (param as any).default
       });
     }
 
@@ -169,7 +169,7 @@ export class SkillLoader {
       try {
         skill.cleanup();
       } catch (error) {
-        logger.warn(`[SkillLoader] Error cleaning up skill ${skillId}:`, error);
+        logger.warn('[SkillLoader] Error cleaning up skill ' + skillId + ': ' + JSON.stringify(error));
       }
     }
 
@@ -214,7 +214,7 @@ export class SkillLoader {
         try {
           skill.cleanup();
         } catch (error) {
-          logger.warn(`[SkillLoader] Error cleaning up skill ${id}:`, error);
+          logger.warn('[SkillLoader] Error cleaning up skill ' + id + ': ' + JSON.stringify(error));
         }
       }
     }

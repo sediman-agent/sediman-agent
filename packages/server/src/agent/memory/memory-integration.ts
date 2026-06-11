@@ -3,7 +3,7 @@
  * Handles memory strategy integration and agent memory management
  */
 
-import type { BaseMemoryStrategy } from '../../../memory/strategy';
+import type { BaseMemoryStrategy } from '../../memory/strategy';
 
 export interface MemoryIntegrationOpts {
   memory?: BaseMemoryStrategy;

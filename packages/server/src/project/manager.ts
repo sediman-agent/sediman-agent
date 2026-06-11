@@ -252,8 +252,5 @@ export class ProjectManager {
   }
 }
 
-// Re-export types
-export type { ProjectInstance };
-
 // Re-export classes for direct use
 export { ProjectRepository, ProjectInstanceManager };

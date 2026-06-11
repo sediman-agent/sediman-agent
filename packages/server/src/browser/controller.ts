@@ -676,6 +676,7 @@ export class BrowserController {
   async closeTab(index?: number): Promise<string> {
     try {
       const context = this.session.context;
+      if (!context) return 'No browser session';
       const pages = context.pages();
 
       if (pages.length === 0) {

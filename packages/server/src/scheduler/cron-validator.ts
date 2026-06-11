@@ -73,7 +73,7 @@ export function validateCronExpr(expr: string): boolean {
 /**
  * Get field range for a given field index
  */
-export function getFieldRange(fieldIndex: number): [number, number] {
+export function getFieldRange(fieldIndex: number): readonly [number, number] {
   return FIELD_RANGES[fieldIndex] ?? [0, 59];
 }
 

@@ -154,7 +154,7 @@ export class TurboPathExecutor {
       }
 
       // Check for browser actions and inject vision if needed
-      const hasBrowserAction = response.tool_calls.some(tc => tc.name.startsWith('browser_'));
+      const hasBrowserAction = response.tool_calls.some(tc => tc.name?.startsWith('browser_'));
       if (hasBrowserAction) {
         await this.injectBrowserVision(messages);
       }

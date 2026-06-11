@@ -48,7 +48,7 @@ export class ByAttributeStrategy implements ElementResolutionStrategy {
       logger.debug(`[ByAttributeStrategy] Could not resolve refId ${refId} with any attribute strategy`);
       return null;
     } catch (error) {
-      logger.debug(`[ByAttributeStrategy] Error resolving refId ${refId}:`, error);
+      logger.debug('[ByAttributeStrategy] Error resolving refId ' + refId + ': ' + JSON.stringify(error));
       return null;
     }
   }

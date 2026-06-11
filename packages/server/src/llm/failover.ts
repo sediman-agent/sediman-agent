@@ -87,8 +87,8 @@ export class FailoverTracker {
  */
 export async function executeWithFailover<T>(
   primaryFn: () => Promise<T>,
-  fallbackFn?: () => Promise<T>,
   tracker: FailoverTracker,
+  fallbackFn?: () => Promise<T>,
   options: FailoverOptions = {}
 ): Promise<FailoverResult> {
   const {

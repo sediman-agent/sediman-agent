@@ -36,7 +36,7 @@ export function createAgentRoutes(deps: {
       const providerName = body.provider || (deps.llmProvider as any).name || 'openai';
       const preset = PROVIDERS[providerName];
 
-      let apiKey;
+      let apiKey: string | undefined = undefined;
       if (preset?.api_key_env) {
         // Try to get saved key first
         const savedKey = await getKey(providerName);

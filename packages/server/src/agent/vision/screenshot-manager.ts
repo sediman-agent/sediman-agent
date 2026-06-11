@@ -136,7 +136,7 @@ export class ScreenshotManager {
       }
 
       // Get current URL
-      const currentUrl = options.url || ctrl.getSession()?.context?.pages?.[0]?.url() || '';
+      const currentUrl = options.url || ctrl.getSession()?.context?.pages()?.[0]?.url() || '';
       setLatestScreenshot(shot, currentUrl);
 
       this.lastCaptureTime = Date.now();
@@ -149,8 +149,8 @@ export class ScreenshotManager {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      logger.error('[ScreenshotManager] Capture failed:', message);
-      logger.error('[ScreenshotManager] Error details:', error);
+      logger.error('[ScreenshotManager] Capture failed: ' + message);
+      logger.error('[ScreenshotManager] Error details: ' + JSON.stringify(error));
       return {
         success: false,
         error: message

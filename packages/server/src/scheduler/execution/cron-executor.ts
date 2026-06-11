@@ -117,24 +117,23 @@ export class CronJobExecutor {
     logger.info(`[CronExecutor] Executing agent job with provider: ${context.provider}`);
 
     // Import agent factory dynamically
-    const { createAgent } = await import("../../agent/factory.js");
+    const { createEnhancedAgent } = await import("../../agent/factory.js");
 
     // Build agent options
     const agentOptions: any = {
-      provider: context.provider || "openai",
-      model: context.model,
-      baseUrl: context.baseUrl
+      llmProvider: context.provider || "openai",
+      useStructuredOutput: false,
+      useHierarchicalMemory: false,
+      useTaskPlanning: false
     };
 
-    const agent = createAgent(agentOptions);
+    const enhancedAgent = createEnhancedAgent(agentOptions);
 
     // Run the agent with the task
-    const response = await agent.run(context.task, {
-      stream: false,
-      timeout: 300000 // 5 minutes
-    });
+    const response = await enhancedAgent.agent.run(context.task, 'browser');
 
-    return response.result || response.finalResponse || "Task completed";
+    const finalResult = response.result || (response.final_response ? JSON.stringify(response.final_response) : null) || "Task completed";
+    return finalResult;
   }
 
   /**

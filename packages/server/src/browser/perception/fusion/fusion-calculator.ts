@@ -5,7 +5,7 @@
 
 import type { PageState } from '../ax-extractor.js';
 import type { ScreenshotData, FusionStrategy } from '../fusion.js';
-import { createLogger } from '../../core/logging';
+import { createLogger } from '../../../core/logging';
 
 const logger = createLogger('FusionCalculator');
 
@@ -39,7 +39,8 @@ export class FusionCalculator {
     let confidence = 0.8;
 
     // Adjust based on DOM completeness
-    const domCompleteness = Math.min(1, domState.stats.interactiveElements / 50);
+    const interactiveElements = domState.stats?.interactiveElements || 0;
+    const domCompleteness = Math.min(1, interactiveElements / 50);
     confidence *= (0.5 + domCompleteness * 0.5);
 
     // Adjust based on strategy
@@ -107,7 +108,7 @@ export class FusionCalculator {
    * Select optimal fusion strategy based on page characteristics
    */
   selectOptimalStrategy(domState: PageState, hasScreenshot: boolean): FusionStrategy {
-    const elementCount = domState.stats.interactiveElements;
+    const elementCount = domState.stats?.interactiveElements || 0;
 
     // For pages with few elements, vision is more important
     if (elementCount < 10 && hasScreenshot) {

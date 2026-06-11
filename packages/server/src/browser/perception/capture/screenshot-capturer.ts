@@ -4,7 +4,7 @@
  */
 
 import type { Page } from 'playwright';
-import { createLogger } from '../../core/logging';
+import { createLogger } from '../../../core/logging';
 
 const logger = createLogger('ScreenshotCapturer');
 
@@ -34,7 +34,7 @@ export class ScreenshotCapturer {
    */
   async capture(
     page: Page,
-    options: ScreenshotOptions = {}
+    options: ScreenshotOptions = { quality: 'auto' }
   ): Promise<ScreenshotData> {
     const {
       quality = 'auto',

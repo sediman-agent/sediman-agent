@@ -3,7 +3,8 @@
  * Handles retry logic with exponential backoff for LLM requests
  */
 
-import type { LLMError, RateLimitError } from "../../core/errors.js";
+import type { LLMError } from "../../core/errors.js";
+import { RateLimitError } from "../../core/errors.js";
 import logger from "../../core/logging.js";
 
 export interface RetryOptions {
@@ -85,7 +86,8 @@ export class RetryHandler {
         }
 
         // Check for auth errors (non-retryable)
-        if (error?.status === 401 || error?.status === 403) {
+        const err = error as any;
+        if (err?.status === 401 || err?.status === 403) {
           throw error;
         }
 
@@ -107,8 +109,9 @@ export class RetryHandler {
     }
 
     // All retries exhausted
-    if (lastError?.status === 429) {
-      throw new RateLimitError(lastError?.message ?? "Rate limited");
+    const finalError = lastError as any;
+    if (finalError?.status === 429) {
+      throw new RateLimitError(finalError?.message ?? "Rate limited");
     }
 
     throw lastError;

@@ -80,7 +80,7 @@ export class BrowserRouteHandlers {
         case 'screenshot':
           const shot = await controller.screenshot();
           result = shot ? { success: true, data: shot } : { success: false, error: 'Screenshot failed' };
-          if (shot) this.state.setLatestScreenshot(shot, controller.getSession()?.context?.pages?.[0]?.url() || '');
+          if (shot) this.state.setLatestScreenshot(shot, controller.getSession()?.context?.pages()?.[0]?.url() || '');
           break;
         case 'extract_text':
           const textResult = await controller.extractText();
@@ -150,10 +150,10 @@ export class BrowserRouteHandlers {
       const requestBody = await c.req.json();
       const { commandId, result, error } = requestBody;
 
-      logger.info(`[BrowserAPI] Received execution result for ${commandId}:`, {
+      logger.info('[BrowserAPI] Received execution result for ' + commandId + ': ' + JSON.stringify({
         success: !!result,
         hasError: !!error
-      });
+      }));
 
       // Extract action name from commandId (format: "action:timestamp:random")
       // Use colon as delimiter to avoid conflicts with underscores in action names

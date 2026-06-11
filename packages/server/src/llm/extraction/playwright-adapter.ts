@@ -174,7 +174,7 @@ export class PlaywrightAdapter {
   }>> {
     try {
       const frames = page.frames();
-      return frames.map(frame => ({
+      return frames.map((frame: any) => ({
         id: frame._id ?? '',
         url: frame.url(),
         name: frame.name(),

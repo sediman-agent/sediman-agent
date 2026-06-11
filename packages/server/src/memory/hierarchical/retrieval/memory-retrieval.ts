@@ -45,7 +45,7 @@ export class ExactMatchRetrieval implements RetrievalStrategy {
       ? storage.getDomain(domain)
       : Array.from((storage as any).nodes.values());
 
-    const matchingNodes = allNodes.filter(node =>
+    const matchingNodes = allNodes.filter((node: any) =>
       node.content.toLowerCase().includes(query.toLowerCase())
     );
 
@@ -75,7 +75,7 @@ export class SemanticRetrieval implements RetrievalStrategy {
 
     // Simple similarity: keyword matching with scoring
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    const scoredNodes = allNodes.map(node => {
+    const scoredNodes = allNodes.map((node: any) => {
       const content = node.content.toLowerCase();
       let score = 0;
 
@@ -88,12 +88,12 @@ export class SemanticRetrieval implements RetrievalStrategy {
     });
 
     const sorted = scoredNodes
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .filter((item: any) => item.score > 0)
+      .sort((a: any, b: any) => b.score - a.score)
       .slice(0, maxResults);
 
     return {
-      nodes: sorted.map(item => item.node),
+      nodes: sorted.map((item: any) => item.node),
       confidence: sorted.length > 0 ? sorted[0].score / queryWords.length : 0,
       method: 'semantic'
     };
@@ -118,7 +118,7 @@ export class HierarchicalRetrieval implements RetrievalStrategy {
 
     // Score by level (prefer higher/shorter paths)
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    const scoredNodes = allNodes.map(node => {
+    const scoredNodes = allNodes.map((node: any) => {
       const content = node.content.toLowerCase();
       let score = 0;
 
@@ -135,12 +135,12 @@ export class HierarchicalRetrieval implements RetrievalStrategy {
     });
 
     const sorted = scoredNodes
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
+      .filter((item: any) => item.score > 0)
+      .sort((a: any, b: any) => b.score - a.score)
       .slice(0, maxResults);
 
     return {
-      nodes: sorted.map(item => item.node),
+      nodes: sorted.map((item: any) => item.node),
       confidence: sorted.length > 0 ? Math.min(sorted[0].score / 10, 1) : 0,
       method: 'hierarchical'
     };
@@ -168,7 +168,7 @@ export class TimeBasedRetrieval implements RetrievalStrategy {
 
     // Score by recency and relevance
     const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-    const scoredNodes = allNodes.map(node => {
+    const scoredNodes = allNodes.map((node: any) => {
       const age = now - node.timestamp;
       if (age > maxAge) return { node, score: 0 };
 
@@ -192,12 +192,12 @@ export class TimeBasedRetrieval implements RetrievalStrategy {
     });
 
     const sorted = scoredNodes
-      .filter(item => item.score >= threshold)
-      .sort((a, b) => b.score - a.score)
+      .filter((item: any) => item.score >= threshold)
+      .sort((a: any, b: any) => b.score - a.score)
       .slice(0, maxResults);
 
     return {
-      nodes: sorted.map(item => item.node),
+      nodes: sorted.map((item: any) => item.node),
       confidence: sorted.length > 0 ? sorted[0].score : 0,
       method: 'time-based'
     };

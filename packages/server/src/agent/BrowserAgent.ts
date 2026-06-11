@@ -209,8 +209,8 @@ export class BrowserAgent {
     }
 
     // Initialize memory
-    if (hasMemory({ memory: this.memory })) {
-      await initializeMemory(this.memory);
+    if (hasMemory({ memory: this.memory || undefined })) {
+      await initializeMemory(this.memory!);
     }
 
     // Prepare coordinator options
@@ -257,8 +257,8 @@ export class BrowserAgent {
     this.conversation = result.conversation;
 
     // Finalize memory
-    if (hasMemory({ memory: this.memory })) {
-      await finalizeTaskMemory(this.memory);
+    if (hasMemory({ memory: this.memory || undefined })) {
+      await finalizeTaskMemory(this.memory!);
     }
 
     return {

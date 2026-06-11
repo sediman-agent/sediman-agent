@@ -162,3 +162,11 @@ export class StateCaptureManager {
     };
   }
 }
+
+/**
+ * Convenience function to capture state
+ */
+export async function captureState(browserSession?: BrowserSession, options?: StateCaptureOptions): Promise<CapturedState> {
+  const manager = new StateCaptureManager(options);
+  return manager.captureState(browserSession);
+}

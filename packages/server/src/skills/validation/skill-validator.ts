@@ -160,22 +160,14 @@ export class SkillValidator {
   validateExecutionParameters(skill: SkillData, params: Record<string, unknown>): ValidationResult {
     const errors: string[] = [];
 
-    // Check if skill has parameter definitions
-    if (skill.parameters) {
-      for (const [paramName, paramDef] of Object.entries(skill.parameters)) {
-        const value = params[paramName];
+    // Check if skill has variable definitions
+    if (skill.variables) {
+      for (const variable of skill.variables) {
+        const value = params[variable];
 
-        // Check required parameters
-        if (paramDef.required && (value === undefined || value === null)) {
-          errors.push(`Missing required parameter: ${paramName}`);
-        }
-
-        // Type validation
-        if (value !== undefined && paramDef.type) {
-          const actualType = Array.isArray(value) ? 'array' : typeof value;
-          if (actualType !== paramDef.type && paramDef.type !== 'any') {
-            errors.push(`Parameter ${paramName}: expected ${paramDef.type}, got ${actualType}`);
-          }
+        // Variables can be used for parameter validation
+        if (value === undefined || value === null) {
+          errors.push(`Missing variable: ${variable}`);
         }
       }
     }

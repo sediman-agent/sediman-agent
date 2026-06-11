@@ -3,7 +3,7 @@
  * Handles conversion between internal and OpenAI tool formats
  */
 
-import type { ToolDefinition, ToolCall } from "../../../core/types.js";
+import type { ToolDefinition, ToolCall } from "../../core/types";
 
 /**
  * Tool Converter handles tool format conversions

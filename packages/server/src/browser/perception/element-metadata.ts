@@ -76,7 +76,7 @@ export async function getBoundingBox(page: Page, xpath: string): Promise<{
 } | null> {
   try {
     const box = await page.evaluate((xpathToFind: string) => {
-      const element = document.evaluate(xpathToFind);
+      const element = document.evaluate(xpathToFind, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
       if (!element || !(element instanceof HTMLElement)) {
         return null;
       }
@@ -103,7 +103,7 @@ export async function getBoundingBox(page: Page, xpath: string): Promise<{
 export async function isElementVisible(page: Page, xpath: string): Promise<boolean> {
   try {
     const isVisible = await page.evaluate((xpathToFind: string) => {
-      const element = document.evaluate(xpathToFind);
+      const element = document.evaluate(xpathToFind, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
       if (!element || !(element instanceof HTMLElement)) {
         return false;
       }

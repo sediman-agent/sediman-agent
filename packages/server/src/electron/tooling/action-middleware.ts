@@ -193,7 +193,7 @@ export function postExecutionMiddleware<TInput>(
         const newResult = await handler(result, input, ctx);
         return newResult;
       } catch (error) {
-        logger.error('[ActionMiddleware] Post-execution failed:', error);
+        logger.error('[ActionMiddleware] Post-execution failed: ' + JSON.stringify(error));
         return result; // Return original result on failure
       }
     }

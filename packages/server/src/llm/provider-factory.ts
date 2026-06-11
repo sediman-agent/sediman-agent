@@ -50,11 +50,11 @@ export function listProviders(): ProviderInfo[] {
 /**
  * Create an LLM provider instance
  */
-export function createProvider(
+export async function createProvider(
   providerName: string,
   modelName?: string,
   apiKey?: string
-): LLMProvider {
+): Promise<LLMProvider> {
   const providers = getProviders();
   const preset = providers[providerName];
 

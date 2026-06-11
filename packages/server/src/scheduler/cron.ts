@@ -117,7 +117,7 @@ export class CronManager {
 
       logger.debug(`[CronManager] Scheduled task ${job.id}`);
     } catch (error) {
-      logger.error(`[CronManager] Failed to schedule task ${job.id}:`, error);
+      logger.error('[CronManager] Failed to schedule task ' + job.id + ': ' + JSON.stringify(error));
     }
   }
 
@@ -347,6 +347,28 @@ export class CronScheduler {
    */
   getTaskIds(): string[] {
     return Array.from(this.taskMap.keys());
+  }
+
+  /**
+   * Start all scheduled tasks
+   */
+  start(): void {
+    for (const [taskId, task] of this.taskMap) {
+      task.start();
+    }
+
+    logger.info('[CronScheduler] Started all tasks');
+  }
+
+  /**
+   * Stop all scheduled tasks
+   */
+  stop(): void {
+    for (const [taskId, task] of this.taskMap) {
+      task.stop();
+    }
+
+    logger.info('[CronScheduler] Stopped all tasks');
   }
 
   /**
