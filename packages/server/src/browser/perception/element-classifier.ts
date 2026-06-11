@@ -3,7 +3,7 @@
  * Handles element type detection and classification
  */
 
-import type { AXNode } from '../types';
+import type { AXNode } from '../controller.js';
 import { createLogger } from '../../core/logging';
 
 const logger = createLogger('element-classifier');

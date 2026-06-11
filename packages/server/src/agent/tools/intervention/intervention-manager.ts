@@ -72,10 +72,10 @@ export class InterventionManager {
         ? { result: 'Human intervention timed out', completed: false, timedOut: true }
         : { result: `Human intervention completed: ${userResp}`, completed: true };
 
-      logger.info(`[Intervention] #${iid} completed:`, result);
+      logger.info(`[Intervention] #${iid} completed: ${JSON.stringify(result)}`);
       return result;
     } catch (error) {
-      logger.error(`[Intervention] #${iid} cancelled:`, error);
+      logger.error(`[Intervention] #${iid} cancelled: ${error instanceof Error ? error.message : String(error)}`);
       return {
         result: 'Human intervention cancelled',
         completed: false,

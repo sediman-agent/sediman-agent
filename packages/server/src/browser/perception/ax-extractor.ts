@@ -8,7 +8,7 @@
  */
 
 import type { Page } from 'playwright';
-import type { AXNode, ElementMetadata, InteractiveElement, PageState } from '../types';
+import type { AXNode, ElementMetadata, InteractiveElement, PageState } from '../controller.js';
 import { createLogger } from '../../core/logging';
 
 const logger = createLogger('ax-extractor');

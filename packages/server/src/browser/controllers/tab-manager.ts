@@ -4,7 +4,7 @@
  */
 
 import type { Page, BrowserContext } from 'playwright';
-import type { BrowserActionResult } from '../types.js';
+import type { BrowserActionResult } from '../controller.js';
 
 /**
  * Tab Manager

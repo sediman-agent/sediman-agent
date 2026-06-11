@@ -4,7 +4,7 @@
  */
 
 import type { Page } from 'playwright';
-import type { BrowserActionResult } from '../types.js';
+import type { BrowserActionResult } from '../controller.js';
 
 /**
  * Element Action Handler

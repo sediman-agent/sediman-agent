@@ -5,7 +5,7 @@
 
 import type { PageState } from '../ax-extractor.js';
 import type { ScreenshotData, FusionStrategy } from '../fusion.js';
-import { createLogger } from '../../core/logging.js';
+import { createLogger } from '../../core/logging';
 
 const logger = createLogger('FusionCalculator');
 

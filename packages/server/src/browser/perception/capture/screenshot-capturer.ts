@@ -4,7 +4,7 @@
  */
 
 import type { Page } from 'playwright';
-import { createLogger } from '../../core/logging.js';
+import { createLogger } from '../../core/logging';
 
 const logger = createLogger('ScreenshotCapturer');
 

@@ -4,7 +4,7 @@
  */
 
 import type { Page } from 'playwright';
-import type { PageSnapshot } from '../types.js';
+import type { PageSnapshot } from '../controller.js';
 import { getConfig } from '../../core/config.js';
 import { DISMISS_OVERLAYS_JS } from '../scripts/dismiss-overlays.js';
 import { SNAPSHOT_JS } from '../scripts/snapshot.js';

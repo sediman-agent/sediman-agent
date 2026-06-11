@@ -81,7 +81,7 @@ export class PostTaskHandler {
     try {
       // Lazy load ConversationExporter
       if (!this.conversationExporter) {
-        const { ConversationExporter } = await import('../export.js');
+        const { ConversationExporter } = await import('../export/conversation-exporter.js');
         this.conversationExporter = new ConversationExporter();
       }
 
@@ -126,7 +126,7 @@ export class PostTaskHandler {
     try {
       // Lazy load AgentHistoryManager
       if (!this.historyManager) {
-        const { AgentHistoryManager } = await import('../history.js');
+        const { AgentHistoryManager } = await import('../history/history-manager.js');
         this.historyManager = new AgentHistoryManager();
       }
 

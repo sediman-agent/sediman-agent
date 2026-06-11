@@ -4,7 +4,7 @@
  */
 
 import type { Page } from 'playwright';
-import type { AXNode } from '../types';
+import type { AXNode } from '../controller.js';
 import { createLogger } from '../../core/logging';
 
 const logger = createLogger('element-metadata');

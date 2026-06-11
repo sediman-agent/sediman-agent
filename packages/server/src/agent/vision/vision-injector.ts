@@ -3,7 +3,7 @@
  * Handles injection of screenshots and vision content into conversations
  */
 
-import type { Message } from '../../../llm/provider.js';
+import type { Message } from '../../../llm/provider';
 import { captureScreenshot } from './screenshot-manager.js';
 import { getConfig } from '../../core/config.js';
 import { createLogger } from '../../core/logging.js';
