@@ -13,7 +13,6 @@ import { createLogger } from '../../../core/logging.js';
 import { LoopDetector } from '../../monitoring/loop-detector.js';
 import { CheckpointManager } from '../../monitoring/checkpoint.js';
 import { compressText } from '../../memory/compressor.js';
-import { injectBrowserVision } from '../browser-operations.js';
 import { updatePageState, getLastPageState } from '../../tools/browser-tools.js';
 import type { PageSnapshot } from '../../../browser/controller.js';
 
@@ -214,11 +213,7 @@ export class AgentExecutor {
    * Format tool calls for conversation
    */
   private formatToolCalls(tool_calls: any[]): any[] {
-    // Use raw tool_calls if available from LLM response
-    if (this.context.llmProvider?.raw?.tool_calls) {
-      return this.context.llmProvider.raw.tool_calls;
-    }
-    // Otherwise format our tool_calls
+    // Format tool_calls for conversation
     return tool_calls.map((tc: any) => ({
       id: tc.id,
       type: 'function',

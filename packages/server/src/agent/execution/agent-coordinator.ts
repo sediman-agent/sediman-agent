@@ -195,19 +195,19 @@ export async function executeAgentLoop(
           );
 
           // Inject action results
-          stateMsg = injectActionResults(stateMsg, toolResult.combinedOutput);
+          stateMsg = injectActionResults(stateMsg, combinedOutput);
           conversation.push(stateMsg);
 
           // Check if browser_end was called
           if (actionsTaken.some(a => a.includes('browser_end'))) {
             console.log('[AgentCoordinator] Agent called browser_end - stopping loop');
-            finalResult = toolResult.combinedOutput || 'Task completed (browser_end called)';
+            finalResult = combinedOutput || 'Task completed (browser_end called)';
             success = true;
             break;
           }
 
           // Inject reflection for consecutive failures
-          if (!toolResult.anySuccess && consecutiveFailures >= 3) {
+          if (!anySuccess && consecutiveFailures >= 3) {
             conversation.push({
               role: 'user',
               content: '<reflection>\nMultiple consecutive failures. The previous actions did not succeed. Examine the SCREENSHOT carefully to understand the actual page state. Try a completely different approach.\n</reflection>',

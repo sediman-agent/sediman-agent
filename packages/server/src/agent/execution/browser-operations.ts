@@ -34,7 +34,7 @@ export class BrowserOperations {
    */
   initialize(): void {
     setOnInterventionRequested((message, id) => {
-      this.interventionCallback?.(message, id);
+      this.interventionCallback?.(message, String(id));
     });
   }
 
@@ -85,11 +85,11 @@ export class BrowserOperations {
         return;
       }
 
-      const { url, screenshot } = pageState;
+      const { url } = pageState;
       const config = getConfig();
 
       // Skip vision injection if disabled
-      if (config.skipBrowserVision) {
+      if ((config as any).skipBrowserVision) {
         logger.debug("Browser vision injection disabled by config");
         return;
       }
@@ -133,8 +133,11 @@ export class BrowserOperations {
     try {
       const screenshot = await takeBrowserScreenshot();
       if (screenshot) {
-        await setLatestScreenshot({ elements: screenshot.elements });
-        return screenshot.url || null;
+        // screenshot is a base64 data URL string
+        const pageState = await getLastPageState();
+        const url = pageState?.url || '';
+        await setLatestScreenshot(screenshot, url);
+        return screenshot;
       }
       return null;
     } catch (error) {

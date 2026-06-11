@@ -3,10 +3,10 @@
  * Handles batch tool execution with page change detection
  */
 
-import type { ToolCall } from '../../../../core/types.js';
-import type { ToolBus } from '../../tools/bus.js';
-import type { PageSnapshot } from '../../../../browser/controller.js';
-import { createLogger } from '../../../../core/logging.js';
+import type { ToolCall } from '../../../../core/types';
+import type { ToolBus } from '../../tools/bus';
+import type { PageSnapshot } from '../../../../browser/controller';
+import { createLogger } from '../../../../core/logging';
 
 const logger = createLogger('BatchExecutionManager');
 

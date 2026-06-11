@@ -116,12 +116,13 @@ export class ConversationManager {
         contentStr = content;
       } else if (typeof content === 'object' && content !== null) {
         // For objects, try to extract meaningful text
-        if (content.text) {
-          contentStr = String(content.text);
-        } else if (content.result) {
-          contentStr = String(content.result);
-        } else if (content.output) {
-          contentStr = String(content.output);
+        const contentObj = content as Record<string, unknown>;
+        if (contentObj.text) {
+          contentStr = String(contentObj.text);
+        } else if (contentObj.result) {
+          contentStr = String(contentObj.result);
+        } else if (contentObj.output) {
+          contentStr = String(contentObj.output);
         } else {
           // Last resort: stringify the object
           contentStr = JSON.stringify(content);
@@ -203,7 +204,7 @@ export class ConversationManager {
       this.conversation = JSON.parse(json);
       logger.info(`[ConversationManager] Imported ${this.conversation.length} messages`);
     } catch (error) {
-      logger.error('[ConversationManager] Failed to import conversation:', error);
+      logger.error('[ConversationManager] Failed to import conversation:', String(error));
     }
   }
 }
