@@ -43,6 +43,13 @@ export function buildSystemPrompt(opts: SystemPromptOptions): string {
   }
   prompt += `</task_context>\n\n`;
 
+  // Add instruction for immediate text generation before tool calls
+  prompt += `<response_format>\n`;
+  prompt += `IMPORTANT: Always generate some explanatory text BEFORE using any tools. `;
+  prompt += `This ensures users can see your thought process in real-time. `;
+  prompt += `Example: "I'll help you with that by navigating to the website and..." THEN use browser tools.\n`;
+  prompt += `</response_format>\n\n`;
+
   // Add system instructions based on category
   switch (category) {
     case 'browser':

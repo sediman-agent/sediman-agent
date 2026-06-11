@@ -6,9 +6,9 @@
 
 import { createLogger } from '../../core/logging.js';
 import { getErrorHandler } from '../../core/error-handler.js';
-import { getTelemetryCollector } from '../monitoring/telemetry-collector.js';
-import { getDistributedTracer } from '../monitoring/distributed-tracing.js';
-import { getCircuitBreaker } from '../stability/circuit-breaker.js';
+import { getTelemetryCollector } from '../../browser/monitoring/telemetry-collector.js';
+import { getDistributedTracer } from '../../browser/monitoring/distributed-tracing.js';
+import { circuitBreakerRegistry } from '../stability/circuit-breaker.js';
 import { getPerformanceMonitor } from '../performance/monitor.js';
 
 const logger = createLogger('ProductionAgentExecutor');
@@ -42,7 +42,7 @@ export class ProductionAgentExecutor {
   private errorHandler = getErrorHandler();
   private telemetry = getTelemetryCollector();
   private tracer = getDistributedTracer();
-  private circuitBreaker = getCircuitBreaker('agent');
+  private circuitBreaker = circuitBreakerRegistry.get('agent');
   private performanceMonitor = getPerformanceMonitor();
 
   private config: ProductionAgentConfig;

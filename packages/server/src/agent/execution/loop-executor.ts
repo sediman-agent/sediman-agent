@@ -124,8 +124,16 @@ export async function executeLoop(
       // Get available tools
       const tools = toolBus.getDefinitions();
 
-      // Call LLM
-      const response = await llmProvider.chat(messages, tools);
+      // Call LLM with streaming for real-time token display
+      const response = await llmProvider.chatStreamWithTools(
+        messages,
+        tools,
+        systemPrompt,
+        (chunk) => {
+          // Stream each token immediately to frontend
+          streamEmitter.emitContent(chunk, false);
+        }
+      );
 
       // Process response
       const result = await processResponse(

@@ -195,13 +195,23 @@ export class AgentExecutor {
     return this.llmCircuitBreaker.execute(
       async () => {
         let fullContent = '';
+        let hasEmittedContent = false;
+
         const stream = this.context.llmProvider.chatStreamWithTools(
           messages,
           tools,
           systemPrompt,
           (chunk: string) => {
+            // Emit content immediately for real-time display
+            // This ensures tokens appear before tool calls execute
+            if (!hasEmittedContent) {
+              hasEmittedContent = true;
+              logger.info('[AgentExecutor] First token received, emitting immediately');
+            }
             fullContent += chunk;
             this.context.streamEmitter.emitContent(chunk, false);
+            // Force flush to ensure immediate delivery
+            this.context.streamEmitter.forceFlush();
           }
         );
 

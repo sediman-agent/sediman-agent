@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, BrowserView } = require('electron');
+const { app, BrowserWindow, ipcMain, BrowserView, session } = require('electron');
 const path = require('path');
 const http = require('http');
 const { playwrightService } = require('./playwright-service.cjs');
@@ -173,12 +173,32 @@ function setupBrowserView() {
 }
 
 function showBrowserPanel() {
-  console.log('[BrowserPanel] Browser panel shown - using renderer webview (no BrowserView)');
+  console.log('[BrowserPanel] Browser panel shown - using BrowserView approach');
 
-  // Don't use BrowserView - renderer webview IS the browser
-  // This avoids coordinate positioning issues and layout conflicts
-  // The renderer will handle the browser display
+  if (!mainWindow) {
+    return { success: false, error: 'No main window' };
+  }
 
+  // Initialize BrowserView if not already created
+  if (!browserView) {
+    setupBrowserView();
+  }
+
+  // Get window bounds and set BrowserView bounds
+  const bounds = mainWindow.getBounds();
+  const panelWidth = 600; // Default panel width
+
+  browserView.setBounds({
+    x: bounds.width - panelWidth,
+    y: 0,
+    width: panelWidth,
+    height: bounds.height
+  });
+
+  // Attach BrowserView to window
+  mainWindow.setBrowserView(browserView);
+
+  console.log('[BrowserPanel] BrowserView attached to window');
   return { success: true };
 }
 
@@ -212,6 +232,22 @@ function resizeBrowserPanel(panelWidth) {
 function setupBrowserHandlers() {
   console.log('Setting up browser handlers');
 
+  // Configure session for webview partition to allow external navigation
+  const webviewSession = session.fromPartition('persist:browser-session');
+  webviewSession.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+  // Allow all permissions for webview
+  webviewSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    console.log(`[Webview Session] Permission requested: ${permission}`);
+    callback(true); // Allow all permissions
+  });
+
+  // Handle navigation errors in webview
+  webviewSession.webRequest.onBeforeRequest((details, callback) => {
+    console.log(`[Webview Session] Navigation request: ${details.url}`);
+    callback({});
+  });
+
   // Show browser panel
   ipcMain.handle('browser-show', async () => {
     console.log('=== browser-show called (BrowserView approach) ===');
@@ -235,8 +271,14 @@ function setupBrowserHandlers() {
   ipcMain.handle('browser-navigate', async (event, url) => {
     console.log('browser-navigate:', url);
     if (browserView) {
-      browserView.webContents.loadURL(url);
-      return { success: true };
+      try {
+        browserView.webContents.loadURL(url);
+        console.log('[BrowserView] Navigation successful:', url);
+        return { success: true };
+      } catch (error) {
+        console.error('[BrowserView] Navigation failed:', error);
+        return { success: false, error: String(error) };
+      }
     }
     return { success: false, error: 'BrowserView not initialized' };
   });
