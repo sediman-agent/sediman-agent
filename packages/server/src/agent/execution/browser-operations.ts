@@ -120,7 +120,7 @@ export class BrowserOperations {
       });
       */
 
-      logger.debug({ url, hasScreenshot: !!screenshot }, "browser_vision_injected");
+      logger.debug({ url }, "browser_vision_injected");
     } catch (error) {
       logger.warn({ err: (error as Error).message }, "browser_vision_injection_failed");
     }

@@ -42,6 +42,14 @@ export interface ToolExecutionResult {
   consecutiveFailures: number;
 }
 
+export interface BatchToolExecutionResult extends ToolExecutionResult {
+  anySuccess: boolean;
+  combinedOutput: string;
+  // Ensure required properties from ToolExecutionResult are satisfied
+  success: boolean;
+  output: string;
+}
+
 // ============================================================================
 // Main Loop Orchestration
 // ============================================================================
@@ -195,19 +203,19 @@ export async function executeAgentLoop(
           );
 
           // Inject action results
-          stateMsg = injectActionResults(stateMsg, combinedOutput);
+          stateMsg = injectActionResults(stateMsg, toolResult.combinedOutput);
           conversation.push(stateMsg);
 
           // Check if browser_end was called
           if (actionsTaken.some(a => a.includes('browser_end'))) {
             console.log('[AgentCoordinator] Agent called browser_end - stopping loop');
-            finalResult = combinedOutput || 'Task completed (browser_end called)';
+            finalResult = toolResult.combinedOutput || 'Task completed (browser_end called)';
             success = true;
             break;
           }
 
           // Inject reflection for consecutive failures
-          if (!anySuccess && consecutiveFailures >= 3) {
+          if (!toolResult.anySuccess && consecutiveFailures >= 3) {
             conversation.push({
               role: 'user',
               content: '<reflection>\nMultiple consecutive failures. The previous actions did not succeed. Examine the SCREENSHOT carefully to understand the actual page state. Try a completely different approach.\n</reflection>',
@@ -268,7 +276,7 @@ async function executeToolCalls(
   executeToolCall: (toolName: string, toolArgs: any, actionsTaken: string[], iteration: number) => Promise<ToolExecutionResult>,
   streamEmitter: StreamEmitter,
   steps: StepEvent[]
-): Promise<ToolExecutionResult> {
+): Promise<BatchToolExecutionResult> {
   let anySuccess = false;
   let combinedOutput = '';
 
@@ -289,9 +297,12 @@ async function executeToolCalls(
   }
 
   return {
+    success: anySuccess,
+    output: combinedOutput,
+    error: anySuccess ? undefined : 'Some tool calls failed',
+    consecutiveFailures,
     anySuccess,
-    combinedOutput,
-    consecutiveFailures
+    combinedOutput
   };
 }
 

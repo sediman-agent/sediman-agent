@@ -204,7 +204,7 @@ export class ConversationManager {
       this.conversation = JSON.parse(json);
       logger.info(`[ConversationManager] Imported ${this.conversation.length} messages`);
     } catch (error) {
-      logger.error('[ConversationManager] Failed to import conversation:', String(error));
+      logger.error(`[ConversationManager] Failed to import conversation: ${String(error)}`);
     }
   }
 }

@@ -3,10 +3,10 @@
  * Executes actions and handles results
  */
 
-import type { ToolBus } from '../../tools/bus';
-import type { ToolCall } from '../../schemas';
-import { StreamEmitter } from '../../streaming';
-import { createLogger } from '../../core/logging';
+import type { ToolBus } from '../tools/bus';
+import type { ToolCall } from '../schemas/index';
+import { StreamEmitter } from '../streaming';
+import { createLogger } from '../../core/logging.js';
 
 const logger = createLogger('action-executor');
 
