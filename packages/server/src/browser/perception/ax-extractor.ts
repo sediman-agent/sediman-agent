@@ -191,7 +191,7 @@ export class AccessibilityTreeExtractor {
 
         // Process children
         if (node.children) {
-          for (const totalNodes) of node.children) {
+          for (const child of node.children) {
             await processNode(child, depth + 1, [...parentPath, node.role]);
           }
         }

@@ -373,29 +373,10 @@ class BrowserService extends EventEmitter {
               await this.sendCommandResult(command.id, result, null);
             }
             break;
-          case 'extract_text':
-            // Execute text extraction directly on webview
-            if (this.webviewRef) {
-              // console.log('[BrowserService] Extracting text...');
-              const textResult = await this.webviewRef.executeJavaScript(`
-                (async () => {
-                  const body = document.body;
-                  if (!body) return "";
-                  const clone = body.cloneNode(true);
-                  clone.querySelectorAll("script, style, noscript, svg, path").forEach((el) => el.remove());
-                  const text = (clone.innerText || "").replace(/\\s+/g, " ").trim();
-                  return text;
-                })()
-              `);
-              // console.log('[BrowserService] Text extraction result length:', textResult?.length || 0);
-              result = { text: textResult, success: true };
-              await this.sendCommandResult(command.id, result, null);
-            }
-            break;
           case 'extract_data':
-            // Execute data extraction directly on webview
+          case 'extract_text':
+            // Execute data/text extraction directly on webview
             if (this.webviewRef) {
-              // console.log('[BrowserService] Extracting data...');
               const textResult = await this.webviewRef.executeJavaScript(`
                 (async () => {
                   const body = document.body;
@@ -406,10 +387,11 @@ class BrowserService extends EventEmitter {
                   return text;
                 })()
               `);
-              // console.log('[BrowserService] Data extraction result length:', textResult?.length || 0);
               result = { text: textResult, success: true };
-              // Send result back to backend
               await this.sendCommandResult(command.id, result, null);
+            } else {
+              error = 'No webview available for extraction';
+              await this.sendCommandResult(command.id, null, error);
             }
             break;
           case 'execute_script':

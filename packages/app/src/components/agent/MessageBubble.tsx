@@ -458,6 +458,67 @@ export const MessageBubble = memo(function MessageBubble({
                     >
                       {children}
                     </a>
+                  ),
+                  table: ({ children }) => (
+                    <div className="my-4 overflow-x-auto">
+                      <table
+                        className="border-collapse"
+                        style={{
+                          width: '100%',
+                          borderCollapse: 'collapse',
+                          fontSize: '13px'
+                        }}
+                      >
+                        {children}
+                      </table>
+                    </div>
+                  ),
+                  thead: ({ children }) => (
+                    <thead
+                      style={{
+                        backgroundColor: 'var(--vscode-list-hoverBackground)',
+                        borderBottom: '1px solid var(--vscode-border-color)'
+                      }}
+                    >
+                      {children}
+                    </thead>
+                  ),
+                  tbody: ({ children }) => <tbody>{children}</tbody>,
+                  tr: ({ children }) => (
+                    <tr
+                      className="border-b"
+                      style={{
+                        borderBottom: '1px solid var(--vscode-border-color)'
+                      }}
+                    >
+                      {children}
+                    </tr>
+                  ),
+                  th: ({ children }) => (
+                    <th
+                      className="px-3 py-2 text-left font-semibold"
+                      style={{
+                        padding: '8px 12px',
+                        textAlign: 'left',
+                        fontWeight: 600,
+                        color: 'var(--vscode-foreground)',
+                        borderRight: '1px solid var(--vscode-border-color)'
+                      }}
+                    >
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td
+                      className="px-3 py-2"
+                      style={{
+                        padding: '8px 12px',
+                        borderRight: '1px solid var(--vscode-border-color)',
+                        color: 'var(--vscode-foreground)'
+                      }}
+                    >
+                      {children}
+                    </td>
                   )
                 }}
               >

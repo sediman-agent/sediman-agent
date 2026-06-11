@@ -13,6 +13,9 @@ import { createLogger } from '../../core/logging.js';
 
 const logger = createLogger('SchemaParser');
 
+// Re-export ParsedAgentResponse for backward compatibility
+export type { ParsedAgentResponse } from '../execution/response-parser.js';
+
 export interface ParseOptions {
   format?: 'json' | 'xml' | 'markdown' | 'text' | 'auto';
   schema?: any;

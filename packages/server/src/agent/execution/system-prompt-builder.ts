@@ -14,6 +14,7 @@ export interface SystemPromptOptions {
   plan: TaskPlan;
   iteration: number;
   soul?: string;
+  useVision?: boolean;
 }
 
 /**

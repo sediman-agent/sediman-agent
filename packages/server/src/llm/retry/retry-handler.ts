@@ -118,9 +118,15 @@ export class RetryHandler {
    * Get retry statistics
    */
   getStats(): {
-    maxRetries: this.maxRetries;
-    baseDelay: this.baseDelayMs;
-    maxDelay: this.maxDelayMs;
+    maxRetries: number;
+    baseDelay: number;
+    maxDelay: number;
+  } {
+    return {
+      maxRetries: this.maxRetries,
+      baseDelay: this.baseDelayMs,
+      maxDelay: this.maxDelayMs
+    };
   }
 
   /**
