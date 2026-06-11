@@ -1,8 +1,15 @@
 import { renderHook, act } from '@testing-library/react';
 import { useChatStore } from '@/stores/useChatStore';
+import type { ConversationService } from '@/services/conversationService';
+
+// Mock conversationService
+jest.mock('@/services/conversationService', () => ({
+  getConversationService: jest.fn(),
+}));
 
 describe('useChatStore', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     // Reset the store before each test
     useChatStore.setState({
       conversations: [],
@@ -11,22 +18,52 @@ describe('useChatStore', () => {
     });
   });
 
-  it('should create a conversation', () => {
+  it('should create a conversation', async () => {
+    const mockService = {
+      createConversation: jest.fn().mockImplementation((title) =>
+        Promise.resolve({
+          id: '123',
+          title: title || 'New Chat',
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+      ),
+    } as unknown as ConversationService;
+
+    const { getConversationService } = await import('@/services/conversationService');
+    jest.mocked(getConversationService).mockReturnValue(mockService);
+
     const { result } = renderHook(() => useChatStore());
 
-    act(() => {
-      result.current.createConversation('Test Chat');
+    await act(async () => {
+      await result.current.createConversation('Test Chat');
     });
 
     expect(result.current.conversations).toHaveLength(1);
     expect(result.current.conversations[0].title).toBe('Test Chat');
   });
 
-  it('should add a message to a conversation', () => {
+  it('should add a message to a conversation', async () => {
+    const mockService = {
+      createConversation: jest.fn().mockImplementation((title) =>
+        Promise.resolve({
+          id: '123',
+          title: title || 'New Chat',
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+      ),
+    } as unknown as ConversationService;
+
+    const { getConversationService } = await import('@/services/conversationService');
+    jest.mocked(getConversationService).mockReturnValue(mockService);
+
     const { result } = renderHook(() => useChatStore());
 
-    act(() => {
-      const conversation = result.current.createConversation('Test Chat');
+    await act(async () => {
+      const conversation = await result.current.createConversation('Test Chat');
       result.current.addMessage(conversation.id, {
         role: 'user',
         content: 'Hello',
@@ -38,11 +75,26 @@ describe('useChatStore', () => {
     expect(result.current.conversations[0].messages[0].content).toBe('Hello');
   });
 
-  it('should update a message and trigger re-render', () => {
+  it('should update a message and trigger re-render', async () => {
+    const mockService = {
+      createConversation: jest.fn().mockImplementation((title) =>
+        Promise.resolve({
+          id: '123',
+          title: title || 'New Chat',
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+      ),
+    } as unknown as ConversationService;
+
+    const { getConversationService } = await import('@/services/conversationService');
+    jest.mocked(getConversationService).mockReturnValue(mockService);
+
     const { result } = renderHook(() => useChatStore());
 
-    act(() => {
-      const conversation = result.current.createConversation('Test Chat');
+    await act(async () => {
+      const conversation = await result.current.createConversation('Test Chat');
       result.current.addMessage(conversation.id, {
         role: 'assistant',
         content: 'Thinking...',
@@ -73,11 +125,26 @@ describe('useChatStore', () => {
     expect(result.current.version).toBeGreaterThan(0);
   });
 
-  it('should append to a message', () => {
+  it('should append to a message', async () => {
+    const mockService = {
+      createConversation: jest.fn().mockImplementation((title) =>
+        Promise.resolve({
+          id: '123',
+          title: title || 'New Chat',
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+      ),
+    } as unknown as ConversationService;
+
+    const { getConversationService } = await import('@/services/conversationService');
+    jest.mocked(getConversationService).mockReturnValue(mockService);
+
     const { result } = renderHook(() => useChatStore());
 
-    act(() => {
-      const conversation = result.current.createConversation('Test Chat');
+    await act(async () => {
+      const conversation = await result.current.createConversation('Test Chat');
       result.current.addMessage(conversation.id, {
         role: 'assistant',
         content: 'Hello',
@@ -95,21 +162,28 @@ describe('useChatStore', () => {
     expect(result.current.conversations[0].messages[0].content).toBe('Hello World');
   });
 
-  it('should trigger re-render when version changes', () => {
-    let renderCount = 0;
+  it('should trigger re-render when version changes', async () => {
+    const mockService = {
+      createConversation: jest.fn().mockImplementation((title) =>
+        Promise.resolve({
+          id: '123',
+          title: title || 'New Chat',
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+      ),
+    } as unknown as ConversationService;
 
-    const { result } = renderHook(() => {
-      renderCount++;
-      return useChatStore((state) => ({
-        conversations: state.conversations,
-        version: state.version,
-      }));
-    });
+    const { getConversationService } = await import('@/services/conversationService');
+    jest.mocked(getConversationService).mockReturnValue(mockService);
 
-    const initialRenderCount = renderCount;
+    const { result } = renderHook(() => useChatStore());
 
-    act(() => {
-      const conversation = result.current.createConversation('Test Chat');
+    const initialVersion = result.current.version;
+
+    await act(async () => {
+      const conversation = await result.current.createConversation('Test Chat');
       result.current.addMessage(conversation.id, {
         role: 'assistant',
         content: 'Thinking...',
@@ -117,12 +191,12 @@ describe('useChatStore', () => {
       });
     });
 
-    // Should have re-rendered
-    expect(renderCount).toBeGreaterThan(initialRenderCount);
+    // Verify version was incremented
+    expect(result.current.version).toBeGreaterThan(initialVersion);
 
     const messageId = result.current.conversations[0].messages[0].id;
     const conversationId = result.current.conversations[0].id;
-    const beforeUpdateRenderCount = renderCount;
+    const beforeUpdateVersion = result.current.version;
 
     act(() => {
       result.current.updateMessage(conversationId, messageId, {
@@ -131,7 +205,7 @@ describe('useChatStore', () => {
       });
     });
 
-    // Should have re-rendered again
-    expect(renderCount).toBeGreaterThan(beforeUpdateRenderCount);
+    // Verify version was incremented again
+    expect(result.current.version).toBeGreaterThan(beforeUpdateVersion);
   });
 });

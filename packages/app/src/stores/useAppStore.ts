@@ -15,6 +15,7 @@ interface AppState extends AppSettings {
   setSidebarOpen: (open: boolean) => void;
   setCurrentPage: (page: AppState['currentPage']) => void;
   toggleTheme: () => void;
+  setTheme: (theme: 'dark' | 'light') => void;
   setColorTheme: (theme: AppState['colorTheme']) => void;
   setModel: (model: string) => void;
   setProvider: (provider: string) => void;
@@ -55,6 +56,16 @@ export const useAppStore = create<AppState>()(
         set({ theme: newTheme });
 
         if (newTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      },
+
+      setTheme: (theme: 'dark' | 'light') => {
+        set({ theme });
+
+        if (theme === 'dark') {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');

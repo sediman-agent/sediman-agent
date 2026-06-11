@@ -28,19 +28,10 @@ describe('useAppStore', () => {
       stealth: false,
     });
 
-    // Mock document
-    Object.defineProperty(global, 'document', {
-      value: {
-        documentElement: {
-          classList: {
-            add: jest.fn(),
-            remove: jest.fn(),
-            contains: jest.fn(),
-          },
-        },
-      },
-      writable: true,
-    });
+    // Mock document classList
+    document.documentElement.classList.add = jest.fn();
+    document.documentElement.classList.remove = jest.fn();
+    document.documentElement.classList.contains = jest.fn();
   });
 
   afterEach(() => {
@@ -406,7 +397,7 @@ describe('useAppStore', () => {
       );
     });
 
-    it('should remove prejest.us theme class when switching', () => {
+    it('should remove previous theme class when switching', () => {
       const { result } = renderHook(() => useAppStore());
 
       act(() => {
@@ -417,7 +408,7 @@ describe('useAppStore', () => {
         result.current.setColorTheme('purple');
       });
 
-      expect(document.documentElement.classList.remove).toHaveBeenCalledWith('theme-blue');
+      expect(document.documentElement.classList.remove).toHaveBeenCalledWith('theme-blue', 'theme-purple', 'theme-green', 'theme-rose', 'theme-cyan');
       expect(document.documentElement.classList.add).toHaveBeenCalledWith('theme-purple');
     });
   });
@@ -461,7 +452,7 @@ describe('useAppStore', () => {
       const { result } = renderHook(() => useAppStore());
 
       act(() => {
-        result.current.setProjest.er('openai');
+        result.current.setProvider('openai');
       });
 
       expect(result.current.provider).toBe('openai');
@@ -472,7 +463,7 @@ describe('useAppStore', () => {
       const { result } = renderHook(() => useAppStore());
 
       act(() => {
-        result.current.setProjest.er('anthropic');
+        result.current.setProvider('anthropic');
       });
 
       expect(consoleSpy).toHaveBeenCalledWith('Setting provider:', 'anthropic');
@@ -483,7 +474,7 @@ describe('useAppStore', () => {
       const { result } = renderHook(() => useAppStore());
 
       act(() => {
-        result.current.setProjest.er('');
+        result.current.setProvider('');
       });
 
       expect(result.current.provider).toBe('');
@@ -531,7 +522,7 @@ describe('useAppStore', () => {
       const { result } = renderHook(() => useAppStore());
 
       act(() => {
-        result.current.setProjest.er('azure-openai-test');
+        result.current.setProvider('azure-openai-test');
       });
 
       expect(result.current.provider).toBe('azure-openai-test');

@@ -3,7 +3,7 @@ import { thinkTagParser } from '@/utils/thinkTagParser';
 describe('ThinkTagParser', () => {
   describe('parse', () => {
     it('should extract thinking content from <think/> tags', () => {
-      const input = '<thinkI need to analyze this request.</think Visible content here';
+      const input = '<think I need to analyze this request.</think > Visible content here';
       const result = thinkTagParser.parse(input);
 
       expect(result.thinking).toBe('I need to analyze this request.');
@@ -15,7 +15,7 @@ describe('ThinkTagParser', () => {
 First, I'll break down the problem.
 Then, I'll consider the options.
 Finally, I'll provide a solution.
-</thinkThe answer is 42.`;
+</think > The answer is 42.`;
       const result = thinkTagParser.parse(input);
 
       expect(result.thinking).toContain('First, I\'ll break down the problem.');
@@ -33,7 +33,7 @@ Finally, I'll provide a solution.
     });
 
     it('should handle multiple think tags', () => {
-      const input = '<thinkFirst thought</think Some text <thinkSecond thought</think More text';
+      const input = '<think> First thought</think > Some text <think> Second thought</think > More text';
       const result = thinkTagParser.parse(input);
 
       // Should remove all think tags
@@ -41,7 +41,7 @@ Finally, I'll provide a solution.
     });
 
     it('should handle think tags with attributes', () => {
-      const input = '<think lang="en">English thinking</think Content';
+      const input = '<think lang="en">English thinking</think > Content';
       const result = thinkTagParser.parse(input);
 
       expect(result.thinking).toBe('English thinking');
@@ -49,7 +49,7 @@ Finally, I'll provide a solution.
     });
 
     it('should handle empty think tags', () => {
-      const input = '<think/>Just content';
+      const input = '<think />Just content';
       const result = thinkTagParser.parse(input);
 
       expect(result.thinking).toBeNull(); // Empty think tags return null
@@ -57,7 +57,7 @@ Finally, I'll provide a solution.
     });
 
     it('should handle content with only think tags', () => {
-      const input = '<thinkOnly thinking here</think';
+      const input = '<think Only thinking here</think >';
       const result = thinkTagParser.parse(input);
 
       expect(result.thinking).toBe('Only thinking here');
@@ -67,7 +67,7 @@ Finally, I'll provide a solution.
 
   describe('stripThinkTags', () => {
     it('should remove all think tags from text', () => {
-      const input = '<thinkHidden</think Visible <thinkMore hidden</think End';
+      const input = '<think Hidden</think > Visible <think More hidden</think > End';
       const result = thinkTagParser.stripThinkTags(input);
 
       expect(result).toBe('Visible End');

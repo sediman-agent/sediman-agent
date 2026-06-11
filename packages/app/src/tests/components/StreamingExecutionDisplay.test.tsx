@@ -103,7 +103,7 @@ describe('StreamingExecutionDisplay Component', () => {
       const toolCalls = [createMockToolCall({ status: 'running' })];
       render(<StreamingExecutionDisplay toolCalls={toolCalls} />);
       expect(screen.getByText('running')).toBeInTheDocument();
-      const spinner = screen.getByText('running').prejest.usElementSibling;
+      const spinner = screen.getByText('running').previousElementSibling;
       expect(spinner?.querySelector('.animate-spin')).toBeInTheDocument();
     });
 
@@ -134,7 +134,7 @@ describe('StreamingExecutionDisplay Component', () => {
     });
   });
 
-  describe('Expand/Collapse Behajest.r', () => {
+  describe('Expand/Collapse Behavior', () => {
     it('should start collapsed for pending status', () => {
       const toolCalls = [createMockToolCall({ status: 'pending' })];
       render(<StreamingExecutionDisplay toolCalls={toolCalls} />);

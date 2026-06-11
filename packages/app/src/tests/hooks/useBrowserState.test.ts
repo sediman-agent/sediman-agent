@@ -47,7 +47,7 @@ describe('useBrowserState Hook', () => {
 
     it('should initialize with example.com webjest.w src', () => {
       const { result } = renderHook(() => useBrowserState(false));
-      expect(result.current.webjest.wSrc).toBe('https://example.com');
+      expect(result.current.webviewSrc).toBe('https://example.com');
     });
 
     it('should initialize with null snapshot', () => {
@@ -90,23 +90,23 @@ describe('useBrowserState Hook', () => {
       expect(result.current.browserStatus).toBe('idle');
     });
 
-    it('should preserve webjest.wSrc when panel opens', () => {
+    it('should preserve webviewSrc when panel opens', () => {
       const { result, rerender } = renderHook(
         ({ isOpen }) => useBrowserState(isOpen),
         { initialProps: { isOpen: false } }
       );
 
-      const initialSrc = result.current.webjest.wSrc;
+      const initialSrc = result.current.webviewSrc;
 
       act(() => {
         rerender({ isOpen: true });
       });
 
-      expect(result.current.webjest.wSrc).toBe(initialSrc);
+      expect(result.current.webviewSrc).toBe(initialSrc);
     });
   });
 
-  describe('Najest.ation', () => {
+  describe('Navigation', () => {
     it('should navigate to URL', () => {
       const { result } = renderHook(() => useBrowserState(true));
 
@@ -115,7 +115,7 @@ describe('useBrowserState Hook', () => {
       });
 
       expect(browserService.navigate).toHaveBeenCalledWith('https://example.com');
-      expect(result.current.webjest.wSrc).toBe('https://example.com');
+      expect(result.current.webviewSrc).toBe('https://example.com');
       expect(result.current.browserUrl).toBe('https://example.com');
       expect(result.current.inputUrl).toBe('https://example.com');
     });
@@ -128,7 +128,7 @@ describe('useBrowserState Hook', () => {
       });
 
       expect(browserService.navigate).toHaveBeenCalledWith('https://example.com');
-      expect(result.current.webjest.wSrc).toBe('https://example.com');
+      expect(result.current.webviewSrc).toBe('https://example.com');
     });
 
     it('should not navigate to empty URL', () => {
@@ -239,7 +239,7 @@ describe('useBrowserState Hook', () => {
     });
   });
 
-  describe('Browser Serjest.e Events', () => {
+  describe('Browser Service Events', () => {
     it('should register browser-navigate event listener', () => {
       renderHook(() => useBrowserState(true));
 
@@ -311,7 +311,7 @@ describe('useBrowserState Hook', () => {
         }
       });
 
-      expect(result.current.webjest.wSrc).toBe('https://server.com');
+      expect(result.current.webviewSrc).toBe('https://server.com');
       expect(result.current.browserUrl).toBe('https://server.com');
       expect(result.current.inputUrl).toBe('https://server.com');
     });
