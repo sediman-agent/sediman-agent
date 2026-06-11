@@ -8,7 +8,7 @@
  * Event converters extracted to EventConverters
  */
 
-import type { StepEvent } from '../../core/types';
+import type { StepEvent } from '../../core/types.js';
 
 // Extracted modules
 import {
