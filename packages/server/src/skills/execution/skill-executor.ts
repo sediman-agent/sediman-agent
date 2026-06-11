@@ -116,22 +116,22 @@ export class SkillExecutor {
       const value = input[name];
 
       // Check required parameters
-      if (param.required && (value === undefined || value === null)) {
+      if ((param as any).required && (value === undefined || value === null)) {
         errors.push(`Missing required parameter: ${name}`);
         continue;
       }
 
       // Type validation
-      if (value !== undefined && param.type) {
+      if (value !== undefined && (param as any).type) {
         const actualType = Array.isArray(value) ? 'array' : typeof value;
-        if (actualType !== param.type && param.type !== 'any') {
-          errors.push(`Parameter ${name}: expected ${param.type}, got ${actualType}`);
+        if (actualType !== (param as any).type && (param as any).type !== 'any') {
+          errors.push(`Parameter ${name}: expected ${(param as any).type}, got ${actualType}`);
         }
       }
 
       // Custom validation if skill provides one
-      if (param.validate && typeof param.validate === 'function') {
-        const isValid = param.validate(value);
+      if ((param as any).validate && typeof (param as any).validate === 'function') {
+        const isValid = (param as any).validate(value);
         if (!isValid) {
           errors.push(`Parameter ${name} validation failed`);
         }

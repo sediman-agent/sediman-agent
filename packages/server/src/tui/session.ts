@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
-import type { ChatMessage } from "./app.js";
+import type { ChatMessage } from "./types.js";
 
 const SESSION_PATH = join(homedir(), ".terminator", "session.json");
 

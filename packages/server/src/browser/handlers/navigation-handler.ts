@@ -67,7 +67,7 @@ export class NavigationHandler {
       return `Failed to navigate to ${url}`;
     } catch (e: any) {
       const error = `Failed to navigate to ${url}: ${e.message}`;
-      logger.error('[NavigationHandler]', error);
+      logger.error('[NavigationHandler] ' + error);
       return error;
     }
   }

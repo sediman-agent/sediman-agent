@@ -4,7 +4,7 @@
  */
 
 import type { FusionState } from '../fusion.js';
-import { createLogger } from '../../core/logging.js';
+import { createLogger } from '../../../core/logging';
 
 const logger = createLogger('LLMMessageBuilder');
 
@@ -94,17 +94,25 @@ export class LLMMessageBuilder {
     // Basic info
     text += `URL: ${fusedState.dom.state.url}\n`;
     text += `Title: ${fusedState.dom.state.title}\n`;
-    text += `Elements: ${fusedState.dom.state.stats.interactiveElements} interactive`;
 
-    if (fusedState.dom.state.stats.newElements > 0) {
-      text += `, ${fusedState.dom.state.stats.newElements} new`;
-    }
-    text += `\n\n`;
+    const stats = fusedState.dom.state.stats;
+    if (stats) {
+      text += `Elements: ${stats.interactiveElements || 0} interactive`;
 
-    // Scroll position
-    const si = fusedState.dom.state.stats.scrollInfo;
-    if (!si.isAtBottom) {
-      text += `Scroll: ${Math.round(si.scrollPercentage)}% of page - more content below\n\n`;
+      if ((stats.newElements || 0) > 0) {
+        text += `, ${stats.newElements} new`;
+      }
+      text += `\n\n`;
+
+      // Scroll position
+      const scrollY = fusedState.dom.state.scrollPosition?.y || 0;
+      const viewportHeight = fusedState.dom.state.viewport?.height || 1000;
+      const scrollPercentage = (scrollY / viewportHeight) * 100;
+      if (scrollPercentage < 90) {
+        text += `Scroll: ${Math.round(scrollPercentage)}% of page - more content below\n\n`;
+      }
+    } else {
+      text += `\n\n`;
     }
 
     // DOM elements
@@ -147,7 +155,7 @@ export class LLMMessageBuilder {
 
     text += `Current page: ${fusedState.dom.state.url}\n`;
     text += `Title: ${fusedState.dom.state.title}\n`;
-    text += `Interactive elements: ${fusedState.dom.state.stats.interactiveElements}\n`;
+    text += `Interactive elements: ${fusedState.dom.state.stats?.interactiveElements || 0}\n`;
 
     if (fusedState.fusion.detectedChanges.length > 0) {
       text += `\nRecent changes:\n`;

@@ -135,7 +135,7 @@ export class AgentLoop {
 
       // Create executor and run main loop
       this.executor = new AgentExecutor(this.context, this.messageHandler);
-      const result = await this.runMainLoop(task, category, plan);
+      const result = await this.runMainLoop(task, category, plan as any);
 
       // Handle post-execution tasks
       await this.handlePostExecution(result);
@@ -144,9 +144,9 @@ export class AgentLoop {
 
     } catch (err) {
       logger.error('[AgentLoop] ERROR CAUGHT:');
-      logger.error('  Type:', typeof err);
-      logger.error('  Constructor:', err?.constructor?.name);
-      logger.error('  Keys:', err ? Object.keys(err) : 'null');
+      logger.error(`  Type: ${typeof err}`);
+      logger.error(`  Constructor: ${err?.constructor?.name}`);
+      logger.error(`  Keys: ${err ? Object.keys(err) : 'null'}`);
       console.log('[AgentLoop] RAW ERROR:', err);
       console.log('[AgentLoop] ERROR KEYS:', err ? Object.keys(err) : 'null');
       console.log('[AgentLoop] ERROR STRING:', JSON.stringify(err));
@@ -157,20 +157,20 @@ export class AgentLoop {
       if (err instanceof Error) {
         message = err.message;
         stringRep = String(err);
-        logger.error('  Message:', message);
+        logger.error(`  Message: ${message}`);
         if (err.stack) {
-          logger.error('  Stack:', err.stack);
+          logger.error(`  Stack: ${err.stack}`);
         }
       } else {
         stringRep = JSON.stringify(err);
-        logger.error('  String:', stringRep);
+        logger.error(`  String: ${stringRep}`);
       }
 
       // Log additional error properties
       if (err && typeof err === 'object') {
         for (const [key, value] of Object.entries(err)) {
           if (key !== 'stack' && key !== 'message') {
-            logger.error(`  ${key}:`, value);
+            logger.error(`  ${key}: ${JSON.stringify(value)}`);
           }
         }
       }
@@ -185,9 +185,15 @@ export class AgentLoop {
         }
       }
 
-      logger.error('  Processed Message:', message);
+      logger.error(`  Processed Message: ${message}`);
 
-      return this.handleError(err instanceof Error ? err : new Error(message), startTime);
+      // Still save session for failed tasks
+      const errorResult = this.handleError(err instanceof Error ? err : new Error(message), startTime);
+      await this.handlePostExecution({
+        success: errorResult.success,
+        result: errorResult.result || message
+      });
+      return errorResult;
     }
   }
 
@@ -230,7 +236,7 @@ export class AgentLoop {
     try {
       return await this.turboExecutor.tryExecute(task);
     } catch (err) {
-      logger.debug('[AgentLoop] Turbo path failed, continuing with standard path:', err);
+      logger.debug(`[AgentLoop] Turbo path failed, continuing with standard path: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
   }
@@ -275,14 +281,23 @@ export class AgentLoop {
       // Build system prompt
       const systemPrompt = buildSystemPrompt({
         task,
-        category,
+        category: category as any,
         plan,
         iteration: this.context.iteration,
         soul: this.context.soul
       });
 
       // Execute iteration
-      const result = await this.executor.executeIteration(systemPrompt, this.context.toolBus.getDefinitions());
+      const toolBus = this.context.toolBus;
+      if (!toolBus) {
+        throw new Error('ToolBus not available');
+      }
+      const definitions = toolBus.getDefinitions();
+      const executor = this.executor;
+      if (!executor) {
+        throw new Error('Executor not available');
+      }
+      const result = await executor.executeIteration(systemPrompt, definitions);
 
       if (result.done) {
         return { success: result.success, result: result.result };
@@ -310,8 +325,8 @@ export class AgentLoop {
       actionsTaken: this.context.actionsTaken,
       steps: this.context.steps,
       conversation: this.messageHandler.getConversation(),
-      startTime: this.context.startTime ? new Date(this.context.startTime).toISOString() : undefined,
-      endTime: new Date().toISOString()
+      startTime: this.context.startTime,
+      endTime: Date.now()
     });
   }
 

@@ -41,12 +41,13 @@ export class CDPInteractions {
   /**
    * Get or create CDP session for the page
    */
-  private async getCDPSession(): Promise<any> {
+  public async getCDPSession(): Promise<any> {
     if (!this.cdpSession) {
       this.cdpSession = await this.page.context().newCDPSession(this.page);
     }
     return this.cdpSession;
   }
+
 
   /**
    * Dispatch a mouse event via CDP
@@ -215,7 +216,7 @@ export class CDPInteractions {
       try {
         await this.cdpSession.detach();
       } catch (error) {
-        logger.warn('[CDP] Failed to detach CDP session:', error);
+        logger.warn('[CDP] Failed to detach CDP session: ' + JSON.stringify(error));
       }
       this.cdpSession = null;
     }

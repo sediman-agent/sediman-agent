@@ -80,11 +80,11 @@ export class SkillEngine {
     // Load repository skills index
     this.loadRepoSkillsIndex();
 
-    logger.info('[SkillEngine] Initialized', {
+    logger.info('[SkillEngine] Initialized: ' + JSON.stringify({
       skillsDir: this.skillsDir,
       projectDir: this.projectDir,
       repoSkillsDir: this.repoSkillsDir
-    });
+    }));
   }
 
   // ====================

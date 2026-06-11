@@ -86,8 +86,8 @@ describe('ScreenshotManager - Electron Mode Issues', () => {
       const result = await manager.capture();
 
       expect(result.success).toBe(false);
-      // Error could be either about CDP timeout or no browser controller
-      expect(['No browser controller available', 'Screenshot failed or empty', 'CDP connection timeout'].some(e => result.error?.includes(e))).toBe(true);
+      // Error message when frontend screenshot unavailable and CDP times out in Electron mode
+      expect(result.error).toContain('No browser available and no frontend screenshot');
     });
 
     it('should show CDP timeout issue', async () => {
@@ -107,6 +107,7 @@ describe('ScreenshotManager - Electron Mode Issues', () => {
 
   describe('Issue #3: Screenshot returns empty or invalid data', () => {
     it('should fail when screenshot returns empty string', async () => {
+      process.env.SEDIMAN_MODE = 'api'; // Not Electron mode to bypass CDP check
       const mockControllerWithEmptyScreenshot = {
         screenshot: async () => '',
         getSession: () => ({ context: { pages: [] } })
@@ -122,6 +123,7 @@ describe('ScreenshotManager - Electron Mode Issues', () => {
     });
 
     it('should fail when screenshot returns very short string (less than 100 bytes)', async () => {
+      process.env.SEDIMAN_MODE = 'api'; // Not Electron mode to bypass CDP check
       const mockControllerWithShortScreenshot = {
         screenshot: async () => 'abc',
         getSession: () => ({ context: { pages: [] } })
@@ -139,6 +141,7 @@ describe('ScreenshotManager - Electron Mode Issues', () => {
 
   describe('Issue #4: BrowserController.page() throws in Electron mode', () => {
     it('should handle errors when trying to access page with no context', async () => {
+      process.env.SEDIMAN_MODE = 'api'; // Not Electron mode to bypass CDP check
       const mockControllerWithBadSession = {
         screenshot: async () => {
           throw new Error('no context in browser session');
@@ -179,6 +182,7 @@ describe('ScreenshotManager - Electron Mode Issues', () => {
 
   describe('Issue #6: Screenshot throttling causes missed captures', () => {
     it('should show rapid consecutive captures are throttled', async () => {
+      process.env.SEDIMAN_MODE = 'api'; // Not Electron mode to bypass CDP check
       const manager = new ScreenshotManager(1000); // 1 second throttle
 
       let callCount = 0;
@@ -280,6 +284,7 @@ describe('ScreenshotManager - Electron Mode Issues', () => {
 describe('ScreenshotManager - Working Scenarios', () => {
   describe('Scenario where screenshot works correctly', () => {
     it('should succeed when valid screenshot is returned', async () => {
+      process.env.SEDIMAN_MODE = 'api'; // Not Electron mode to bypass CDP check
       const validScreenshot = 'x'.repeat(1000); // 1000 bytes
       const mockControllerValid = {
         screenshot: async () => validScreenshot,

@@ -94,7 +94,7 @@ export class MemoryStorage {
 
     return parent.children
       .map(id => this.nodes.get(id))
-      .filter((n): n !== null) as MemoryNode[];
+      .filter((n): n is MemoryNode => n !== null);
   }
 
   /**
@@ -137,6 +137,13 @@ export class MemoryStorage {
     this.nodes.clear();
     this.domainIndex.clear();
     logger.info('[MemoryStorage] Cleared all storage');
+  }
+
+  /**
+   * Get all nodes
+   */
+  getAllNodes(): MemoryNode[] {
+    return Array.from(this.nodes.values());
   }
 
   /**

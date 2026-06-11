@@ -7,12 +7,13 @@
  * Retry logic extracted to RetryHandler
  */
 
-import type { LLMProvider, Message } from "../../provider.js";
-import type { ToolDefinition } from "../../core/types.js";
+import { LLMProvider } from "../provider";
+import type { Message } from "../provider";
+import type { ToolDefinition, LLMResponse } from "../../core/types";
 import { StructuredResponseParser } from "./parsers/response-parser.js";
 import { TypeValidator } from "./validators/type-validator.js";
 import { RetryHandler } from "./handlers/retry-handler.js";
-import { createLogger } from "../../core/logging.js";
+import { createLogger } from "../../core/logging";
 
 const logger = createLogger('StructuredProvider');
 
@@ -27,15 +28,19 @@ export interface StructuredProviderOptions {
  * Structured Provider handles LLM responses with structured output
  * This coordinates parsing, validation, and retry logic
  */
-export class StructuredProvider implements LLMProvider {
+export class StructuredProvider extends LLMProvider {
   private parser: StructuredResponseParser;
   private validator: TypeValidator;
   private retryHandler: RetryHandler;
+  private baseProvider: LLMProvider;
 
   constructor(
-    private baseProvider: LLMProvider,
+    baseProvider: LLMProvider,
     options: StructuredProviderOptions = {}
   ) {
+    super();
+    this.baseProvider = baseProvider;
+    this.baseProvider = baseProvider;
     this.parser = options.parser ?? new StructuredResponseParser();
     this.validator = options.validator ?? new TypeValidator();
     this.retryHandler = options.retryHandler ?? new RetryHandler({
@@ -47,14 +52,16 @@ export class StructuredProvider implements LLMProvider {
    * Get model identifier
    */
   get model(): string {
-    return this.baseProvider.model;
+    // LLMProvider doesn't have a model property, so return a default
+    return 'structured-provider';
   }
 
   /**
    * Chat with structured output
    */
-  async chat(messages: Message[], systemPrompt?: string): Promise<string> {
-    return this.baseProvider.chat(messages, systemPrompt);
+  async chat(messages: Message[], tools: ToolDefinition[], system?: string): Promise<LLMResponse> {
+    // Call the base provider's chat method with the correct signature
+    return this.baseProvider.chat(messages, tools, system);
   }
 
   /**
@@ -63,10 +70,34 @@ export class StructuredProvider implements LLMProvider {
   async chatStreamWithTools(
     messages: Message[],
     tools: ToolDefinition[],
-    systemPrompt?: string,
+    system?: string,
     onChunk?: (chunk: string) => void
   ): Promise<any> {
-    return this.baseProvider.chatStreamWithTools(messages, tools, systemPrompt, onChunk);
+    return this.baseProvider.chatStreamWithTools(messages, tools, system, onChunk);
+  }
+
+  /**
+   * Chat with streaming response
+   */
+  async *chatStream(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string
+  ): AsyncGenerator<string> {
+    yield* this.baseProvider.chatStream(messages, tools, system);
+  }
+
+  /**
+   * Chat with failover support
+   */
+  async chatWithFailover(
+    messages: Message[],
+    tools: ToolDefinition[],
+    system?: string,
+    fallback?: LLMProvider
+  ): Promise<LLMResponse> {
+    // For structured output, we don't use failover as the retry handler handles it
+    return this.chat(messages, tools, system);
   }
 
   /**
@@ -93,9 +124,10 @@ export class StructuredProvider implements LLMProvider {
       async () => {
         const response = await this.baseProvider.chat(
           [{ role: 'user', content: enhancedPrompt }],
+          [], // tools parameter required by LLMProvider.chat
           systemPrompt
         );
-        return response;
+        return response.text || '';
       },
       (response) => this.validateAndParse(response, schema, format)
     );

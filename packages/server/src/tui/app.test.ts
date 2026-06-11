@@ -4,8 +4,9 @@ import {
   COMMANDS,
   DEFAULT_MODES,
   SPINNER_FRAMES,
-  type ChatMessage,
 } from "./app.js";
+import type { ChatMessage } from "./types.js";
+import { getAllCommandNames } from "./constants.js";
 
 describe("App", () => {
   let app: App;
@@ -46,7 +47,7 @@ describe("App", () => {
   });
 
   test("cycleAgentMode cycles through modes", () => {
-    const modes = DEFAULT_MODES.map(m => m.mode);
+    const modes = DEFAULT_MODES.map((m: any) => m.mode);
     for (let i = 0; i < modes.length; i++) {
       expect(app.currentModeName()).toBe(modes[i]);
       app.cycleAgentMode();
@@ -233,10 +234,11 @@ describe("App", () => {
   });
 
   test("commandNames populated from COMMANDS", () => {
-    expect(app.commandNames.length).toBeGreaterThan(0);
-    expect(app.commandNames).toContain("/help");
-    expect(app.commandNames).toContain("/quit");
-    expect(app.commandNames).toContain("/exit");
+    const commandNames = getAllCommandNames();
+    expect(commandNames.length).toBeGreaterThan(0);
+    expect(commandNames).toContain("/help");
+    expect(commandNames).toContain("/quit");
+    expect(commandNames).toContain("/exit");
   });
 });
 
@@ -256,7 +258,7 @@ describe("DEFAULT_MODES", () => {
   });
 
   test("modes have unique runners", () => {
-    const runners = DEFAULT_MODES.map(m => m.runner);
+    const runners = DEFAULT_MODES.map((m: any) => m.runner);
     expect(new Set(runners).size).toBe(runners.length);
   });
 });

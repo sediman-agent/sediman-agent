@@ -3,8 +3,8 @@
  * Detects and reports changes between page states
  */
 
-import type { PageState } from '../ax-extractor.js';
-import { createLogger } from '../../core/logging.js';
+import type { PageState } from '../ax-extractor';
+import { createLogger } from '../../../core/logging';
 
 const logger = createLogger('PageChangeDetector');
 
@@ -93,7 +93,7 @@ export class PageChangeDetector {
 
       // List notable new elements
       const notable = newElements
-        .filter(e => e.metadata.isInteractable && e.text)
+        .filter(e => e.metadata?.isInteractable && e.text)
         .slice(0, 5);
 
       for (const el of notable) {
@@ -108,11 +108,16 @@ export class PageChangeDetector {
    * Detect scroll position changes
    */
   private detectScrollChange(previous: PageState, current: PageState): string | null {
-    const prevScroll = previous.stats.scrollInfo.scrollPercentage;
-    const currScroll = current.stats.scrollInfo.scrollPercentage;
+    if (!previous.stats || !current.stats) return null;
 
-    if (Math.abs(prevScroll - currScroll) > 10) {
-      return `[SCROLL] Position changed from ${Math.round(prevScroll)}% to ${Math.round(currScroll)}%`;
+    const prevScroll = previous.scrollPosition?.y || 0;
+    const currScroll = current.scrollPosition?.y || 0;
+    const docHeight = current.viewport?.height || 1000;
+    const prevPercent = (prevScroll / docHeight) * 100;
+    const currPercent = (currScroll / docHeight) * 100;
+
+    if (Math.abs(prevPercent - currPercent) > 10) {
+      return `[SCROLL] Position changed from ${Math.round(prevPercent)}% to ${Math.round(currPercent)}%`;
     }
 
     return null;
@@ -122,7 +127,8 @@ export class PageChangeDetector {
    * Detect significant element count changes
    */
   private detectCountChange(previous: PageState, current: PageState): string | null {
-    const countDiff = current.stats.interactiveElements - previous.stats.interactiveElements;
+    if (!current.stats || !previous.stats) return null;
+    const countDiff = (current.stats.interactiveElements || 0) - (previous.stats.interactiveElements || 0);
 
     if (Math.abs(countDiff) > 5) {
       return `[ELEMENTS] Interactive element count changed by ${countDiff}`;
@@ -167,14 +173,19 @@ export class PageChangeDetector {
       });
     }
 
-    const prevScroll = previous.stats.scrollInfo.scrollPercentage;
-    const currScroll = current.stats.scrollInfo.scrollPercentage;
-    if (Math.abs(prevScroll - currScroll) > 10) {
-      changes.push({
-        type: 'scroll',
-        description: `Scroll position changed from ${Math.round(prevScroll)}% to ${Math.round(currScroll)}%`,
-        details: { from: prevScroll, to: currScroll }
-      });
+    if (previous.stats && current.stats) {
+      const prevScroll = previous.scrollPosition?.y || 0;
+      const currScroll = current.scrollPosition?.y || 0;
+      const docHeight = current.viewport?.height || 1000;
+      const prevPercent = (prevScroll / docHeight) * 100;
+      const currPercent = (currScroll / docHeight) * 100;
+      if (Math.abs(prevPercent - currPercent) > 10) {
+        changes.push({
+          type: 'scroll',
+          description: `Scroll position changed from ${Math.round(prevPercent)}% to ${Math.round(currPercent)}%`,
+          details: { from: prevPercent, to: currPercent }
+        });
+      }
     }
 
     return changes;
@@ -194,9 +205,12 @@ export class PageChangeDetector {
     if (newElements.length > 10) return true;
 
     // Large scroll change might be significant
-    const prevScroll = previous.stats.scrollInfo.scrollPercentage;
-    const currScroll = current.stats.scrollInfo.scrollPercentage;
-    if (Math.abs(prevScroll - currScroll) > 50) return true;
+    if (previous.stats && current.stats && previous.scrollPosition && current.scrollPosition) {
+      const docHeight = current.viewport?.height || 1000;
+      const prevPercent = (previous.scrollPosition.y / docHeight) * 100;
+      const currPercent = (current.scrollPosition.y / docHeight) * 100;
+      if (Math.abs(prevPercent - currPercent) > 50) return true;
+    }
 
     return false;
   }

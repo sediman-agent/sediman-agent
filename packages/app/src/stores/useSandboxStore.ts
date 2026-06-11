@@ -41,6 +41,14 @@ interface SandboxActions {
   setControlMode: (mode: ControlMode) => void;
   setIsActive: (active: boolean) => void;
   setError: (error: string | null) => void;
+  setConnectionStatus: (status: ConnectionStatus) => void;
+  setSandboxType: (type: SandboxType) => void;
+  setCurrentSession: (session: SandboxSession | null) => void;
+  setIsStreaming: (streaming: boolean) => void;
+  setLastScreenshot: (screenshot: string | null) => void;
+  setStreamError: (error: string | null) => void;
+  setIsStarting: (starting: boolean) => void;
+  setIsStopping: (stopping: boolean) => void;
 }
 
 const initialState: SandboxState = {
@@ -82,5 +90,14 @@ export const useSandboxStore = create<SandboxState & SandboxActions>()(
     setIsActive: (active) => set({ isActive: active }),
 
     setError: (error) => set({ error }),
+
+    setConnectionStatus: (status) => set({ connectionStatus: status }),
+    setSandboxType: (type) => set({ sandboxType: type }),
+    setCurrentSession: (session) => set({ currentSession: session }),
+    setIsStreaming: (streaming) => set({ isStreaming: streaming }),
+    setLastScreenshot: (screenshot) => set({ lastScreenshot: screenshot }),
+    setStreamError: (error) => set({ streamError: error }),
+    setIsStarting: (starting) => set({ isStarting: starting }),
+    setIsStopping: (stopping) => set({ isStopping: stopping }),
   })
 );

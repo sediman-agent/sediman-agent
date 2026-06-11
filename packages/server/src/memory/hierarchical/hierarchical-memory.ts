@@ -7,8 +7,16 @@
  * Compression extracted to MemoryCompression
  */
 
-import type { Memory } from "../../strategy.js";
 import type { MemoryNode } from "./storage/memory-storage.js";
+
+// Memory type for hierarchical memory
+export interface Memory {
+  id: string;
+  domain: string;
+  content: string;
+  metadata?: any;
+  timestamp: number;
+}
 import { MemoryStorage } from "./storage/memory-storage.js";
 import {
   ExactMatchRetrieval,
@@ -17,7 +25,7 @@ import {
   TimeBasedRetrieval
 } from "./retrieval/memory-retrieval.js";
 import { MemoryCompression } from "./compression/index.js";
-import { createLogger } from "../../core/logging.js";
+import { createLogger } from "../../core/logging";
 
 const logger = createLogger("HierarchicalMemory");
 
@@ -32,7 +40,7 @@ export interface HierarchicalMemoryOptions {
  * Hierarchical Memory manages tree-structured memory with multiple retrieval strategies
  * This coordinates storage, retrieval, and compression modules
  */
-export class HierarchicalMemory implements Memory {
+export class HierarchicalMemory {
   private storage: MemoryStorage;
   private compression: MemoryCompression;
   private retrievalStrategies: Map<string, any>;
@@ -42,14 +50,14 @@ export class HierarchicalMemory implements Memory {
     this.compression = new MemoryCompression();
 
     // Initialize retrieval strategies
-    this.retrievalStrategies = new Map([
+    this.retrievalStrategies = new Map<string, any>([
       ['exact', new ExactMatchRetrieval()],
       ['semantic', new SemanticRetrieval()],
       ['hierarchical', new HierarchicalRetrieval()],
       ['time', new TimeBasedRetrieval()],
     ]);
 
-    logger.info('[HierarchicalMemory] Initialized with strategies:', Array.from(this.retrievalStrategies.keys()));
+    logger.info('[HierarchicalMemory] Initialized with strategies: ' + JSON.stringify(Array.from(this.retrievalStrategies.keys())));
   }
 
   /**
@@ -78,7 +86,7 @@ export class HierarchicalMemory implements Memory {
     // Compress if needed
     if (this.compression && (metadata?.compress !== false)) {
       this.compression.compress(this.storage, {
-        maxNodes: options.maxNodes ?? 1000
+        maxNodes: (metadata?.maxNodes as number) ?? 1000
       });
     }
 
@@ -88,7 +96,7 @@ export class HierarchicalMemory implements Memory {
   /**
    * Recall memories based on query
    */
-  async recall(query: string, domain?: string, limit?: number): Promise<Memory[]> {
+  async recall(query: string, domain?: string, limit?: number, options?: { retrievalStrategy?: string }): Promise<Memory[]> {
     const strategyName = options?.retrievalStrategy || 'hierarchical';
     const strategy = this.retrievalStrategies.get(strategyName);
 
@@ -103,7 +111,7 @@ export class HierarchicalMemory implements Memory {
       this.storage
     );
 
-    return result.nodes.map(node => ({
+    return result.nodes.map((node: any) => ({
       domain: node.domain,
       content: node.content,
       metadata: node.metadata
@@ -116,9 +124,11 @@ export class HierarchicalMemory implements Memory {
   getDomainMemories(domain: string): Memory[] {
     const nodes = this.storage.getDomain(domain);
     return nodes.map(node => ({
+      id: node.id,
       domain: node.domain,
       content: node.content,
-      metadata: node.metadata
+      metadata: node.metadata,
+      timestamp: node.timestamp
     }));
   }
 
@@ -130,9 +140,11 @@ export class HierarchicalMemory implements Memory {
     if (!node) return null;
 
     return {
+      id: node.id,
       domain: node.domain,
       content: node.content,
-      metadata: node.metadata
+      metadata: node.metadata,
+      timestamp: node.timestamp
     };
   }
 
@@ -199,7 +211,7 @@ export class HierarchicalMemory implements Memory {
   getTree(domain?: string): any {
     const nodes = domain
       ? this.storage.getDomain(domain)
-      : Array.from(this.storage.nodes.values());
+      : this.storage.getAllNodes();
 
     // Build tree structure
     const roots = nodes.filter(n => !n.parentId);
@@ -214,7 +226,7 @@ export class HierarchicalMemory implements Memory {
     };
 
     return {
-      roots: roots.map(buildNode).filter(n => n !== null),
+      roots: roots.map((node: MemoryNode) => buildNode(node.id)).filter(n => n !== null),
       total: nodes.length
     };
   }

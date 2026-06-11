@@ -13,13 +13,13 @@ import type { ThemeTokens } from './theme.js';
 import { getTheme } from './theme.js';
 
 // Re-export types
-export * from './types-new.js';
+export * from './types.js';
 
 // Extracted modules
-import { MessageManager } from './message-manager-new.js';
-import { AgentStateManager } from './agent-state-manager-new.js';
-import { ModalManager } from './modal-manager-new.js';
-import { COMMANDS, getAllCommandNames } from './constants-new.js';
+import { MessageManager } from './message-manager.js';
+import { AgentStateManager } from './agent-state-manager.js';
+import { ModalManager } from './modal-manager.js';
+import { COMMANDS, getAllCommandNames } from './constants.js';
 
 /**
  * TUI Dependencies
@@ -118,7 +118,7 @@ export class App {
   }
 
   rerender(): void {
-    this._rerener?.();
+    this._rerender?.();
   }
 
   get theme(): ThemeTokens {
@@ -293,7 +293,7 @@ export class App {
 }
 
 // Re-export constants
-export { COMMANDS, DEFAULT_MODES, SPINNER_FRAMES } from './constants-new.js';
+export { COMMANDS, DEFAULT_MODES, SPINNER_FRAMES } from './constants.js';
 
 // Re-export managers
 export { MessageManager, AgentStateManager, ModalManager };

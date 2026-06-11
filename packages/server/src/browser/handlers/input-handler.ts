@@ -95,7 +95,7 @@ export class InputHandler {
         case 'mousemove':
         case 'click':
         case 'dblclick':
-          await this.context.page.mouse[`${type}`](options.x, options.y, options);
+          await (this.context.page.mouse as any)[`${type}`](options.x, options.y, options);
           break;
         default:
           logger.warn(`Unknown mouse event type: ${type}`);

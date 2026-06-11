@@ -4,7 +4,7 @@
  */
 
 import type { Page } from 'playwright';
-import type { BrowserActionResult } from '../types.js';
+import type { BrowserActionResult } from '../controller.js';
 
 /**
  * Page State Manager
@@ -80,9 +80,9 @@ export class PageStateManager {
    */
   async scrollTo(x: number, y: number): Promise<BrowserActionResult> {
     try {
-      await this.getPage().evaluate((scrollX, scrollY) => {
+      await this.getPage().evaluate(({ scrollX, scrollY }: { scrollX: number; scrollY: number }) => {
         window.scrollTo(scrollX, scrollY);
-      }, x, y);
+      }, { scrollX: x, scrollY: y });
       return {
         success: true,
         message: `Scrolled to (${x}, ${y})`

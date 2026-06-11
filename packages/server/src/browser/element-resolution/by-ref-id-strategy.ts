@@ -23,7 +23,7 @@ export class ByRefIdStrategy implements ElementResolutionStrategy {
 
       return null;
     } catch (error) {
-      logger.debug(`[ByRefIdStrategy] Error resolving refId ${refId}:`, error);
+      logger.debug('[ByRefIdStrategy] Error resolving refId ' + refId + ': ' + JSON.stringify(error));
       return null;
     }
   }

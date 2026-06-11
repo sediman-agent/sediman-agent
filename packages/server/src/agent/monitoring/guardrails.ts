@@ -42,19 +42,26 @@ export class SharedScratchpad {
 
 }
 
-export function checkBudget(budget: Budget): {
+export function checkBudget(budget: Partial<Budget> & { usedIterations?: number; maxIterations?: number }): {
   exceeded: boolean;
   reason?: string;
 } {
-  if (budget.usedTokens >= budget.maxTokens) {
+  const maxTokens = budget.maxTokens ?? Infinity;
+  const maxIterations = budget.maxIterations ?? Infinity;
+  const maxTimeMs = budget.maxTimeMs ?? Infinity;
+  const usedTokens = budget.usedTokens ?? 0;
+  const usedIterations = budget.usedIterations ?? 0;
+  const usedTimeMs = budget.usedTimeMs ?? 0;
+
+  if (usedTokens >= maxTokens) {
     return { exceeded: true, reason: "Token budget exceeded" };
   }
 
-  if (budget.usedIterations >= budget.maxIterations) {
+  if (usedIterations >= maxIterations) {
     return { exceeded: true, reason: "Iteration budget exceeded" };
   }
 
-  if (budget.usedTimeMs >= budget.maxTimeMs) {
+  if (usedTimeMs >= maxTimeMs) {
     return { exceeded: true, reason: "Time budget exceeded" };
   }
 

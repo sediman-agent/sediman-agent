@@ -14,9 +14,9 @@ import {
   rmSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import type { SkillData } from '../../format.js';
-import { loadSkill, skillToJson } from '../../format.js';
-import { SkillValidator } from '../../validation/skill-validator.js';
+import type { SkillData } from '../format';
+import { loadSkill, skillToJson } from '../format';
+import { SkillValidator } from '../validation/skill-validator';
 
 /**
  * Cache entry for skill data

@@ -2,8 +2,6 @@
  * Jest configuration and setup for OpenSkynet Desktop
  */
 
-import React from 'react';
-
 // Import jest-dom for custom matchers
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
@@ -55,7 +53,10 @@ if (!global.crypto.randomUUID) {
 // Mock react-markdown and related packages
 jest.mock('react-markdown', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => <div data-testid="markdown">{children}</div>,
+  default: ({ children }: { children: any }) => {
+    const React = require('react');
+    return React.createElement('div', { 'data-testid': 'markdown' }, children);
+  },
 }));
 
 jest.mock('remark-gfm', () => ({

@@ -10,9 +10,6 @@
 import { join } from 'node:path';
 import { getConfig } from '../../core/config';
 
-// Re-export types
-export type { AgentHistoryEntry };
-
 // Import extracted modules
 import { HistoryStorage } from './storage/index.js';
 import { HistorySearch, type SearchCriteria } from './search/index.js';

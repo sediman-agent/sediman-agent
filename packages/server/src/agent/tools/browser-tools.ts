@@ -78,9 +78,7 @@ export class BrowserToolsManager {
       screenshotHandler: storeScreenshot
     });
 
-    logger.info('[BrowserTools] Initialized', {
-      mode: RUNNING_IN_ELECTRON ? 'Electron IPC' : 'Playwright'
-    });
+    logger.info(`[BrowserTools] Initialized: ${RUNNING_IN_ELECTRON ? 'Electron IPC' : 'Playwright'}`);
   }
 
   /**

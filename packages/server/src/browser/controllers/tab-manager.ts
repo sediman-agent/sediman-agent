@@ -4,7 +4,7 @@
  */
 
 import type { Page, BrowserContext } from 'playwright';
-import type { BrowserActionResult } from '../types.js';
+import type { BrowserActionResult } from '../controller.js';
 
 /**
  * Tab Manager
@@ -62,11 +62,11 @@ export class TabManager {
       }
 
       const pages = ctx.pages();
-      const tabs = pages.map((p, i) => ({
+      const tabs = await Promise.all(pages.map(async (p, i) => ({
         index: i,
         url: p.url(),
-        title: p.title()
-      }));
+        title: await p.title()
+      })));
 
       return {
         success: true,

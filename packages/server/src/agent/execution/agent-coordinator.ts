@@ -42,6 +42,14 @@ export interface ToolExecutionResult {
   consecutiveFailures: number;
 }
 
+export interface BatchToolExecutionResult extends ToolExecutionResult {
+  anySuccess: boolean;
+  combinedOutput: string;
+  // Ensure required properties from ToolExecutionResult are satisfied
+  success: boolean;
+  output: string;
+}
+
 // ============================================================================
 // Main Loop Orchestration
 // ============================================================================
@@ -268,7 +276,7 @@ async function executeToolCalls(
   executeToolCall: (toolName: string, toolArgs: any, actionsTaken: string[], iteration: number) => Promise<ToolExecutionResult>,
   streamEmitter: StreamEmitter,
   steps: StepEvent[]
-): Promise<ToolExecutionResult> {
+): Promise<BatchToolExecutionResult> {
   let anySuccess = false;
   let combinedOutput = '';
 
@@ -289,9 +297,12 @@ async function executeToolCalls(
   }
 
   return {
+    success: anySuccess,
+    output: combinedOutput,
+    error: anySuccess ? undefined : 'Some tool calls failed',
+    consecutiveFailures,
     anySuccess,
-    combinedOutput,
-    consecutiveFailures
+    combinedOutput
   };
 }
 

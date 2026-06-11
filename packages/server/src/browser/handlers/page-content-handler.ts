@@ -36,7 +36,7 @@ export class PageContentHandler {
       const title = await page.title();
 
       // Execute snapshot script
-      const snapshotData = await page.evaluate(SNAPSHOT_JS);
+      const snapshotData = await page.evaluate(SNAPSHOT_JS) as any;
 
       this.emit("snapshot", `elements=${snapshotData.elements.length}`);
 
@@ -86,7 +86,7 @@ export class PageContentHandler {
    */
   async screenshot(options?: {
     fullPage?: boolean;
-    type?: 'png' | 'jpeg' | 'webp';
+    type?: 'png' | 'jpeg';
   }): Promise<string | null> {
     try {
       const screenshot = await this.context.page.screenshot({

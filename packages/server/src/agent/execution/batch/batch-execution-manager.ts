@@ -3,10 +3,10 @@
  * Handles batch tool execution with page change detection
  */
 
-import type { ToolCall } from '../../../../core/types.js';
-import type { ToolBus } from '../../tools/bus.js';
-import type { PageSnapshot } from '../../../../browser/controller.js';
-import { createLogger } from '../../../../core/logging.js';
+import type { ToolCall } from '../../../core/types';
+import type { ToolBus } from '../../tools/bus';
+import type { PageSnapshot } from '../../../browser/controller';
+import { createLogger } from '../../../core/logging.js';
 
 const logger = createLogger('BatchExecutionManager');
 
@@ -55,7 +55,7 @@ export class BatchExecutionManager {
       logger.debug(`[BatchExecution] Executing action ${i + 1}/${actions.length}: ${action.name}`);
 
       try {
-        const result = await this.toolBus.execute(action.name, action.arguments);
+        const result = await this.toolBus.execute(action.name || '', action.arguments || {});
 
         executed.push(action);
         results.push({
@@ -141,7 +141,7 @@ export class BatchExecutionManager {
 
     for (const action of actions) {
       try {
-        const result = await this.toolBus.execute(action.name, action.arguments);
+        const result = await this.toolBus.execute(action.name || '', action.arguments || {});
 
         executed.push(action);
         results.push({
@@ -198,7 +198,7 @@ export class BatchExecutionManager {
 
     for (const action of actions) {
       try {
-        const result = await this.toolBus.execute(action.name, action.arguments);
+        const result = await this.toolBus.execute(action.name || '', action.arguments || {});
 
         executed.push(action);
         results.push({

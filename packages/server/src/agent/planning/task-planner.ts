@@ -12,9 +12,6 @@ import type { LLMProvider } from '../../llm/provider';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
-// Re-export types
-export type { SubTask, TaskPlan, SubTaskResult };
-
 // Import extracted modules
 import { ExecutionOrderCalculator } from './execution/index.js';
 import { PlanExecutor } from './execution/index.js';

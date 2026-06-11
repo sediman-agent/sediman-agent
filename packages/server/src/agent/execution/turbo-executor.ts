@@ -5,7 +5,8 @@
 
 import type { LLMProvider } from '../../llm/provider';
 import type { ToolBus } from '../tools/bus';
-import type { Message, AgentResult } from '../../core/types';
+import type { AgentResult, StepEvent } from '../../core/types';
+import type { Message } from '../../llm/provider';
 import { InterruptSignal } from '../core/interrupt';
 import { ProgressTracker } from '../memory/progress';
 import { StreamEmitter } from '../streaming';
@@ -40,8 +41,9 @@ export async function executeTurboPath(
 
   logger.info('[TurboExecutor] Attempting turbo path for task');
 
-  // Check if turbo mode is enabled
-  if (!config.enableTurboMode) {
+  // Check if turbo mode is enabled (default to true for now)
+  const enableTurboMode = (config as any).enableTurboMode ?? true;
+  if (!enableTurboMode) {
     return { success: false, reason: 'Turbo mode not enabled' };
   }
 
@@ -71,25 +73,28 @@ export async function executeTurboPath(
     );
 
     // Check for tool calls
-    if (response.toolCalls && response.toolCalls.length > 0) {
-      logger.info(`[TurboExecutor] Got ${response.toolCalls.length} tool calls`);
+    if (response.tool_calls && response.tool_calls.length > 0) {
+      logger.info(`[TurboExecutor] Got ${response.tool_calls.length} tool calls`);
 
       // Execute tools directly
       const toolResults: Array<{ success: boolean; output: string }> = [];
 
-      for (const toolCall of response.toolCalls) {
+      for (const toolCall of response.tool_calls) {
         interrupt.check();
 
-        streamEmitter.emitStepStart('executing', toolCall.name, JSON.stringify(toolCall.arguments));
+        const toolName = toolCall.name || (typeof toolCall.function?.name === 'string' ? toolCall.function.name : '');
+        const toolArgs = toolCall.arguments || (typeof toolCall.function?.arguments === 'string' ? JSON.parse(toolCall.function.arguments) : {});
+
+        streamEmitter.emitStepStart('executing', toolName, JSON.stringify(toolArgs));
         progress.update(1, 5);
 
-        const result = await toolBus.execute(toolCall.name, toolCall.arguments);
+        const result = await toolBus.execute(toolName, toolArgs);
         toolResults.push(result);
 
-        streamEmitter.emitStepComplete('executing', toolCall.name, result.output, result.success);
+        streamEmitter.emitStepComplete('executing', toolName, result.output, result.success);
 
         if (!result.success) {
-          logger.warn(`[TurboExecutor] Tool ${toolCall.name} failed: ${result.error}`);
+          logger.warn(`[TurboExecutor] Tool ${toolName} failed: ${result.error}`);
         }
       }
 
@@ -101,28 +106,35 @@ export async function executeTurboPath(
       conversation.push({
         role: 'assistant',
         content: response.text || 'Executing task...',
-        tool_calls: response.toolCalls
+        tool_calls: response.tool_calls
       });
 
       // Add tool results to conversation
       toolResults.forEach((result, idx) => {
         conversation.push({
           role: 'tool',
-          tool_call_id: response.toolCalls![idx].id,
-          content: result.success ? result.output : result.error || 'Tool failed',
-          name: response.toolCalls![idx].name
+          tool_call_id: response.tool_calls![idx].id || `call_${idx}`,
+          content: result.success ? result.output : 'Tool failed',
+          name: response.tool_calls![idx].name
         });
       });
 
+      const steps: StepEvent[] = toolResults.map((r, idx) => ({
+        phase: 'executing',
+        action: response.tool_calls![idx].name || '',
+        detail: r.output,
+        observation: r.success ? 'success' : 'failure'
+      }));
+
       const agentResult: AgentResult = {
-        success: allSuccessful,
+        task: '',
         result: allSuccessful ? finalOutput : 'Task completed with some errors',
-        steps: toolResults.length,
-        duration: Date.now() - Date.now(), // Placeholder for actual timing
-        conversation: conversation.map(msg => ({
-          role: msg.role,
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
-        }))
+        success: allSuccessful,
+        steps,
+        actions_taken: response.tool_calls!.map(tc => tc.name || ''),
+        iterations: 1,
+        strategy_used: 'turbo',
+        elapsed_secs: 0
       };
 
       if (memory) {
@@ -140,14 +152,14 @@ export async function executeTurboPath(
       });
 
       const agentResult: AgentResult = {
-        success: true,
+        task: '',
         result: response.text,
-        steps: 0,
-        duration: 0,
-        conversation: conversation.map(msg => ({
-          role: msg.role,
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
-        }))
+        success: true,
+        steps: [],
+        actions_taken: [],
+        iterations: 1,
+        strategy_used: 'turbo',
+        elapsed_secs: 0
       };
 
       return { success: true, result: agentResult };
@@ -155,7 +167,7 @@ export async function executeTurboPath(
 
     return { success: false, reason: 'No tool calls or text response from LLM' };
   } catch (error) {
-    logger.error('[TurboExecutor] Turbo path failed:', error);
+    logger.error(`[TurboExecutor] Turbo path failed: ${error instanceof Error ? error.message : String(error)}`);
     return { success: false, reason: `Turbo execution failed: ${error instanceof Error ? error.message : String(error)}` };
   }
 }
@@ -165,7 +177,7 @@ export async function executeTurboPath(
  */
 function isTaskSimple(task: string): boolean {
   const config = getConfig();
-  const maxLength = config.turboMaxTaskLength || 200;
+  const maxLength = (config as any).turboMaxTaskLength || 200;
 
   if (task.length > maxLength) return false;
 

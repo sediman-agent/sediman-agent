@@ -56,7 +56,7 @@ export class MemoryCompression {
 
       let deletedCount = 0;
       for (const node of nodesToDelete) {
-        const result = storage.delete(node.id);
+        const result = storage.delete((node as any).id);
         if (result.success) deletedCount++;
       }
 
@@ -155,7 +155,7 @@ export class MemoryCompression {
           const parent = storage.retrieve(toKeep.parentId);
           if (parent) {
             parent.children = parent.children.filter(
-              id => !toDelete.some((del: any) => del.id === id)
+              (id: string) => !toDelete.some((del: any) => del.id === id)
             );
           }
         }

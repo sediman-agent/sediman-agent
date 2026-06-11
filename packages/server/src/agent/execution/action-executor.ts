@@ -3,9 +3,9 @@
  * Executes actions and handles results
  */
 
-import type { ToolBus } from '../../tools/bus.js';
-import type { ToolCall } from '../../schemas/index.js';
-import { StreamEmitter } from '../../streaming/index.js';
+import type { ToolBus } from '../tools/bus';
+import type { ToolCall } from '../schemas/index';
+import { StreamEmitter } from '../streaming';
 import { createLogger } from '../../core/logging.js';
 
 const logger = createLogger('action-executor');

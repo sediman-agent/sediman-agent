@@ -3,11 +3,11 @@
  * Handles structured responses from LLM providers
  */
 
-import type { LLMProvider } from '../../llm/provider/index.js';
-import type { StructuredLLMProvider } from '../../llm/structured/index.js';
-import type { AgentResponse, AgentResponseSchema } from '../../schemas/index.js';
-import { coerceAgentResponse } from '../../schemas/index.js';
-import { createLogger } from '../../core/logging.js';
+import type { LLMProvider } from '../../llm/provider';
+import type { StructuredProvider } from '../../llm/structured/index';
+import type { AgentResponse } from '../schemas';
+import { coerceAgentResponse } from '../schemas/agent-schemas';
+import { createLogger } from '../../core/logging';
 
 const logger = createLogger('response-handler');
 
@@ -26,7 +26,7 @@ export interface ResponseHandlerOptions {
 export class ResponseHandler {
   constructor(
     private llmProvider: LLMProvider,
-    private structuredLLMProvider?: StructuredLLMProvider
+    private structuredLLMProvider?: StructuredProvider
   ) {}
 
   /**
@@ -59,26 +59,37 @@ export class ResponseHandler {
     systemPrompt: string,
     options: ResponseHandlerOptions
   ): Promise<AgentResponse> {
-    const result = await this.structuredLLMProvider!.chatStructured(
-      conversation,
-      schema,
-      systemPrompt,
-      options
-    );
+    // Build prompt from conversation
+    const prompt = conversation.map((msg: any) =>
+      `${msg.role}: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`
+    ).join('\n');
 
-    logger.info({ usage: result.usage }, '[ResponseHandler] Structured LLM response received');
-    return result.data;
+    try {
+      const result = await this.structuredLLMProvider!.generateStructured<AgentResponse>(
+        prompt,
+        schema,
+        {
+          format: 'json',
+          systemPrompt,
+          maxRetries: 3
+        }
+      );
+
+      logger.info('[ResponseHandler] Structured LLM response received');
+      return result;
+    } catch (error) {
+      logger.error(`[ResponseHandler] Structured output failed: ${error instanceof Error ? error.message : String(error)}`);
+      // Fallback to coercion
+      return this.coerceResponse({ text: prompt });
+    }
   }
 
   /**
    * Parse response from regular LLM
    */
   private async parseRegularResponse(conversation: any[], systemPrompt: string): Promise<AgentResponse> {
-    // Get tools
-    const tools = this.llmProvider.getTools ? this.llmProvider.getTools() : [];
-
-    // Call LLM
-    const response = await this.llmProvider.chat(conversation, tools, systemPrompt);
+    // Call LLM (tools parameter is optional)
+    const response = await this.llmProvider.chat(conversation, [], systemPrompt);
 
     // Try to parse as JSON first
     if (response.text) {
@@ -131,7 +142,7 @@ export class ResponseHandler {
   /**
    * Set structured LLM provider
    */
-  setStructuredLLMProvider(provider: StructuredLLMProvider): void {
+  setStructuredProvider(provider: StructuredProvider): void {
     this.structuredLLMProvider = provider;
     logger.info('[ResponseHandler] Structured LLM provider set');
   }
@@ -175,8 +186,8 @@ export class ResponseHandler {
    * Check if response indicates success
    */
   isSuccess(response: AgentResponse): boolean {
-    const eval = response.thought?.evaluation?.toLowerCase() || '';
-    return eval.includes('success');
+    const evaluation = response.thought?.evaluation?.toLowerCase() || '';
+    return evaluation.includes('success');
   }
 
   /**

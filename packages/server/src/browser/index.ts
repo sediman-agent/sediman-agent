@@ -6,3 +6,11 @@ export {
   type BrowserActionResult,
 } from "./controller";
 export { PageState } from "./perception";
+
+// Elite browser automation exports
+export {
+  IntegratedEliteController,
+  createIntegratedEliteController,
+  type EliteControllerConfig,
+  type EliteActionResult,
+} from "./integrated-elite-controller";

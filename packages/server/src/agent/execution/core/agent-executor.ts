@@ -1,6 +1,7 @@
 /**
  * Agent Executor
  * Core execution logic extracted from AgentLoop
+ * Enhanced with performance optimizations and stability improvements
  */
 
 import type { LLMProvider } from '../../../llm/provider.js';
@@ -13,9 +14,11 @@ import { createLogger } from '../../../core/logging.js';
 import { LoopDetector } from '../../monitoring/loop-detector.js';
 import { CheckpointManager } from '../../monitoring/checkpoint.js';
 import { compressText } from '../../memory/compressor.js';
-import { injectBrowserVision } from '../browser-operations.js';
 import { updatePageState, getLastPageState } from '../../tools/browser-tools.js';
 import type { PageSnapshot } from '../../../browser/controller.js';
+import { getMultiLevelCache } from '../../cache/multi-level-cache.js';
+import { circuitBreakerRegistry } from '../../stability/circuit-breaker.js';
+import { getPerformanceMonitor } from '../../performance/monitor.js';
 
 const logger = createLogger('AgentExecutor');
 
@@ -34,6 +37,12 @@ export class AgentExecutor {
   private loopDetector: LoopDetector;
   private checkpointManager: CheckpointManager;
   private compressor: any;
+  private perfMonitor = getPerformanceMonitor();
+  private llmCircuitBreaker = circuitBreakerRegistry.get('LLM', {
+    failureThreshold: 3,
+    successThreshold: 2,
+    timeoutMs: 30000
+  });
 
   constructor(
     private context: ExecutionContext,
@@ -68,8 +77,37 @@ export class AgentExecutor {
       return { done: true, result, success: false, steps: this.context.steps };
     }
 
-    // Get messages and build prompt
+    // === PHASE 1: Force reasoning text WITHOUT tools ===
     const messages = await this.getMessages();
+
+    // Call LLM WITHOUT tools to force text-only reasoning
+    const reasoningPrompt = `Based on the current context and messages, provide your next step reasoning. What will you do next? Keep it brief (1-2 sentences).`;
+
+    const reasoningMessages = [
+      ...messages.slice(-5), // Include last 5 messages for context
+      { role: 'user', content: reasoningPrompt }
+    ];
+
+    const reasoningResponse = await this.context.llmProvider.chatStreamWithTools(
+      reasoningMessages,
+      [], // NO tools - forces text-only response
+      systemPrompt,
+      (chunk: string) => {
+        this.context.streamEmitter.emitContent(chunk, false);
+        this.context.streamEmitter.forceFlush();
+      }
+    );
+
+    const reasoningText = reasoningResponse.text || '';
+
+    logger.info(`[AgentExecutor] Phase 1 (Reasoning): Generated ${reasoningText.length} chars of reasoning text`);
+
+    // Emit spacing if we got reasoning
+    if (reasoningText) {
+      this.context.streamEmitter.emitContent('\n\n', false);
+    }
+
+    // === PHASE 2: Execute tools with full context ===
     const response = await this.callLLM(messages, tools, systemPrompt);
 
     // Process tool calls or text response
@@ -144,7 +182,7 @@ export class AgentExecutor {
   }
 
   /**
-   * Call LLM with streaming
+   * Call LLM with streaming and performance optimizations
    */
   private async callLLM(messages: any[], tools: any[], systemPrompt: string): Promise<any> {
     logger.info(`[AgentExecutor] ========== CALLING LLM ==========`);
@@ -152,10 +190,25 @@ export class AgentExecutor {
     logger.info(`[AgentExecutor] Tools count: ${tools.length}`);
     logger.info(`[AgentExecutor] System prompt length: ${systemPrompt?.length || 0}`);
 
+    const startTime = performance.now();
+
     // Check if any message has vision
     const hasVision = messages.some((msg: any) =>
       Array.isArray(msg.content) && msg.content.some((item: any) => item.type === 'image_url')
     );
+
+    // Check multi-level cache first (only for non-vision queries)
+    if (!hasVision) {
+      const cache = getMultiLevelCache();
+      const cached = cache.get({ messages, systemPrompt, tools });
+      if (cached) {
+        this.perfMonitor.recordCacheHit();
+        logger.info('[AgentExecutor] Using cached response (multi-level cache hit)');
+        return cached;
+      } else {
+        this.perfMonitor.recordCacheMiss();
+      }
+    }
 
     logger.info(`[AgentExecutor] Has vision in messages: ${hasVision}`);
 
@@ -164,23 +217,58 @@ export class AgentExecutor {
         Array.isArray(msg.content) && msg.content.some((item: any) => item.type === 'image_url')
       );
       logger.info(`[AgentExecutor] Vision message role: ${visionMsg?.role}`);
-      logger.info(`[Vision message]:`, JSON.stringify(visionMsg, null, 2).substring(0, 800));
+      logger.info(`[Vision message]: ${JSON.stringify(visionMsg, null, 2).substring(0, 800)}`);
     }
 
-    let fullContent = '';
-    const stream = this.context.llmProvider.chatStreamWithTools(
-      messages,
-      tools,
-      systemPrompt,
-      (chunk: string) => {
-        fullContent += chunk;
-        this.context.streamEmitter.emitContent(chunk, false);
+    // Use circuit breaker for LLM calls
+    return this.llmCircuitBreaker.execute(
+      async () => {
+        let fullContent = '';
+        let hasEmittedContent = false;
+
+        const stream = this.context.llmProvider.chatStreamWithTools(
+          messages,
+          tools,
+          systemPrompt,
+          (chunk: string) => {
+            // Emit content immediately for real-time display
+            // This ensures tokens appear before tool calls execute
+            if (!hasEmittedContent) {
+              hasEmittedContent = true;
+              logger.info('[AgentExecutor] First token received, emitting immediately');
+            }
+            fullContent += chunk;
+            this.context.streamEmitter.emitContent(chunk, false);
+            // Force flush to ensure immediate delivery
+            this.context.streamEmitter.forceFlush();
+          }
+        );
+
+        const response = await stream;
+        response.text = fullContent;
+
+        // Record performance
+        const duration = performance.now() - startTime;
+        this.perfMonitor.recordLLMCall(duration);
+
+        // Cache successful responses (multi-level cache)
+        if (!hasVision && response) {
+          getMultiLevelCache().set({ messages, systemPrompt, tools }, response);
+        }
+
+        return response;
+      },
+      // Fallback: return cached response or throw
+      () => {
+        const fallbackCache = getMultiLevelCache();
+        const cached = fallbackCache.get({ messages, systemPrompt, tools });
+        if (cached) {
+          logger.warn('[AgentExecutor] Using cached fallback due to circuit breaker');
+          return cached;
+        }
+        throw new Error('LLM service unavailable (circuit breaker open)');
       }
     );
-
-    const response = await stream;
-    response.text = fullContent;
-    return response;
   }
 
   /**
@@ -201,7 +289,13 @@ export class AgentExecutor {
     if (useBatch) {
       await this.executeBatch(tool_calls, formattedToolCalls);
     } else {
-      await this.executeSequential(tool_calls, formattedToolCalls);
+      // Use parallel execution for independent tools when enabled
+      const useParallel = config.enableParallelExecution && tool_calls.length > 1;
+      if (useParallel && this.canExecuteParallel(tool_calls)) {
+        await this.executeParallel(tool_calls, formattedToolCalls);
+      } else {
+        await this.executeSequential(tool_calls, formattedToolCalls);
+      }
     }
 
     // Inject browser vision if needed
@@ -214,11 +308,7 @@ export class AgentExecutor {
    * Format tool calls for conversation
    */
   private formatToolCalls(tool_calls: any[]): any[] {
-    // Use raw tool_calls if available from LLM response
-    if (this.context.llmProvider?.raw?.tool_calls) {
-      return this.context.llmProvider.raw.tool_calls;
-    }
-    // Otherwise format our tool_calls
+    // Format tool_calls for conversation
     return tool_calls.map((tc: any) => ({
       id: tc.id,
       type: 'function',
@@ -267,6 +357,81 @@ export class AgentExecutor {
   }
 
   /**
+   * Check if tools can be executed in parallel
+   * Tools can be parallel if they don't depend on each other and are read-only
+   */
+  private canExecuteParallel(tool_calls: any[]): boolean {
+    // Tools that modify state or should run sequentially
+    const sequentialTools = new Set([
+      'browser_click',
+      'browser_type',
+      'browser_press_key',
+      'browser_drag_and_drop',
+      'browser_select',
+      'browser_upload',
+      'browser_go_back',
+      'browser_go_forward',
+      'browser_refresh',
+      'browser_close_tab',
+      'browser_end'
+    ]);
+
+    // Check if any tool requires sequential execution
+    for (const tc of tool_calls) {
+      if (sequentialTools.has(tc.name)) {
+        return false;
+      }
+    }
+
+    // All tools are read-only and can run in parallel
+    return true;
+  }
+
+  /**
+   * Execute tools in parallel for better performance
+   */
+  private async executeParallel(tool_calls: any[], formattedCalls: any[]): Promise<void> {
+    logger.debug(`[AgentExecutor] Executing ${tool_calls.length} tools in parallel`);
+
+    // Execute all tools in parallel
+    const results = await Promise.all(
+      tool_calls.map(async (tc, index) => {
+        const convTc = formattedCalls[index];
+
+        // Emit step start event
+        this.context.streamEmitter.emitStepStart('executing', tc.name, JSON.stringify(tc.arguments));
+
+        const result = await this.context.toolBus.execute(tc.name, tc.arguments);
+        const output = result.success ? result.output : result.error ?? 'Tool failed';
+
+        // Record action
+        this.context.recordAction(tc.name);
+        this.context.steps.push({
+          phase: 'executing',
+          action: tc.name,
+          detail: JSON.stringify(tc.arguments),
+          observation: output,
+        });
+
+        this.messageHandler.addToolResult(convTc?.id || tc.id, tc.name, output);
+
+        // Emit step complete event
+        this.context.streamEmitter.emitStepComplete('executing', tc.name, output, result.success);
+
+        // Check for browser_end (even though it's sequential, handle it)
+        if (tc.name === 'browser_end') {
+          const summaryMatch = output.match(/Task completed:\s*(.*)/s);
+          this.context.complete(summaryMatch?.[1] || output, true);
+        }
+
+        return { index, result, output };
+      })
+    );
+
+    logger.debug(`[AgentExecutor] Parallel execution completed for ${results.length} tools`);
+  }
+
+  /**
    * Execute tools as batch until page change
    */
   private async executeBatch(tool_calls: any[], formattedCalls: any[]): Promise<void> {
@@ -274,7 +439,7 @@ export class AgentExecutor {
     const batchManager = new BatchExecutionManager(this.context.toolBus);
 
     const batchResult = await batchManager.executeUntilChange(
-      tool_calls.map((tc: any) => ({ name: tc.name, arguments: tc.arguments })),
+      tool_calls.map((tc: any) => ({ id: tc.id, name: tc.name, arguments: tc.arguments })),
       {
         detect: async () => {
           const previousState = getLastPageState();
@@ -295,29 +460,29 @@ export class AgentExecutor {
       const result = batchResult.results[i];
 
       // Emit step start event
-      this.context.streamEmitter.emitStepStart('executing', action.name, JSON.stringify(action.arguments));
+      this.context.streamEmitter.emitStepStart('executing', action.name || '', JSON.stringify(action.arguments || {}));
 
-      this.context.recordAction(action.name);
+      this.context.recordAction(action.name || '');
       this.context.steps.push({
         phase: 'executing',
-        action: action.name,
-        detail: JSON.stringify(action.arguments),
+        action: action.name || '',
+        detail: JSON.stringify(action.arguments || {}),
         observation: result.success ? result.output : result.error,
       });
 
       const resultToolCallId = formattedCalls[i]?.id;
       this.messageHandler.addToolResult(
-        resultToolCallId || action.name,
-        action.name,
-        result.success ? result.output : result.error ?? 'Tool failed'
+        resultToolCallId || action.id || action.name || '',
+        action.name || '',
+        result.success ? (result.output ?? '') : (result.error ?? 'Tool failed')
       );
 
       // Emit step complete event
-      this.context.streamEmitter.emitStepComplete('executing', action.name, result.success ? result.output : result.error, result.success);
+      this.context.streamEmitter.emitStepComplete('executing', action.name || '', result.success ? result.output : result.error, result.success);
 
       // Check for browser_end
       if (action.name === 'browser_end') {
-        const output = result.success ? result.output : result.error || '';
+        const output = (result.success ? result.output : result.error) || '';
         const summaryMatch = output.match(/Task completed:\s*(.*)/s);
         this.context.complete(summaryMatch?.[1] || output, true);
         break;
@@ -364,9 +529,20 @@ export class AgentExecutor {
       { url: this.context.currentUrl, title: this.context.currentTitle }
     );
 
-    // Update current state
-    const state = (await import('../../vision/index.js')).screenshotManager;
-    this.context.currentUrl = state?.url || this.context.currentUrl;
+    // Update current state - try to get current URL from browser controller
+    try {
+      const { getBrowserController } = await import('../../tools/browser-tools.js');
+      const controller = getBrowserController();
+      if (controller) {
+        const session = controller.getSession();
+        const pages = session?.context?.pages();
+        if (pages && pages.length > 0) {
+          this.context.currentUrl = pages[0].url();
+        }
+      }
+    } catch {
+      // Keep existing URL if we can't get it
+    }
 
     logger.info('[AgentExecutor] Vision injection complete');
   }
@@ -381,7 +557,7 @@ export class AgentExecutor {
       if (!controller) return null;
       return await controller.snapshot();
     } catch (error) {
-      logger.warn('[AgentExecutor] Failed to capture page state:', error);
+      logger.warn(`[AgentExecutor] Failed to capture page state: ${String(error)}`);
       return null;
     }
   }

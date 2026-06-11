@@ -80,7 +80,7 @@ export class BrowserRouteHandlers {
         case 'screenshot':
           const shot = await controller.screenshot();
           result = shot ? { success: true, data: shot } : { success: false, error: 'Screenshot failed' };
-          if (shot) this.state.setLatestScreenshot(shot, controller.getSession()?.context?.pages?.[0]?.url() || '');
+          if (shot) this.state.setLatestScreenshot(shot, controller.getSession()?.context?.pages()?.[0]?.url() || '');
           break;
         case 'extract_text':
           const textResult = await controller.extractText();
@@ -150,10 +150,10 @@ export class BrowserRouteHandlers {
       const requestBody = await c.req.json();
       const { commandId, result, error } = requestBody;
 
-      logger.info(`[BrowserAPI] Received execution result for ${commandId}:`, {
+      logger.info('[BrowserAPI] Received execution result for ' + commandId + ': ' + JSON.stringify({
         success: !!result,
         hasError: !!error
-      });
+      }));
 
       // Extract action name from commandId (format: "action:timestamp:random")
       // Use colon as delimiter to avoid conflicts with underscores in action names
@@ -250,25 +250,29 @@ export class BrowserRouteHandlers {
   async handleScreenshotSubmit(c: Context): Promise<Response> {
     try {
       const requestBody = await c.req.json();
-      const { screenshot, url, title } = requestBody;
+      const { screenshot, url, title, snapshot } = requestBody;
 
-      if (!screenshot) {
-        return c.json({ error: 'No screenshot data provided' }, 400);
+      if (screenshot) {
+        logger.info(`[BrowserAPI] Received screenshot from frontend: url=${url}, title=${title || 'none'}, size=${screenshot.length} bytes`);
+
+        // Store screenshot in state service
+        this.state.setLatestScreenshot(screenshot, url);
+
+        logger.info(`[BrowserAPI] Screenshot stored in state service for ${url}`);
       }
 
-      logger.info(`[BrowserAPI] Received screenshot from frontend: url=${url}, title=${title || 'none'}, size=${screenshot.length} bytes`);
+      if (snapshot && snapshot.elements) {
+        logger.info(`[BrowserAPI] Received snapshot from frontend: url=${url}, title=${title || 'none'}, elements=${snapshot.elements.length}`);
 
-      // Store screenshot in state service
-      this.state.setLatestScreenshot(screenshot, url);
+        // Store snapshot with elements in state service
+        this.state.setLatestScreenshot(snapshot, url);
 
-      logger.info(`[BrowserAPI] Screenshot stored in state service for ${url}`);
-
-      // Store screenshot in state service
-      this.state.setLatestScreenshot(screenshot, url);
+        logger.info(`[BrowserAPI] Snapshot with ${snapshot.elements.length} elements stored for ${url}`);
+      }
 
       return c.json({
         success: true,
-        message: 'Screenshot received',
+        message: 'Data received',
         url,
         timestamp: Date.now()
       });
@@ -289,9 +293,14 @@ export class BrowserRouteHandlers {
       return c.json({ error: 'No snapshot available' }, 404);
     }
 
+    const screenshotData = this.state.getScreenshotData();
+
+    // Return snapshot data with elements if available
     return c.json({
       success: true,
-      ...snapshot
+      snapshot: screenshotData,
+      url: this.state.getScreenshotUrl(),
+      timestamp: snapshot.timestamp
     });
   }
 

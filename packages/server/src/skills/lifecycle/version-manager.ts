@@ -5,8 +5,8 @@
 
 import { existsSync, readFileSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { SkillData } from '../../format.js';
-import { SkillDataSchema } from '../../format.js';
+import type { SkillData } from '../format';
+import { SkillDataSchema } from '../format';
 
 /**
  * Version history entry

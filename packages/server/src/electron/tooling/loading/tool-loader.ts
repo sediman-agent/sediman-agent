@@ -4,7 +4,7 @@
  */
 
 import type { BuiltinTool } from '../types.js';
-import type { ToolLifecycle } from '../tool-manager.js';
+import type { ToolLifecycle } from '../tool-manager';
 
 /**
  * Lazy tool descriptor

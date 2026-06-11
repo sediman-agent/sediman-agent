@@ -31,7 +31,13 @@ export async function captureVisionState(
   }
 
   try {
-    return await captureState(browserController, { useVision });
+    const captured = await captureState(browserController, { useVision });
+    return {
+      output: captured.formatted,
+      screenshot: captured.screenshot,
+      url: captured.url,
+      title: captured.title
+    };
   } catch (e) {
     console.error('[VisionHandler] Failed to capture state:', e);
     return { output: '', screenshot: null, url: '', title: '' };

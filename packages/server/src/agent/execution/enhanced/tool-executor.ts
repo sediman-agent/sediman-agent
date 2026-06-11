@@ -5,7 +5,7 @@
 
 import type { ToolBus } from '../../tools/bus';
 import type { ToolCall } from '../../schemas';
-import { createLogger } from '../../core/logging';
+import { createLogger } from '../../../core/logging';
 
 const logger = createLogger('enhanced-loop-tool-executor');
 
@@ -86,7 +86,7 @@ export async function executeToolCall(
       }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      logger.error(`[ToolExecutor] ${name} error (attempt ${attempt + 1}):`, lastError.message);
+      logger.error(`[ToolExecutor] ${name} error (attempt ${attempt + 1}): ${lastError.message}`);
 
       // Don't retry on certain errors
       if (lastError.message.includes('cancelled') || lastError.message.includes('aborted')) {
@@ -162,7 +162,7 @@ export function buildToolResultMessage(
 } {
   return {
     role: 'tool',
-    tool_call_id: toolCall.id,
+    tool_call_id: toolCall.id || `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     content: result.success ? (result.output || '') : (result.error || 'Tool failed'),
     name: toolCall.name
   };

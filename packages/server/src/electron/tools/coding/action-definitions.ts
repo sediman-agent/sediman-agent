@@ -4,10 +4,9 @@
  */
 
 import { z } from 'zod';
-import type { ActionDef } from '../tooling/action-tool.js';
-import { ToolAccesses } from '../tooling/tool-access.js';
-import type { ToolResultBuilder } from '../tooling/result-builder.js';
-import type { AbortSignal } from '../../core/types.js';
+import type { ActionDef } from '../../tooling/action-tool';
+import { ToolAccesses } from '../../tooling/tool-access';
+import type { ToolResultBuilder } from '../../tooling/result-builder';
 
 import { FileOperationsHandler, type FileEditOptions } from './file-operations.js';
 import { SearchOperationsHandler, type SearchOptions } from './search-operations.js';

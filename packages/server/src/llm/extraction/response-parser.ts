@@ -50,7 +50,7 @@ export class ExtractionResponseParser {
   /**
    * Get fallback extraction structure on parse failure
    */
-  private getFallbackExtraction(): PageExtraction {
+  public getFallbackExtraction(): PageExtraction {
     return {
       interactiveElements: [],
       pageTitle: 'Parse Error',

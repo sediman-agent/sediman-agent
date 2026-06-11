@@ -39,34 +39,34 @@ export function classifyTask(task: string, mode?: string): TaskCategory {
   const lowerTask = task.toLowerCase();
 
   // Check for research keywords
-  const researchKeywords = config.researchKeywords || [
+  const researchKeywords = (config as any).researchKeywords || [
     'research', 'investigate', 'analyze', 'study', 'find information about',
     'compare', 'what is', 'how does', 'explain', 'define', 'history of'
   ];
 
   // Check for browser automation keywords
-  const browserKeywords = config.browserKeywords || [
+  const browserKeywords = (config as any).browserKeywords || [
     'browse', 'navigate', 'click', 'fill form', 'submit', 'login', 'sign in',
     'scrape', 'extract', 'screenshot', 'web page', 'website', 'url', 'http'
   ];
 
   // Check for creative keywords
-  const creativeKeywords = config.creativeKeywords || [
+  const creativeKeywords = (config as any).creativeKeywords || [
     'write', 'create', 'design', 'generate', 'compose', 'imagine',
     'brainstorm', 'invent', 'story', 'poem', 'article'
   ];
 
   // Check for simple task keywords
-  const simpleKeywords = config.simpleKeywords || [
+  const simpleKeywords = (config as any).simpleKeywords || [
     'calculate', 'compute', 'convert', 'translate', 'summarize',
     'format', 'fix', 'debug', 'explain briefly'
   ];
 
   // Count matches for each category
-  const researchScore = researchKeywords.filter(kw => lowerTask.includes(kw)).length;
-  const browserScore = browserKeywords.filter(kw => lowerTask.includes(kw)).length;
-  const creativeScore = creativeKeywords.filter(kw => lowerTask.includes(kw)).length;
-  const simpleScore = simpleKeywords.filter(kw => lowerTask.includes(kw)).length;
+  const researchScore = researchKeywords.filter((kw: string) => lowerTask.includes(kw)).length;
+  const browserScore = browserKeywords.filter((kw: string) => lowerTask.includes(kw)).length;
+  const creativeScore = creativeKeywords.filter((kw: string) => lowerTask.includes(kw)).length;
+  const simpleScore = simpleKeywords.filter((kw: string) => lowerTask.includes(kw)).length;
 
   // Determine category based on scores
   if (browserScore >= 2 || (browserScore >= 1 && lowerTask.length > 50)) {

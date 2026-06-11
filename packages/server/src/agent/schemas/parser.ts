@@ -13,6 +13,9 @@ import { createLogger } from '../../core/logging.js';
 
 const logger = createLogger('SchemaParser');
 
+// Re-export ParsedAgentResponse for backward compatibility
+export type { ParsedAgentResponse } from '../execution/response-parser.js';
+
 export interface ParseOptions {
   format?: 'json' | 'xml' | 'markdown' | 'text' | 'auto';
   schema?: any;
@@ -161,8 +164,8 @@ export class SchemaParser {
         }
 
         // Type check
-        if (value !== undefined && propSchema.type) {
-          const propType = propSchema.type;
+        if (value !== undefined && propSchema && typeof propSchema === 'object' && 'type' in propSchema) {
+          const propType = (propSchema as any).type;
           const actualType = Array.isArray(value) ? 'array' : typeof value;
 
           if (propType !== actualType && propType !== 'any') {
@@ -267,6 +270,6 @@ export class SchemaParser {
       return xml;
     };
 
-    return `<?xml version="1.0"?>\n<${rootElement}>\n${toXmlString(data)}${RootElement}>`;
+    return `<?xml version="1.0"?>\n<${rootElement}>\n${toXmlString(data)}</${rootElement}>`;
   }
 }

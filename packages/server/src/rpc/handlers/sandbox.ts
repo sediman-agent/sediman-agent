@@ -38,12 +38,20 @@ export function registerSandboxHandlers(
 
   server.register("sandbox.status", async (params) => {
     const projectId = (params.project_id as string) || "__default__";
-    const instance = deps.projectManager.getProjectInstance(projectId);
-    return {
-      running: instance !== null,
-      mode: deps.sandboxMode,
-      project_id: projectId,
-    };
+    try {
+      const instance = await deps.projectManager.getOrCreateBrowser(projectId);
+      return {
+        running: instance !== null,
+        mode: deps.sandboxMode,
+        project_id: projectId,
+      };
+    } catch {
+      return {
+        running: false,
+        mode: deps.sandboxMode,
+        project_id: projectId,
+      };
+    }
   });
 
   server.register("sandbox.set_mode", async (params) => {

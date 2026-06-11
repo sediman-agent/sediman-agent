@@ -3,9 +3,9 @@
  * Records and tracks skill usage statistics
  */
 
-import type { SkillData } from '../../format.js';
-import { SkillDataSchema } from '../../format.js';
-import type { SkillStorage } from './skill-storage-new.js';
+import type { SkillData } from '../format';
+import { SkillDataSchema } from '../format';
+import type { SkillStorage } from './skill-storage';
 
 /**
  * Usage statistics

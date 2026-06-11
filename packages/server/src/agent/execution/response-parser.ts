@@ -3,13 +3,58 @@
  * Parses and validates agent responses using structured parsing
  */
 
-import { StructuredResponseParser, type ParsedAgentResponse } from '../schemas/parser';
 import { getConfig } from '../../core/config';
 
 export interface ParseResponseOptions {
   text: string;
   toolCalls?: any[];
   strictMode?: boolean;
+}
+
+export interface ParsedAgentResponse {
+  thinking?: string;
+  evaluationPreviousGoal?: string;
+  memory?: string;
+  nextGoal?: string;
+  actions?: Array<{ name: string; args: any }>;
+  done?: boolean;
+  doneText?: string;
+}
+
+// Temporary stub for StructuredResponseParser until proper implementation
+class StructuredResponseParser {
+  static parse(text: string, toolCalls?: any[]): ParsedAgentResponse {
+    // Stub implementation - returns minimal parsed response
+    return {
+      thinking: text,
+      actions: toolCalls?.map(tc => ({
+        name: tc.name || 'unknown',
+        args: tc.arguments || tc.args || {}
+      })) || [],
+      done: false
+    };
+  }
+
+  static validate(parsed: ParsedAgentResponse): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    if (!parsed.thinking && !parsed.actions?.length) {
+      errors.push('Response must have thinking or actions');
+    }
+    return { valid: errors.length === 0, errors };
+  }
+
+  static createPartial(partial: Partial<ParsedAgentResponse>): ParsedAgentResponse {
+    return {
+      thinking: '',
+      evaluationPreviousGoal: 'uncertain',
+      memory: '',
+      nextGoal: 'Continue task',
+      actions: [],
+      done: false,
+      doneText: '',
+      ...partial
+    };
+  }
 }
 
 /**

@@ -3,8 +3,8 @@
  * Handles parsing of LLM responses
  */
 
-import type { LLMResponse, ToolCall } from "../../../core/types.js";
-import logger from "../../../core/logging.js";
+import type { LLMResponse, ToolCall } from "../../core/types";
+import logger from "../../core/logging";
 
 /**
  * Response Parser handles LLM response parsing
@@ -45,7 +45,7 @@ export class ResponseParser {
         } else {
           console.warn('[ResponseParser] Failed to parse tool arguments:', {
             tool_call: tc,
-            error: parseError.message
+            error: parseError instanceof Error ? parseError.message : String(parseError)
           });
         }
       }

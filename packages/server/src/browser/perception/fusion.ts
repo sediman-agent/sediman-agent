@@ -224,4 +224,4 @@ export class VisionDOMFusion {
 export const fusion = new VisionDOMFusion();
 
 // Re-export types
-export type { ScreenshotData, FusionOptions, FusionResult, TokenEstimate };
+export type { ScreenshotData, FusionResult, TokenEstimate };

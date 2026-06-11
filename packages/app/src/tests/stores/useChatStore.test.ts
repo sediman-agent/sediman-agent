@@ -55,13 +55,15 @@ describe('useChatStore', () => {
   describe('Conversation Management', () => {
     it('should create a new conversation', async () => {
       const mockService = {
-        createConversation: jest.fn().mockResolvedValue({
-          id: '123',
-          title: 'New Chat',
-          messages: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
+        createConversation: jest.fn().mockImplementation((title) =>
+          Promise.resolve({
+            id: '123',
+            title: title || 'New Chat',
+            messages: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+        ),
       } as unknown as ConversationService;
 
       const { getConversationService } = await import('@/services/conversationService');
@@ -80,13 +82,15 @@ describe('useChatStore', () => {
 
     it('should create conversation with default title when none provided', async () => {
       const mockService = {
-        createConversation: jest.fn().mockResolvedValue({
-          id: '123',
-          title: 'New Chat',
-          messages: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }),
+        createConversation: jest.fn().mockImplementation((title) =>
+          Promise.resolve({
+            id: '123',
+            title: title || 'New Chat',
+            messages: [],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+        ),
       } as unknown as ConversationService;
 
       const { getConversationService } = await import('@/services/conversationService');
@@ -132,7 +136,7 @@ describe('useChatStore', () => {
 
       // Add a conversation first
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             { id: '1', title: 'Test', messages: [], createdAt: new Date(), updatedAt: new Date() },
           ],
@@ -163,7 +167,7 @@ describe('useChatStore', () => {
 
       // Add a conversation
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             { id: '1', title: 'Old Title', messages: [], createdAt: new Date(), updatedAt: new Date() },
           ],
@@ -196,7 +200,7 @@ describe('useChatStore', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             { id: '1', title: 'Test', messages: [], createdAt: new Date(), updatedAt: new Date() },
           ],
@@ -229,7 +233,7 @@ describe('useChatStore', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             { id: '1', title: 'Test', messages: [], createdAt: new Date(), updatedAt: new Date() },
           ],
@@ -260,7 +264,7 @@ describe('useChatStore', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             {
               id: '1',
@@ -286,7 +290,7 @@ describe('useChatStore', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             {
               id: '1',
@@ -319,7 +323,7 @@ describe('useChatStore', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             {
               id: '1',
@@ -354,7 +358,7 @@ describe('useChatStore', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             {
               id: '1',
@@ -405,7 +409,7 @@ describe('useChatStore', () => {
       };
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             {
               id: '1',
@@ -441,7 +445,7 @@ describe('useChatStore', () => {
       };
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [conversation],
   });
   });
@@ -499,7 +503,7 @@ describe('useChatStore', () => {
       const { result } = renderHook(() => useChatStore());
 
       act(() => {
-        result.current.setState({
+        useChatStore.setState({
           conversations: [
             { id: '1', title: 'Test', messages: [], createdAt: new Date(), updatedAt: new Date() },
           ],

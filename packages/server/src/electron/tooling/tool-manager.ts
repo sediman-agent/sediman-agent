@@ -12,7 +12,7 @@ import type { ToolBus } from '../../agent/tools/bus.js';
 
 // Extracted modules
 import { ToolDIContainer } from './di/index.js';
-import { ToolLoader, type LazyToolDescriptor, type ToolLifecycle } from './loading/index.js';
+import { ToolLoader, type LazyToolDescriptor } from './loading/index.js';
 import { ToolRegistryProxy } from './registry/index.js';
 
 // ============================================================================
@@ -196,5 +196,5 @@ export function resetToolManager(): void {
 }
 
 // Re-export types
-export type { ToolLifecycle, LazyToolDescriptor };
+export type { LazyToolDescriptor };
 export { ToolDIContainer, ToolLoader, ToolRegistryProxy };

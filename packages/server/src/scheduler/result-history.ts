@@ -5,8 +5,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ResultEntry } from './types-new.js';
-import { getConfig } from '../core/config.js';
+import type { ResultEntry } from './types';
+import { getConfig } from '../core/config';
 
 /**
  * Result History Manager

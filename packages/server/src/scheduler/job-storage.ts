@@ -12,7 +12,7 @@ import {
   unlinkSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import type { StoredCronJob } from '../types.js';
+import type { StoredCronJob } from './types';
 
 const JOB_ID_RE = /^[a-f0-9]{1,12}$/;
 

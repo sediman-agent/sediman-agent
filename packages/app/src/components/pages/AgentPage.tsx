@@ -327,7 +327,9 @@ export function AgentPage() {
       conversation: messages.map(m => ({
         role: m.role,
         content: m.content,
-        timestamp: m.timestamp?.toISOString()
+        timestamp: m.timestamp instanceof Date
+          ? m.timestamp.toISOString()
+          : (typeof m.timestamp === 'string' ? m.timestamp : new Date().toISOString())
       }))
     });
 

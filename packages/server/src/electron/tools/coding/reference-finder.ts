@@ -5,8 +5,7 @@
 
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { ToolResultBuilder } from '../../tooling/result-builder.js';
-import type { AbortSignal } from '../../core/types.js';
+import type { ToolResultBuilder } from '../../tooling/result-builder';
 
 /**
  * Reference finder options
