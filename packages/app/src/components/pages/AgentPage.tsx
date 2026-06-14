@@ -11,6 +11,7 @@ import { useSandboxStore } from '@/stores/useSandboxStore';
 import { getChatService } from '@/services/chatService';
 import { FileUploadZone } from '@/elements/form/FileUploadZone';
 import { AgentMessages } from '@/components/agent/AgentMessages';
+import { WelcomeState } from '@/components/agent/WelcomeState';
 import { AgentInput } from '@/components/agent/AgentInput';
 import { FileAttachmentBar } from '@/components/agent/FileAttachmentBar';
 import { useAgentInput } from '@/hooks/agent/useAgentInput';
@@ -420,9 +421,7 @@ export function AgentPage() {
       >
         {/* Welcome Message - Empty State */}
         {!hasMessages && !isStreaming && (
-          <div className="flex flex-col items-center justify-center h-full text-center" style={{ padding: '48px 16px' }}>
-            {/* Empty - no welcome text */}
-          </div>
+          <WelcomeState onSelectPrompt={(prompt) => setInput(prompt)} />
         )}
 
         {/* Messages List - Better Spacing */}

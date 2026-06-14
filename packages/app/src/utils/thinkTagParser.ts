@@ -29,7 +29,29 @@ export interface StreamingThinkUpdate {
   type?: string;
 }
 
-const THINK_TAG_REGEX = /<(?:think|thinking)(?:\s([^>]*?))?\s*([\s\S]*?)<\/(?:think|thinking)>/gi;
+// Think-tag parser.
+//
+// Real LLM output is sloppy: opening tags frequently lack their closing `>`
+// (e.g. `<think reasoning here</think >`) and the closing tag often carries a
+// stray space (`</think >`) or even no `>` at all (`<think ... </think`).
+// To stay useful as a streaming parser we match the well-formed variant and
+// the two common malformed variants the tests cover:
+//
+//   <think>content</think>            well-formed
+//   <think attrs>content</think >     attributes + stray space in close
+//   <think content</think >           missing `>` in open  (very common)
+//   <thinkContent</think              no separators at all
+//
+// The regex has two branches:
+//   branch A (well-formed): `(?:\s+([^<>]*?))?>([\s\S]*?)` — optional attrs,
+//                            a real `>`, then content.
+//   branch B (malformed):   `([\s\S]+?)` — everything after `<think` until the
+//                            close tag (no `>` was emitted).
+//
+// Group 1 = optional attributes, Group 2 = content (branch A),
+// Group 3 = content (branch B).
+const THINK_TAG_REGEX =
+  /<(?:think|thinking)(?:(?:\s+([^<>]*?))?>([\s\S]*?)|([\s\S]+?))<\/(?:think|thinking)\s*>?/gi;
 const THINK_ATTRS_REGEX = /(\w+)=["']([^"']*)["']/g;
 
 // Common implicit reasoning patterns to filter out
@@ -78,12 +100,16 @@ export function parseThinkTags(text: string): ParsedContent {
   THINK_TAG_REGEX.lastIndex = 0;
 
   while ((match = THINK_TAG_REGEX.exec(text)) !== null) {
-    const attrs = parseAttributes(match[1]);
-    // Preserve original formatting exactly as received from the LLM
-    const content = match[2];
+    // Group 1 = attributes (well-formed open: `<think attrs>`)
+    // Group 2 = content from a well-formed open tag
+    // Group 3 = content from a malformed open tag (`<think content` with no `>`)
+    const attrString = match[1];
+    const rawContent = match[2] !== undefined ? match[2] : (match[3] ?? '');
+    const attrs = parseAttributes(attrString);
 
     thinkBlocks.push({
-      content,
+      // Collapse surrounding whitespace introduced by the sloppy tag form.
+      content: rawContent.replace(/^\s+|\s+$/g, ''),
       type: attrs.type || attrs.label || undefined,
       label: attrs.label || attrs.type || undefined,
       confidence: attrs.confidence ? parseFloat(attrs.confidence) : undefined,
@@ -91,7 +117,17 @@ export function parseThinkTags(text: string): ParsedContent {
 
     // Remove the think tag from visible content
     visible = visible.replace(match[0], '');
+
+    // Guard against zero-length matches (could otherwise loop infinitely).
+    if (match[0] === '') {
+      THINK_TAG_REGEX.lastIndex++;
+    }
   }
+
+  // Also strip self-closing tags like `<think />` — they carry no content, so
+  // they don't appear in thinkBlocks, but they must be removed from visible
+  // output and must not set hasThinking.
+  visible = visible.replace(/<(?:think|thinking)\s*\/>/gi, '');
 
   // Clean up extra whitespace
   visible = visible.replace(/\s+/g, ' ').trim();
@@ -118,7 +154,10 @@ export function stripThinkTags(text: string): string {
  */
 export function hasThinkTags(text: string): boolean {
   THINK_TAG_REGEX.lastIndex = 0;
-  return THINK_TAG_REGEX.test(text);
+  if (THINK_TAG_REGEX.test(text)) return true;
+  // Also recognize self-closing (`<think />`) and the malformed open+close
+  // forms that the main regex handles.
+  return /<(?:think|thinking)\b/i.test(text);
 }
 
 /**

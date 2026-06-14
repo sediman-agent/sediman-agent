@@ -138,9 +138,14 @@ export class BrowserToolRouter {
     const result = await this.context.controller.navigate(url);
     storeScreenshot(url);
 
-    // Wait for page to settle and update snapshot
-    await new Promise(r => setTimeout(r, 1000));
-    await updateLatestSnapshot();
+    // The controller now waits for the page to settle (network-idle + DOM
+    // stable) itself, so we only need to refresh the cached snapshot. Skip
+    // the snapshot refresh when navigation failed fast on an invalid URL —
+    // there's nothing new to capture and it avoids a needless network hop.
+    const failed = /^Invalid URL|Failed to navigate|Unsupported URL/.test(result);
+    if (!failed) {
+      await updateLatestSnapshot();
+    }
 
     return result;
   }
@@ -164,7 +169,7 @@ export class BrowserToolRouter {
 
   private async handleSnapshot(args: Record<string, any>): Promise<string> {
     const snap = await this.context.controller.snapshot();
-    const out = snap.output || snap.elements.map(
+    const readable = snap.output || snap.elements.map(
       (el) => `[${el.refId}]<${el.tag}>${el.text ? ' ' + JSON.stringify(el.text.slice(0, 100)) : ''}`
     ).join('\n');
 
@@ -174,7 +179,23 @@ export class BrowserToolRouter {
     const { setLatestScreenshot } = await import('../../../api/routes/browser.js');
     setLatestScreenshot({ elements: snap.elements }, snap.url);
 
-    return `Current URL: ${snap.url}\nTitle: ${snap.title}\n\n${out}\n\n${snap.elements.length} interactive elements total.`;
+    // Return a structured JSON envelope so callers (LLM, API clients, tests)
+    // can parse the snapshot deterministically. The human-readable `output`
+    // is preserved inside the envelope for prompt construction.
+    const envelope = {
+      url: snap.url,
+      title: snap.title,
+      elements: snap.elements,
+      output: readable,
+      stats: snap.stats,
+      scrollPosition: snap.scrollPosition,
+      viewport: snap.viewport,
+      pageSize: snap.pageSize,
+      pagesAbove: snap.pagesAbove,
+      pagesBelow: snap.pagesBelow,
+      summary: `Current URL: ${snap.url} | ${snap.elements.length} interactive elements`,
+    };
+    return JSON.stringify(envelope);
   }
 
   private async handleScroll(args: Record<string, any>): Promise<string> {
@@ -253,7 +274,7 @@ export class BrowserToolRouter {
       const { setLatestScreenshot } = await import('../../../api/routes/browser.js');
       setLatestScreenshot(shot, url);
     }
-    return shot ? `Screenshot captured (${shot.length} bytes)` : 'Screenshot failed';
+    return shot ? `Screenshot taken (${shot.length} bytes)` : 'Screenshot failed';
   }
 
   private async handleDragAndDrop(args: Record<string, any>): Promise<string> {

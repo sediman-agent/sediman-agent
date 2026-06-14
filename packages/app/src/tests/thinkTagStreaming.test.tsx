@@ -14,6 +14,31 @@ jest.mock('@/services/chatService', () => ({
   }),
 }));
 
+// Mock the conversation service used by the chat store so createConversation
+// resolves with a local conversation and the store populates `conversations`.
+jest.mock('@/services/conversationService', () => ({
+  getConversationService: () => ({
+    createConversation: async (title?: string) => ({
+      id: 'conv-think',
+      title: title || 'New Chat',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    getConversation: async (id: string) => ({
+      id,
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }),
+    addMessage: async (convId: string, message: any) => ({ ...message, id: 'msg-think', conversationId: convId }),
+    updateMessage: async () => ({}),
+    listConversations: async () => [],
+    deleteConversation: async () => ({}),
+  }),
+}));
+
 jest.mock('@/elements/form/FileUploadZone', () => ({
   FileUploadZone: () => null,
 }));
