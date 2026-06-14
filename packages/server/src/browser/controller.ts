@@ -6,6 +6,7 @@ import { DISMISS_OVERLAYS_JS } from "./scripts/dismiss-overlays";
 import { SNAPSHOT_JS } from "./scripts/snapshot";
 import { CDPInteractions, createCDPInteractions } from "./cdp/index.js";
 import { createElementResolver } from "./element-resolution/index.js";
+import { waitForStableState, type StableStateOptions } from "./wait-for-stable-state";
 
 // Types
 export interface ElementInfo {
@@ -246,9 +247,40 @@ export class BrowserController {
     this.session = session;
   }
 
+  /**
+   * Wait for the page to reach a quiescent state after a mutating action.
+   *
+   * Mirrors browser-use's "wait for the page to settle" semantics: this
+   * combines DOM-content-loaded, best-effort network-idle, and a DOM
+   * signature poll until mutations stop. Safe to call on any page; never
+   * throws — callers can branch on `result.stable`.
+   */
+  async waitForStableState(opts?: StableStateOptions): Promise<{ waitedMs: number; stable: boolean }> {
+    if (this.isElectronModeNoContext()) {
+      return { waitedMs: 0, stable: true };
+    }
+    try {
+      const result = await waitForStableState(this.page(), opts);
+      return { waitedMs: result.waitedMs, stable: result.stable };
+    } catch {
+      return { waitedMs: 0, stable: false };
+    }
+  }
+
   // Browser actions
   async navigate(url: string): Promise<string> {
     try {
+      // Validate the URL up front. This avoids burning ~6s of retry+sleep on
+      // obviously invalid input (the agent often passes bare strings like
+      // "google.com" or a malformed value) and returns a clean, actionable
+      // error the LLM can recover from on the next step.
+      const normalized = normalizeUrl(url);
+      if (!normalized.ok) {
+        this.emit("navigate", `invalid: ${url}`);
+        return normalized.error;
+      }
+      const targetUrl = normalized.url;
+
       // Check if running in Electron mode with no Playwright context
       const RUNNING_IN_ELECTRON = process.env.SEDIMAN_MODE === 'electron';
       if (RUNNING_IN_ELECTRON && (!this.session.context || this.session.context.pages().length === 0)) {
@@ -256,55 +288,63 @@ export class BrowserController {
 
         // Import HTTP proxy service
         const { navigateToUrl } = await import('./http-proxy-service.js');
-        const result = await navigateToUrl(url);
+        const result = await navigateToUrl(targetUrl);
 
         if (result.success) {
-          this.emit("navigate", url);
+          this.emit("navigate", targetUrl);
           console.log('[BrowserController] HTTP proxy navigation succeeded:', result.title);
           return result.result;
         } else {
           // HTTP proxy failed, emit navigate event for UI to handle
-          this.emit("navigate", url);
+          this.emit("navigate", targetUrl);
           console.log('[BrowserController] HTTP proxy failed, emitting for UI:', result.error);
           return result.result;
         }
       }
 
       const page = this.page();
-      console.log('[BrowserController] Navigating to:', url);
+      console.log('[BrowserController] Navigating to:', targetUrl);
 
       // Try with different strategies
       let result = '';
+      let navigated = false;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          await page.goto(url, {
+          await page.goto(targetUrl, {
             waitUntil: "domcontentloaded",
             timeout: 45000
           });
-          result = `Navigated to ${url}`;
-          this.emit("navigate", url);
+          result = `Navigated to ${targetUrl}`;
+          navigated = true;
+          this.emit("navigate", targetUrl);
           console.log('[BrowserController] Navigation succeeded on attempt', attempt);
           break;
         } catch (gotoError: any) {
           console.log('[BrowserController] Attempt', attempt, 'failed:', gotoError.message);
-          console.log('[BrowserController] Attempt', attempt, 'failed:', gotoError.message);
           if (attempt === 3) {
             // Last attempt failed, try with just load state
             try {
-              await page.goto(url, {
+              await page.goto(targetUrl, {
                 waitUntil: "commit",
                 timeout: 30000
               });
-              result = `Navigated to ${url} (committed)`;
-              this.emit("navigate", url);
+              result = `Navigated to ${targetUrl} (committed)`;
+              navigated = true;
+              this.emit("navigate", targetUrl);
               console.log('[BrowserController] Navigation succeeded with commit');
               break;
             } catch (commitError: any) {
-              result = `Failed to navigate to ${url}: ${commitError.message}`;
+              result = `Failed to navigate to ${targetUrl}: ${commitError.message}`;
             }
           }
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
         }
+      }
+
+      // After successful navigation, wait for the page to settle (network
+      // idle + DOM stable) so the next snapshot reflects the final state.
+      if (navigated) {
+        await this.waitForStableState({ timeoutMs: 5000 });
       }
 
       return result;
@@ -324,9 +364,23 @@ export class BrowserController {
       }
 
       const page = this.page();
-      const el = await this.resolveElement(page, refId);
-      if (!el) return `Element with refId ${refId} not found`;
-      await el.click({ timeout: 5000 });
+      const result = await this.actOnElement(refId, async (el) => {
+        await el.click({
+          timeout: 5000,
+          // browser-use style: wait for the element to be stable & actionable
+          // before dispatching the click. Playwright auto-scrolls into view.
+          force: false,
+          trial: false,
+        });
+      }, page);
+
+      if (!result.ok) {
+        return `Failed to click element ${refId}: ${result.error}`;
+      }
+
+      // Wait for any navigation/DOM churn the click triggered to settle.
+      await this.waitForStableState({ timeoutMs: 4000 });
+
       this.emit("click", `refId=${refId}`);
       return `Clicked element ${refId}`;
     } catch (e: any) {
@@ -343,11 +397,22 @@ export class BrowserController {
       }
 
       const page = this.page();
-      const el = await this.resolveElement(page, refId);
-      if (!el) return `Element with refId ${refId} not found`;
-      await el.fill("");
-      await el.type(text, { delay: 30 });
-      if (submit) await el.press("Enter");
+      const result = await this.actOnElement(refId, async (el) => {
+        // Clear existing value first so the typed text replaces, not appends.
+        await el.fill("");
+        await el.type(text, { delay: 30 });
+        if (submit) await el.press("Enter");
+      }, page);
+
+      if (!result.ok) {
+        return `Failed to type into element ${refId}: ${result.error}`;
+      }
+
+      // Typing that submits a form may trigger navigation.
+      if (submit) {
+        await this.waitForStableState({ timeoutMs: 4000 });
+      }
+
       this.emit("type", `refId=${refId} text=${text.slice(0, 50)}`);
       return `Typed "${text.slice(0, 50)}" into element ${refId}${submit ? " and submitted" : ""}`;
     } catch (e: any) {
@@ -364,9 +429,17 @@ export class BrowserController {
       }
 
       const page = this.page();
-      const el = await this.resolveElement(page, refId);
-      if (!el) return `Element with refId ${refId} not found`;
-      await el.hover({ timeout: 5000 });
+      const result = await this.actOnElement(refId, async (el) => {
+        await el.hover({ timeout: 5000 });
+      }, page);
+
+      if (!result.ok) {
+        return `Failed to hover over element ${refId}: ${result.error}`;
+      }
+
+      // Hover often reveals menus/tooltips via async render.
+      await this.waitForStableState({ timeoutMs: 2000 });
+
       this.emit("hover", `refId=${refId}`);
       return `Hovered over element ${refId}`;
     } catch (e: any) {
@@ -383,9 +456,14 @@ export class BrowserController {
       }
 
       const page = this.page();
-      const el = await this.resolveElement(page, refId);
-      if (!el) return `Element with refId ${refId} not found`;
-      await el.selectOption(value, { timeout: 5000 });
+      const result = await this.actOnElement(refId, async (el) => {
+        await el.selectOption(value, { timeout: 5000 });
+      }, page);
+
+      if (!result.ok) {
+        return `Failed to select in element ${refId}: ${result.error}`;
+      }
+
       this.emit("select", `refId=${refId} value=${value}`);
       return `Selected "${value}" in element ${refId}`;
     } catch (e: any) {
@@ -443,6 +521,7 @@ export class BrowserController {
 
       const page = this.page();
       await page.goBack({ waitUntil: "domcontentloaded", timeout: 15000 });
+      await this.waitForStableState({ timeoutMs: 3000 });
       this.emit("go_back", "");
       return "Navigated back";
     } catch (e: any) {
@@ -460,6 +539,7 @@ export class BrowserController {
 
       const page = this.page();
       await page.goForward({ waitUntil: "domcontentloaded", timeout: 15000 });
+      await this.waitForStableState({ timeoutMs: 3000 });
       this.emit("go_forward", "");
       return "Navigated forward";
     } catch (e: any) {
@@ -477,6 +557,7 @@ export class BrowserController {
 
       const page = this.page();
       await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
+      await this.waitForStableState({ timeoutMs: 3000 });
       this.emit("refresh", "");
       return "Page refreshed";
     } catch (e: any) {
@@ -688,6 +769,71 @@ export class BrowserController {
     return this.elementResolver.resolve(page, refId);
   }
 
+  /**
+   * Resilient element action helper.
+   *
+   * Mirrors browser-use's interaction pattern: resolve the element, scroll it
+   * into view, wait for it to become actionable, perform the action, and if any
+   * of that fails with a recoverable error (element detached/hidden), re-snapshot
+   * the page once and try again. Returning a structured result lets callers
+   * produce a clean error string without try/catch noise.
+   */
+  private async actOnElement(
+    refId: number,
+    action: (el: any) => Promise<void>,
+    page: Page,
+    opts: { retries?: number } = {}
+  ): Promise<{ ok: boolean; error?: string }> {
+    const maxAttempts = (opts.retries ?? 1) + 1;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let el = await this.resolveElement(page, refId);
+      if (!el) {
+        if (attempt < maxAttempts) {
+          // The page may have re-rendered between snapshot and action.
+          await this.waitForStableState({ timeoutMs: 1000 });
+          continue;
+        }
+        return { ok: false, error: `Element with refId ${refId} not found` };
+      }
+
+      try {
+        // Scroll into view so Playwright can interact with it and the agent's
+        // next snapshot will show it on-screen.
+        try {
+          await el.scrollIntoViewIfNeeded({ timeout: 2000 });
+        } catch {
+          // not fatal — element may already be visible or scroll is animated
+        }
+
+        // Wait for the element to be stable & enabled before acting.
+        try {
+          await el.waitForElementState("stable", { timeout: 2000 });
+        } catch {
+          // animated elements never reach "stable"; fall through and try anyway
+        }
+
+        await action(el);
+        return { ok: true };
+      } catch (e: any) {
+        const msg = e?.message || String(e);
+
+        // Non-retryable errors: fail fast.
+        const isPermanent = /not found|Timeout .*exceeded.*(?:refId|selector)|invalid/i.test(msg)
+          && !/detached|stale|not visible|not enabled|not stable/i.test(msg);
+        if (isPermanent || attempt >= maxAttempts) {
+          return { ok: false, error: msg };
+        }
+
+        // Recoverable: element likely detached after a re-render. Re-snapshot
+        // (which re-stamps data-sediman-ref-id) and retry.
+        await this.waitForStableState({ timeoutMs: 1000 });
+      }
+    }
+
+    return { ok: false, error: "Exhausted retries" };
+  }
+
   // === Advanced browser interactions ===
 
   async dragAndDrop(sourceRefId: number, targetRefId: number): Promise<string> {
@@ -765,4 +911,76 @@ export class BrowserController {
       return `Failed to close tab: ${error.message}`;
     }
   }
+}
+
+/**
+ * Normalize and validate a URL for navigation.
+ *
+ * Accepts the common shortcuts an LLM produces ("example.com", "google.com?q=x")
+ * by prepending https://, and rejects obviously invalid input (empty string,
+ * pure whitespace, strings that can't be a URL hostname) with a clean,
+ * actionable error message instead of burning seconds on doomed retries.
+ */
+export function normalizeUrl(input: string): { ok: true; url: string } | { ok: false; error: string } {
+  if (typeof input !== 'string') {
+    return { ok: false, error: 'Invalid URL: expected a string' };
+  }
+
+  const trimmed = input.trim();
+  if (trimmed.length === 0) {
+    return { ok: false, error: 'Invalid URL: empty string. Provide a full URL like "https://example.com".' };
+  }
+
+  // Detect an explicit scheme. We only treat "word:" as a real URL scheme
+  // when it's followed by "//" (e.g. "https://") OR the word is a known
+  // scheme. This avoids misclassifying "localhost:8080" (host:port) as a
+  // "localhost:" scheme.
+  const schemeMatch = trimmed.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):(\/\/)?/);
+  if (schemeMatch) {
+    const scheme = schemeMatch[1].toLowerCase();
+    const hasSlashSlash = !!schemeMatch[2];
+    // Bare "word:" without "//" is only a real scheme if it's a well-known
+    // non-hierarchical scheme. Otherwise it's almost certainly host:port.
+    const isKnownScheme = ['http', 'https', 'ftp', 'ws', 'wss', 'file', 'data', 'javascript', 'mailto', 'tel'].includes(scheme);
+    if (hasSlashSlash || isKnownScheme) {
+      // Explicitly reject dangerous/non-navigable schemes up front. This is a
+      // security boundary: it stops the agent from navigating to javascript:
+      // or data: URLs even if it tries to.
+      if (!['http', 'https'].includes(scheme)) {
+        return {
+          ok: false,
+          error: `Unsupported URL scheme "${scheme}:". Only http and https are supported.`,
+        };
+      }
+    }
+  }
+
+  // Add a scheme if the agent passed a bare hostname. This is the same
+  // convenience browser-use offers: "google.com" → "https://google.com".
+  let withScheme = trimmed;
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(withScheme)) {
+    withScheme = 'https://' + withScheme;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(withScheme);
+  } catch {
+    return { ok: false, error: `Invalid URL: "${trimmed}". Provide a full URL like "https://example.com".` };
+  }
+
+  // Reject schemes the browser can't navigate to (defense in depth — the
+  // scheme check above should have caught these, but URL parsing can normalize
+  // in surprising ways).
+  if (!/^https?:$/.test(parsed.protocol)) {
+    return { ok: false, error: `Unsupported URL scheme "${parsed.protocol}". Only http and https are supported.` };
+  }
+
+  // A valid hostname must contain at least one dot or be localhost.
+  const host = parsed.hostname;
+  if (host !== 'localhost' && !host.includes('.')) {
+    return { ok: false, error: `Invalid hostname "${host}". Provide a full URL like "https://example.com".` };
+  }
+
+  return { ok: true, url: parsed.href };
 }

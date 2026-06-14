@@ -294,7 +294,7 @@ describe('Browser Tools - Error Handling', () => {
     results.forEach(result => {
       expect(result).toBeDefined();
     });
-  });
+  }, 30000); // 5 concurrent navigations each wait for network-idle/DOM-stable;
 
   it('should handle tool execution with missing parameters', async () => {
     const result = await toolBus.execute('browser_navigate', {} as any);
