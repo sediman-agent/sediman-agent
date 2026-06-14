@@ -3,6 +3,7 @@
  * Comprehensive test coverage for AgentInput component
  */
 
+import React, { useState } from 'react';
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -22,6 +23,19 @@ const mockSlashCommands = [
   { id: '1', label: 'New Task', description: 'Create a new task' },
   { id: '2', label: 'Help', description: 'Get help' },
 ] as const;
+
+/**
+ * ControlledInput — a tiny wrapper that mirrors `onChange` back into state.
+ *
+ * AgentInput is a controlled component (`value` + `onChange`). With a plain
+ * jest.fn() as onChange, the `value` prop never updates, so `user.type` can't
+ * accumulate characters (each keystroke resets to the original value). This
+ * helper simulates a real parent component so typing behaves naturally.
+ */
+function ControlledInput(props: React.ComponentProps<typeof AgentInput>) {
+  const [value, setValue] = useState(props.value ?? '');
+  return <AgentInput {...props} value={value} onChange={(v) => { setValue(v); props.onChange?.(v); }} />;
+}
 
 describe('AgentInput Component', () => {
   const defaultProps = {
@@ -89,7 +103,8 @@ describe('AgentInput Component', () => {
     it('should call onChange when user types', async () => {
       const user = userEvent.setup();
       const onChange = jest.fn();
-      render(<AgentInput {...defaultProps} onChange={onChange} />);
+      // Use ControlledInput so the controlled value accumulates as the user types.
+      render(<ControlledInput {...defaultProps} onChange={onChange} />);
 
       const textarea = screen.getByRole('textbox');
       await user.type(textarea, 'Hello');
@@ -112,18 +127,21 @@ describe('AgentInput Component', () => {
 
     it('should handle empty input', async () => {
       const user = userEvent.setup();
-      render(<AgentInput {...defaultProps} value="test" onChange={jest.fn()} />);
+      const onChange = jest.fn();
+      // ControlledInput mirrors onChange into state so clear() works.
+      render(<ControlledInput {...defaultProps} value="test" onChange={onChange} />);
 
       const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
       await user.clear(textarea);
       expect(textarea.value).toBe('');
+      expect(onChange).toHaveBeenCalledWith('');
     });
 
     it('should handle long text input', async () => {
       const user = userEvent.setup();
       const onChange = jest.fn();
       const longText = 'a'.repeat(1500);
-      render(<AgentInput {...defaultProps} onChange={onChange} />);
+      render(<ControlledInput {...defaultProps} onChange={onChange} />);
 
       const textarea = screen.getByRole('textbox');
       await user.type(textarea, longText);
@@ -423,14 +441,20 @@ describe('AgentInput Component', () => {
     it('should increase height when content grows', async () => {
       const user = userEvent.setup();
       const onChange = jest.fn();
-      const { rerender } = render(<AgentInput {...defaultProps} value="" onChange={onChange} />);
+      const { rerender } = render(<ControlledInput {...defaultProps} value="" onChange={onChange} />);
 
       const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
       const initialHeight = textarea.style.height;
 
+      // jsdom does not compute layout, so scrollHeight is always 0 and the
+      // auto-resize logic can't observe growth. Stub scrollHeight to a larger
+      // value to simulate the browser's measured content height.
+      Object.defineProperty(textarea, 'scrollHeight', {
+        configurable: true,
+        value: 80,
+      });
+
       await user.type(textarea, 'a'.repeat(100));
-      onChange('a'.repeat(100));
-      rerender(<AgentInput {...defaultProps} value={'a'.repeat(100)} onChange={onChange} />);
 
       expect(textarea.style.height).not.toBe(initialHeight);
     });
@@ -438,11 +462,16 @@ describe('AgentInput Component', () => {
     it('should cap height at 180px', async () => {
       const user = userEvent.setup();
       const onChange = jest.fn();
-      render(<AgentInput {...defaultProps} onChange={onChange} />);
+      render(<ControlledInput {...defaultProps} onChange={onChange} />);
 
       const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+      // Simulate a very tall content measurement.
+      Object.defineProperty(textarea, 'scrollHeight', {
+        configurable: true,
+        value: 500,
+      });
+
       await user.type(textarea, 'a'.repeat(500));
-      onChange('a'.repeat(500));
 
       await waitFor(() => {
         expect(parseInt(textarea.style.height)).toBeLessThanOrEqual(180);
