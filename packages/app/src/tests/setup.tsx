@@ -50,6 +50,16 @@ if (!global.crypto.randomUUID) {
   global.crypto.randomUUID = jest.fn(() => 'mock-uuid-' + Math.random());
 }
 
+// jsdom does not implement Element.scrollTo / scroll, which several components
+// call during render/effects (e.g. auto-scroll-to-bottom). Define no-op stubs
+// so these code paths don't crash component tests.
+if (typeof Element !== 'undefined' && !Element.prototype.scrollTo) {
+  Element.prototype.scrollTo = function () {} as any;
+}
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = function () {} as any;
+}
+
 // Mock react-markdown and related packages
 jest.mock('react-markdown', () => ({
   __esModule: true,
